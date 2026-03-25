@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Message Center Service — Design Summary</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0f14;--bg2:#13161e;--bg3:#1a1e29;--border:#252a38;--border2:#2f3547;--text:#e2e6f0;--text2:#8b91a8;--text3:#555d75;--coral:#e8613a;--coral-dim:#3a1e14;--teal:#2dd4a0;--teal-dim:#0d2e22;--purple:#8b7cf8;--purple-dim:#1e1a3a;--amber:#f5a623;--amber-dim:#2e2007;--red:#f04a4a;--red-dim:#2e1010;--blue:#4a9eff;--blue-dim:#0d1e3a;--gray-dim:#1a1e2a;--success:#2dd4a0;--success-dim:#0a2018;--danger:#f04a4a;--danger-dim:#2a0e0e}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.6;min-height:100vh}
+.app{display:flex;min-height:100vh}
+.sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.sidebar-header{padding:24px 18px 16px;border-bottom:1px solid var(--border)}
+.sidebar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:3px}
+.sidebar-title{font-size:11px;color:var(--text3);line-height:1.4}
+.sidebar-nav{padding:8px 0;flex:1}
+.ng{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);padding:12px 18px 4px}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 18px;font-size:12px;color:var(--text2);cursor:pointer;border-left:2px solid transparent;transition:all .15s}
+.ni:hover{color:var(--text);background:var(--bg3)}
+.ni.active{color:var(--teal);border-left-color:var(--teal);background:var(--teal-dim)}
+.ns{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:500;flex-shrink:0;background:var(--border2);color:var(--text3);transition:all .15s}
+.ni.active .ns{background:var(--teal);color:#04342c}
+.main{flex:1;padding:44px 48px;max-width:900px}
+.panel{display:none;animation:fi .2s ease}
+.panel.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.sh{margin-bottom:28px}
+.stag{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--teal);margin-bottom:8px}
+.stitle{font-family:'Syne',sans-serif;font-weight:700;font-size:26px;line-height:1.2;color:var(--text);margin-bottom:8px}
+.sdesc{font-size:13.5px;color:var(--text2);line-height:1.7;max-width:580px}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:14px}
+.ct{font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:var(--text);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.ct::before{content:'';display:block;width:3px;height:14px;background:var(--teal);border-radius:2px}
+.tag{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:500}
+.tc{background:var(--coral-dim);color:var(--coral);border:1px solid #5a2a1a}
+.tt{background:var(--teal-dim);color:var(--teal);border:1px solid #1a4a38}
+.tp{background:var(--purple-dim);color:var(--purple);border:1px solid #2a2060}
+.ta{background:var(--amber-dim);color:var(--amber);border:1px solid #4a3010}
+.tg{background:var(--gray-dim);color:var(--text2);border:1px solid var(--border2)}
+.tb{background:var(--blue-dim);color:var(--blue);border:1px solid #142040}
+.tr{background:var(--red-dim);color:var(--red);border:1px solid #4a1414}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.cmp{border:1px solid var(--border);border-radius:10px;overflow:hidden;font-size:12px}
+.crow{display:grid;border-bottom:1px solid var(--border)}
+.crow:last-child{border-bottom:none}
+.c2{grid-template-columns:160px 1fr}
+.c3{grid-template-columns:130px 1fr 1fr}
+.cc{padding:9px 14px;color:var(--text2);line-height:1.5}
+.cc:first-child{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);background:var(--bg3);border-right:1px solid var(--border)}
+.ch .cc{background:var(--bg3);color:var(--text);font-family:'Syne',sans-serif;font-weight:600;font-size:11px}
+.code{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:#0a0c10;border:1px solid var(--border);border-radius:8px;padding:14px 16px;line-height:1.85;color:#c8d0e8;overflow-x:auto;white-space:pre;margin:10px 0}
+.cm{color:var(--text3)}.kw{color:var(--purple)}.str{color:var(--teal)}.num{color:var(--amber)}.fn{color:var(--blue)}
+.dec{display:flex;gap:14px;padding:14px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:10px}
+.dn{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:500;flex-shrink:0}
+.db .title{font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px}
+.db .desc{font-size:12px;color:var(--text2);line-height:1.6}
+.alert{border-radius:8px;padding:11px 15px;font-size:12px;line-height:1.65;margin:10px 0;border-left:3px solid}
+.aa{background:var(--amber-dim);color:var(--amber);border-color:var(--amber)}
+.ad{background:var(--danger-dim);color:#f08080;border-color:var(--danger)}
+.as{background:var(--success-dim);color:var(--success);border-color:var(--success)}
+.ai{background:var(--blue-dim);color:var(--blue);border-color:var(--blue)}
+.qa-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px}
+.qq{padding:11px 16px;background:var(--bg3);font-family:'Syne',sans-serif;font-weight:600;font-size:12.5px;color:var(--text);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.qn{background:var(--teal-dim);color:var(--teal);font-family:'IBM Plex Mono',monospace;font-size:10px;padding:1px 7px;border-radius:3px;border:1px solid #1a4a38}
+.qa-a{padding:11px 16px;font-size:12px;color:var(--text2);line-height:1.65}
+.sb{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center}
+.sv{font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:var(--teal);line-height:1;margin-bottom:4px}
+.sl{font-size:11px;color:var(--text3);line-height:1.4}
+.pill{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11px;font-family:'IBM Plex Mono',monospace}
+.po{background:var(--amber-dim);color:var(--amber);border:1px solid #4a3010}
+.pd{background:var(--success-dim);color:var(--success);border:1px solid #1a4a38}
+.dist{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.do{padding:18px 20px;background:#12100a;border-right:1px solid var(--border)}
+.di{padding:18px 20px;background:#0a110d}
+.db2{font-family:'IBM Plex Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;font-weight:500;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.db2::before{content:'';width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.do .db2{color:var(--amber)}.do .db2::before{background:var(--amber)}
+.di .db2{color:var(--teal)}.di .db2::before{background:var(--teal)}
+.dn2{font-family:'Syne',sans-serif;font-weight:700;font-size:16px;margin-bottom:8px}
+.do .dn2{color:var(--amber)}.di .dn2{color:var(--teal)}
+.dm{font-size:12px;color:var(--text2);line-height:1.7}
+.dp{display:inline-block;padding:2px 8px;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:10px;margin-top:10px}
+.do .dp{background:var(--amber-dim);color:var(--amber);border:1px solid #4a3010}
+.di .dp{background:var(--teal-dim);color:var(--teal);border:1px solid #1a4a38}
+.fnode{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:14px 18px}
+.fl{font-family:'Syne',sans-serif;font-weight:600;font-size:13px;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fd{font-size:12px;color:var(--text2);line-height:1.6}
+.fa{padding:4px 0 4px 20px;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--text3);display:flex;align-items:center;gap:8px}
+.fa::before{content:'';width:1px;height:22px;background:linear-gradient(to bottom,var(--border2),var(--teal));flex-shrink:0}
+.rc{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px}
+.rct{font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px}
+.rck{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber);margin-bottom:8px;line-height:1.7}
+.rcd{font-size:11.5px;color:var(--text2);line-height:1.6}
+@media(max-width:768px){.app{flex-direction:column}.sidebar{width:100%;height:auto;position:relative}.sidebar-nav{display:flex;flex-wrap:wrap;padding:8px}.ng{display:none}.ni{border-left:none;border-bottom:2px solid transparent;padding:7px 10px;font-size:11px}.ni.active{border-bottom-color:var(--teal);border-left:none}.main{padding:24px 16px}.g2,.g3{grid-template-columns:1fr}.dist{grid-template-columns:1fr}.do{border-right:none;border-bottom:1px solid var(--border)}.c3{grid-template-columns:90px 1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">Msg Center</div>
+    <div class="sidebar-title">Design Document<br>Architecture Summary</div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="ng">基礎</div>
+    <a class="ni active" onclick="show('background',this)"><span class="ns">01</span>為什麼要建</a>
+    <a class="ni" onclick="show('overview',this)"><span class="ns">02</span>整體架構</a>
+    <div class="ng">資料層</div>
+    <a class="ni" onclick="show('outbox',this)"><span class="ns">03</span>outbox_msg</a>
+    <a class="ni" onclick="show('inbox',this)"><span class="ns">04</span>member_inbox</a>
+    <div class="ng">服務層</div>
+    <a class="ni" onclick="show('consumer',this)"><span class="ns">05</span>Consumer 邏輯</a>
+    <a class="ni" onclick="show('valkey',this)"><span class="ns">06</span>Valkey 用意</a>
+    <a class="ni" onclick="show('delivery',this)"><span class="ns">07</span>交付到 Client</a>
+    <div class="ng">評估</div>
+    <a class="ni" onclick="show('dbload',this)"><span class="ns">08</span>DB Loading</a>
+    <a class="ni" onclick="show('decisions',this)"><span class="ns">09</span>關鍵決策</a>
+    <a class="ni" onclick="show('review',this)"><span class="ns">10</span>Review &amp; 建議</a>
+  </nav>
+</aside>
+<main class="main">
+
+<!-- 01 BACKGROUND -->
+<section id="background" class="panel active">
+  <div class="sh">
+    <div class="stag">01 / Background</div>
+    <div class="stitle">為什麼要建這個</div>
+    <div class="sdesc">現有系統的問題，以及 Message Center Service 要解決什麼。</div>
+  </div>
+  <div class="card">
+    <div class="ct">現有系統的問題</div>
+    <div class="cmp">
+      <div class="crow c2 ch"><div class="cc">問題</div><div class="cc">細節</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">緊耦合</div><div class="cc">每個 Producer 都要直接寫 OceanBase schema，互相依賴</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">無交付保證</div><div class="cc">GameServer crash 可能造成訊息丟失，無法追蹤</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">polling 浪費</div><div class="cc">多個 service 輪詢 notify_status=0，資料量越大越慢</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">四層鏈路</div><div class="cc">Client → GS → PlatformWeb → PlatformApi，任一斷則全斷</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">無 fan-out</div><div class="cc">加新消費者需改 Producer，outbox table 有欄位但 0 筆資料</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">新系統目標</div>
+    <div class="g2">
+      <div class="dec" style="margin-bottom:0"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">Producer 解耦</div><div class="desc">只寫 outbox_msg，不需要知道下游</div></div></div>
+      <div class="dec" style="margin-bottom:0"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">交付保證</div><div class="desc">Transactional Outbox，訊息不丟失</div></div></div>
+      <div class="dec" style="margin-bottom:0"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">Client 直連</div><div class="desc">繞過 GS，1 跳取代 4 層鏈路</div></div></div>
+      <div class="dec" style="margin-bottom:0"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">即時推送</div><div class="desc">SSE 取代 polling，延遲幾乎即時</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 OVERVIEW -->
+<section id="overview" class="panel">
+  <div class="sh">
+    <div class="stag">02 / Overview</div>
+    <div class="stitle">整體架構</div>
+    <div class="sdesc">從 Producer 到 Game Client 的完整端對端流程。</div>
+  </div>
+  <div class="card">
+    <div class="ct">端對端管線圖</div>
+    <svg width="100%" viewBox="0 0 680 530">
+      <defs><marker id="ov" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <rect x="50" y="30" width="150" height="50" rx="8" style="fill:var(--coral-dim);stroke:var(--coral)" stroke-width="0.5"/>
+      <text x="125" y="51" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--coral)">FRB Service</text>
+      <text x="125" y="69" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#993C1D">scheduler</text>
+      <rect x="265" y="30" width="150" height="50" rx="8" style="fill:var(--coral-dim);stroke:var(--coral)" stroke-width="0.5"/>
+      <text x="340" y="51" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--coral)">GameServer</text>
+      <text x="340" y="69" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#993C1D">evt 2,4,8</text>
+      <rect x="480" y="30" width="150" height="50" rx="8" style="fill:var(--coral-dim);stroke:var(--coral)" stroke-width="0.5"/>
+      <text x="555" y="51" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="12" style="fill:var(--coral)">Future producers</text>
+      <text x="555" y="69" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#993C1D">Phase 2+</text>
+      <line x1="125" y1="80" x2="125" y2="102" stroke="#2f3547" stroke-width="1"/>
+      <line x1="340" y1="80" x2="340" y2="102" stroke="#2f3547" stroke-width="1"/>
+      <line x1="555" y1="80" x2="555" y2="102" stroke="#2f3547" stroke-width="1"/>
+      <line x1="125" y1="102" x2="555" y2="102" stroke="#2f3547" stroke-width="1"/>
+      <line x1="340" y1="102" x2="340" y2="126" stroke="#2dd4a0" stroke-width="1" marker-end="url(#ov)"/>
+      <text x="460" y="98" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">same DB tx</text>
+      <rect x="215" y="126" width="250" height="50" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="147" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">outbox_msg</text>
+      <text x="340" y="165" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">暫存中繼 · 用完即刪</text>
+      <line x1="340" y1="176" x2="340" y2="220" stroke="#2dd4a0" stroke-width="1" marker-end="url(#ov)"/>
+      <text x="358" y="202" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">SKIP LOCKED · 多 Pod 安全</text>
+      <rect x="215" y="220" width="250" height="50" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="241" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">Outbox Worker</text>
+      <text x="340" y="259" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">搬運 + 寫入</text>
+      <line x1="340" y1="270" x2="340" y2="316" stroke="#8b7cf8" stroke-width="1" marker-end="url(#ov)"/>
+      <rect x="165" y="316" width="350" height="50" rx="8" style="fill:#1a1a38;stroke:#6060d8" stroke-width="0.8"/>
+      <text x="340" y="337" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:#9090f0">member_inbox</text>
+      <text x="340" y="355" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#6060b0">永久收件匣 · 玩家的訊息</text>
+      <path d="M 270 366 L 270 390 L 210 390 L 210 420" fill="none" stroke="#8b7cf8" stroke-width="1" marker-end="url(#ov)"/>
+      <path d="M 410 366 L 410 390 L 470 390 L 470 420" fill="none" stroke="#f5a623" stroke-width="1" marker-end="url(#ov)"/>
+      <text x="340" y="386" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">reads / PUBLISH</text>
+      <rect x="90" y="420" width="240" height="50" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="210" y="441" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">MC API</text>
+      <text x="210" y="459" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">REST + SSE endpoint</text>
+      <rect x="350" y="420" width="240" height="50" rx="8" style="fill:var(--amber-dim);stroke:var(--amber)" stroke-width="0.5"/>
+      <text x="470" y="441" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--amber)">Valkey</text>
+      <text x="470" y="459" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#854F0B">PUBLISH → SSE bridge</text>
+      <line x1="210" y1="470" x2="210" y2="492" stroke="#2f3547" stroke-width="1"/>
+      <line x1="470" y1="470" x2="470" y2="492" stroke="#2f3547" stroke-width="1"/>
+      <line x1="210" y1="492" x2="470" y2="492" stroke="#2f3547" stroke-width="1"/>
+      <text x="340" y="510" text-anchor="middle" font-family="'DM Sans',sans-serif" font-size="11" style="fill:var(--text2)">Game Client (SSE + Polling)</text>
+    </svg>
+  </div>
+  <div class="g3">
+    <div class="sb"><div class="sv">~2K</div><div class="sl">訊息/天<br>設計規模</div></div>
+    <div class="sb"><div class="sv">$0</div><div class="sl">Kafka 增量成本<br>shared cluster</div></div>
+    <div class="sb"><div class="sv">1-hop</div><div class="sl">Client → MC API<br>舊系統需 4 層</div></div>
+  </div>
+</section>
+
+<!-- 03 OUTBOX -->
+<section id="outbox" class="panel">
+  <div class="sh">
+    <div class="stag">03 / Data Layer — Temporary</div>
+    <div class="stitle">outbox_msg</div>
+    <div class="sdesc">訊息的暫存中繼站，不是玩家的收件匣。用完即刪，平常幾乎是空的。</div>
+  </div>
+  <div class="card">
+    <div class="ct">兩張 table 的根本差異</div>
+    <div class="dist">
+      <div class="do">
+        <div class="db2">outbox_msg — 暫存</div>
+        <div class="dn2">中繼站</div>
+        <div class="dm">搬運訊息到 Worker 的橋樑<br>幾秒鐘，produce 後立刻刪<br>Producer 寫入，Worker 讀取<br>平常幾乎是空的<br>無狀態欄位</div>
+        <div class="dp">用完即刪</div>
+      </div>
+      <div class="di">
+        <div class="db2">member_inbox — 永久</div>
+        <div class="dn2">收件匣</div>
+        <div class="dm">玩家真正的收件匣<br>幾天到幾週，玩家操作後才消失<br>Worker 寫，MC API 讀<br>持續累積，需定期清理<br>0=unread / 1=read / 2=archived</div>
+        <div class="dp">永久住所</div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">table 結構</div>
+    <div class="code"><span class="kw">CREATE TABLE</span> outbox_msg (
+  id              <span class="num">BIGINT</span>        <span class="cm">-- Snowflake ID，全域唯一，作為 dedup 錨點</span>
+  topic           <span class="num">VARCHAR(128)</span>  <span class="cm">-- 'msg-center.campaign-notify'</span>
+  partition_key   <span class="num">VARCHAR(128)</span>  <span class="cm">-- 'member:&lt;member_id&gt;'</span>
+  source_table    <span class="num">VARCHAR(128)</span>  <span class="cm">-- 'free_round_bonus_ticket'</span>
+  operation_type  <span class="num">VARCHAR(16)</span>   <span class="cm">-- 'INSERT'</span>
+  before_data     <span class="num">JSON</span>          <span class="cm">-- INSERT 時與 after_data 相同</span>
+  after_data      <span class="num">JSON</span>          <span class="cm">-- 完整訊息 payload</span>
+  created_at      <span class="num">DATETIME(3)</span>   <span class="cm">-- UTC_TIMESTAMP()</span>
+);</div>
+  </div>
+  <div class="card">
+    <div class="ct">多 Pod Relay — SELECT FOR UPDATE SKIP LOCKED</div>
+    <div class="alert as" style="margin-bottom:12px">同事確認：文件 Section 9.8 已有此設計，多個 Relay Pod 可以安全並行，不需要 leader election。</div>
+    <div class="code"><span class="cm">-- Relay 的 poll query（支援多 Pod 安全並行）</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> outbox_msg
+<span class="kw">WHERE</span> id > :checkpoint
+<span class="kw">ORDER BY</span> id
+<span class="kw">LIMIT</span> 100
+<span class="kw">FOR UPDATE SKIP LOCKED</span>  <span class="cm">← 每個 Pod 搶不同的 row，互不衝突</span>
+
+<span class="cm">-- 成功 produce 後 DELETE，失敗保留等下次</span>
+<span class="cm">-- delete-after-publish 本身保證不遺漏</span>
+<span class="cm">-- idempotency check 保證不重複</span></div>
+  </div>
+  <div class="card">
+    <div class="ct">id 是整條 pipeline 的 dedup 錨點</div>
+    <div class="code">outbox_msg.id <span class="cm">（Snowflake）</span>
+  ↓ <span class="str">Kafka message key</span>           → 防止重複 produce
+  ↓ <span class="str">Valkey SET NX EX 24h</span>         → Consumer 快速 dedup
+  ↓ <span class="str">member_inbox.source_ref</span>      → DB 唯一約束（最強保證）</div>
+  </div>
+</section>
+
+<!-- 04 MEMBER_INBOX -->
+<section id="inbox" class="panel">
+  <div class="sh">
+    <div class="stag">04 / Data Layer — Permanent</div>
+    <div class="stitle">member_inbox</div>
+    <div class="sdesc">玩家真正的收件匣，整個系統的資料核心。訊息住在這裡，跟 Client 是否在線完全無關。</div>
+  </div>
+  <div class="card">
+    <div class="ct">訊息生命週期</div>
+    <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-bottom:14px">
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--teal-dim);color:var(--teal);border:1px solid #1a4a38">status=0 unread</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--blue-dim);color:var(--blue);border:1px solid #142040">status=1 read</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--gray-dim);color:var(--text2);border:1px solid var(--border2)">status=2 archived</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid #4a1414">expired / deleted</div>
+    </div>
+    <div class="code"><span class="kw">INSERT IGNORE INTO</span> member_inbox (..., status=<span class="num">0</span>, source_ref=outbox_id)
+<span class="cm">-- UNIQUE KEY uk_source_ref 保證冪等，重複跑完全安全</span>
+
+<span class="kw">UPDATE</span> member_inbox <span class="kw">SET</span> status=<span class="num">1</span>, read_at=<span class="fn">NOW</span>() <span class="kw">WHERE</span> id=?
+<span class="kw">UPDATE</span> member_inbox <span class="kw">SET</span> status=<span class="num">1</span> <span class="kw">WHERE</span> member_id=? <span class="kw">AND</span> status=<span class="num">0</span>
+<span class="kw">DELETE FROM</span> member_inbox <span class="kw">WHERE</span> id=?
+<span class="kw">DELETE FROM</span> member_inbox <span class="kw">WHERE</span> expired_at &lt; <span class="fn">NOW</span>() <span class="cm">-- cleanup job</span></div>
+  </div>
+  <div class="card">
+    <div class="ct">table schema</div>
+    <div class="code"><span class="kw">CREATE TABLE</span> member_inbox (
+  id          <span class="num">BIGINT</span>       NOT NULL
+  operator_id <span class="num">VARCHAR(36)</span>  NOT NULL
+  member_id   <span class="num">VARCHAR(36)</span>  NOT NULL
+  event_type  <span class="num">TINYINT</span>      NOT NULL  <span class="cm">-- 1=FRB, 2=win, 4=system, 8=promo</span>
+  title       <span class="num">VARCHAR(255)</span> NOT NULL
+  body        <span class="num">JSON</span>         NOT NULL
+  status      <span class="num">TINYINT</span>      DEFAULT 0 <span class="cm">-- 0=unread, 1=read, 2=archived</span>
+  source_ref  <span class="num">BIGINT</span>       NULL,
+  expired_at  <span class="num">TIMESTAMP</span>    NULL,
+  created_at  <span class="num">DATETIME(3)</span>  NOT NULL,
+  read_at     <span class="num">TIMESTAMP</span>    NULL,
+  PRIMARY KEY (id, member_id),
+  UNIQUE KEY uk_source_ref (source_ref),          <span class="cm">-- 強保證冪等</span>
+  KEY idx_member_status (member_id, status),      <span class="cm">-- count query 用</span>
+  KEY idx_member_created (member_id, created_at), <span class="cm">-- 列表排序用</span>
+  KEY idx_expired (expired_at)                    <span class="cm">-- cleanup job 用</span>
+) PARTITION BY KEY(member_id) PARTITIONS 64;</div>
+  </div>
+  <div class="card">
+    <div class="ct">斷線重連時 member_inbox 的角色</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">Client 斷線期間，Outbox Worker 繼續正常寫入 member_inbox，完全不受 SSE 連線狀態影響。重連後只需補一次 polling，所有訊息都在 DB 裡等著。</div>
+    <div class="code"><span class="cm">-- 斷線期間</span>
+Worker 持續 INSERT member_inbox (status=0)
+Client 的 SSE 斷了，但 DB 繼續累積
+
+<span class="cm">-- 重連後</span>
+Step 1: 重建 SSE 連線
+Step 2: GET /inbox/count → 回傳 N（斷線期間累積的未讀數）
+Step 3: GET /inbox?cursor=last_id → 拿回所有未讀訊息
+        <span class="cm">↑ cursor-based 分頁，訊息量大時不怕</span></div>
+  </div>
+  <div class="card">
+    <div class="ct">三條互動路徑</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div class="fnode"><div class="fl"><span class="tag tt">路徑 A：寫入</span> Outbox Worker → member_inbox</div><div class="fd">INSERT IGNORE（uk_source_ref 保證冪等）→ PUBLISH Valkey → DELETE outbox_msg</div></div>
+      <div class="fa">write path</div>
+      <div class="fnode"><div class="fl"><span class="tag tb">路徑 B：即時推送</span> member_inbox → SSE → Client</div><div class="fd">Valkey PUBLISH → MC API SUBSCRIBE → SSE 推訊號 → Client GET /inbox 拿資料</div></div>
+      <div class="fa">read path</div>
+      <div class="fnode"><div class="fl"><span class="tag tp">路徑 C：玩家操作</span> Client → REST → member_inbox</div><div class="fd">點開 → PUT /read (status=1)｜全部已讀 → PUT /read-all｜刪除 → DEL /inbox/{id}</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 05 CONSUMER -->
+<section id="consumer" class="panel">
+  <div class="sh">
+    <div class="stag">05 / Service Layer</div>
+    <div class="stitle">Consumer 邏輯</div>
+    <div class="sdesc">從 Kafka 拿到訊息後的完整決策流：dedup、正常處理、retry、DLQ 四條出路。</div>
+  </div>
+  <div class="card">
+    <div class="ct">Consumer 是誰</div>
+    <div class="g2">
+      <div class="rc"><div class="rct">角色</div><div class="rck">message-center-consumer</div><div class="rcd">獨立部署的背景服務（K8s Pod），唯一職責是從 Kafka 搬訊息到 member_inbox。</div></div>
+      <div class="rc"><div class="rct">規模</div><div class="rck">目前：1 Consumer Group，2~3 Pods</div><div class="rcd">~2K 訊息/天，2~3 個 Pod 已充裕。加 audit 等新 group 時新開 group 即可。</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">決策流程圖</div>
+    <svg width="100%" viewBox="0 0 680 540">
+      <defs><marker id="cs" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <rect x="240" y="30" width="200" height="44" rx="8" style="fill:var(--gray-dim);stroke:#2f3547" stroke-width="0.5"/>
+      <text x="340" y="52" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--text)">Receive from Kafka</text>
+      <line x1="340" y1="74" x2="340" y2="130" stroke="#2f3547" stroke-width="1" marker-end="url(#cs)"/>
+      <rect x="240" y="130" width="200" height="52" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="152" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">Dedup check</text>
+      <text x="340" y="171" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">Valkey SET NX EX 24h</text>
+      <line x1="240" y1="156" x2="210" y2="156" stroke="#555d75" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="225" y="148" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">dup</text>
+      <rect x="15" y="130" width="195" height="52" rx="8" style="fill:var(--gray-dim);stroke:#2f3547" stroke-width="0.5"/>
+      <text x="112" y="152" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--text2)">Commit + Skip</text>
+      <text x="112" y="171" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:var(--text3)">advance offset</text>
+      <line x1="340" y1="182" x2="340" y2="255" stroke="#2dd4a0" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="358" y="223" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">new</text>
+      <rect x="240" y="255" width="200" height="52" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="277" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">Process event</text>
+      <text x="340" y="296" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">INSERT IGNORE member_inbox</text>
+      <line x1="440" y1="281" x2="460" y2="281" stroke="#f5a623" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="450" y="273" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">fail</text>
+      <rect x="460" y="255" width="185" height="52" rx="8" style="fill:var(--amber-dim);stroke:var(--amber)" stroke-width="0.5"/>
+      <text x="552" y="277" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--amber)">Retry check</text>
+      <text x="552" y="296" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#854F0B">Valkey counter</text>
+      <line x1="340" y1="307" x2="340" y2="380" stroke="#2dd4a0" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="358" y="348" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">success</text>
+      <rect x="240" y="380" width="200" height="44" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="398" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">Commit offset</text>
+      <text x="340" y="414" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">ACK · advance offset</text>
+      <line x1="552" y1="307" x2="552" y2="380" stroke="#f5a623" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="570" y="348" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">&lt; max</text>
+      <rect x="460" y="380" width="185" height="44" rx="8" style="fill:var(--gray-dim);stroke:#2f3547" stroke-width="0.5"/>
+      <text x="552" y="398" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--text2)">No commit</text>
+      <text x="552" y="414" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:var(--text3)">auto-redelivered</text>
+      <path d="M 460 281 L 440 281 L 440 470 L 120 470 L 120 480" fill="none" stroke="#f04a4a" stroke-width="1" marker-end="url(#cs)"/>
+      <text x="300" y="465" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">&gt;= max → DLQ</text>
+      <rect x="15" y="480" width="210" height="50" rx="8" style="fill:var(--red-dim);stroke:var(--red)" stroke-width="0.5"/>
+      <text x="120" y="501" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--red)">Publish to DLQ</text>
+      <text x="120" y="519" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#A32D2D">msg-center-events-dlq</text>
+    </svg>
+  </div>
+  <div class="alert aa">
+    <strong>Kafka vs SQS DLQ：</strong>SQS DLQ 是內建功能，設 JSON config 即完成。Kafka DLQ 需自實作 retry counter（Valkey）+ publish to DLQ topic + 精確控制 commit 時機。若採用 Review 頁的簡化建議，此複雜度可消除。
+  </div>
+</section>
+
+<!-- 06 VALKEY -->
+<section id="valkey" class="panel">
+  <div class="sh">
+    <div class="stag">06 / Service Layer</div>
+    <div class="stitle">Valkey 用意</div>
+    <div class="sdesc">速度層，不是主角。拿掉它系統還能跑，但會變慢或變複雜。</div>
+  </div>
+  <div class="card">
+    <div class="ct">三個具體角色</div>
+    <div class="g3">
+      <div class="rc"><div class="rct">① Dedup 快取</div><div class="rck">msg-center:idempotent:{outbox_id}<br>SET NX EX 86400</div><div class="rcd">Consumer 處理前先查，防止重複寫入 member_inbox。比打 DB 快一個數量級（微秒 vs 毫秒）。</div></div>
+      <div class="rc"><div class="rct">② SSE 橋接</div><div class="rck">message:inbox:{member_id}<br>PUBLISH / SUBSCRIBE</div><div class="rcd">Consumer 和 MC API 解耦。Consumer 只管 PUBLISH，API SUBSCRIBE 後立刻推 SSE。</div></div>
+      <div class="rc"><div class="rct">③ Relay Checkpoint</div><div class="rck">msg-center:relay:checkpoint<br>GET / SET</div><div class="rcd">記錄上次 produce 的最後 outbox_id。同事確認：delete-after-publish + SKIP LOCKED 本身已夠，此 key 可考慮移除。</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">AWS Valkey Serverless 限制</div>
+    <div class="code"><span class="cm">-- 禁止 SCAN、KEYS frb:* 等 pattern 指令</span>
+<span class="cm">-- 所有 key 均為 exact key lookup</span>
+
+msg-center:relay:checkpoint           <span class="str">GET / SET</span>
+msg-center:consumer:{id}:heartbeat    <span class="str">SET EX 30</span>
+msg-center:idempotent:{outbox_id}     <span class="str">SET NX EX 86400</span>
+message:inbox:{member_id}             <span class="str">PUBLISH / SUBSCRIBE</span></div>
+  </div>
+  <div class="card">
+    <div class="ct">三層定位</div>
+    <div class="g3">
+      <div class="sb"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:6px">OceanBase</div><div style="font-size:11px;color:var(--text2);line-height:1.6">永久儲存<br>業務資料<br>不能丟</div></div>
+      <div class="sb"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--purple);margin-bottom:6px">Kafka</div><div style="font-size:11px;color:var(--text2);line-height:1.6">訊息傳輸<br>保證交付<br>fan-out</div></div>
+      <div class="sb" style="border-color:#4a3010;background:var(--amber-dim)"><div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--amber);margin-bottom:6px">Valkey</div><div style="font-size:11px;color:var(--amber);opacity:.7;line-height:1.6">速度層<br>dedup / SSE<br>checkpoint</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 07 DELIVERY -->
+<section id="delivery" class="panel">
+  <div class="sh">
+    <div class="stag">07 / Service Layer</div>
+    <div class="stitle">交付到 Game Client</div>
+    <div class="sdesc">MC API 是唯一入口。SSE 負責即時通知，REST 負責實際資料存取與互動。兩者缺一不可。</div>
+  </div>
+  <div class="card">
+    <div class="ct">Polling 的完整定位（同事補充）</div>
+    <div class="alert as" style="margin-top:0">同事指出：Polling 不只是 SSE 的備援，它還有一個更基礎的職責——<strong>Game Client 第一次連線時拿到所有歷史訊息</strong>。SSE 只能推「連上線之後」的增量，連線前累積的訊息只有 polling 能拿到。</div>
+    <div class="cmp">
+      <div class="crow c2 ch"><div class="cc"></div><div class="cc">職責</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--blue)">SSE</div><div class="cc">連線後的即時增量推送（新訊息信號）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--teal)">Polling</div><div class="cc">① 初始載入所有歷史訊息<br>② SSE 斷線後補漏<br>③ 備援安全網（30 秒）</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">交付流程圖</div>
+    <svg width="100%" viewBox="0 0 680 340">
+      <defs><marker id="dv" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <text x="165" y="24" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">polling path</text>
+      <text x="515" y="24" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">SSE path</text>
+      <rect x="50" y="34" width="230" height="50" rx="8" style="fill:#1a1a38;stroke:#6060d8" stroke-width="0.8"/>
+      <text x="165" y="55" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:#9090f0">member_inbox</text>
+      <text x="165" y="73" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#6060b0">永久收件匣 (OceanBase)</text>
+      <rect x="400" y="34" width="230" height="50" rx="8" style="fill:var(--amber-dim);stroke:var(--amber)" stroke-width="0.5"/>
+      <text x="515" y="55" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--amber)">Valkey Pub/Sub</text>
+      <text x="515" y="73" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#854F0B">Consumer PUBLISH</text>
+      <path d="M 165 84 L 165 158 L 305 158 L 305 188" fill="none" stroke="#8b7cf8" stroke-width="1" marker-end="url(#dv)"/>
+      <path d="M 515 84 L 515 158 L 375 158 L 375 188" fill="none" stroke="#f5a623" stroke-width="1" marker-end="url(#dv)"/>
+      <text x="340" y="154" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">reads / subscribes</text>
+      <rect x="190" y="188" width="300" height="50" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="340" y="209" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">Message Center API</text>
+      <text x="340" y="227" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">REST + SSE endpoint</text>
+      <line x1="308" y1="238" x2="308" y2="286" stroke="#4a9eff" stroke-width="1.5" marker-end="url(#dv)"/>
+      <line x1="372" y1="238" x2="372" y2="286" stroke="#555d75" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#dv)"/>
+      <text x="288" y="265" text-anchor="end" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:#4a9eff">SSE push</text>
+      <text x="392" y="265" text-anchor="start" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">polling</text>
+      <rect x="190" y="286" width="300" height="50" rx="8" style="fill:var(--blue-dim);stroke:var(--blue)" stroke-width="0.5"/>
+      <text x="340" y="307" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--blue)">Game Client (Cocos)</text>
+      <text x="340" y="325" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#185FA5">SSE (real-time) + Polling (initial load + fallback)</text>
+    </svg>
+  </div>
+  <div class="card">
+    <div class="ct">REST API 端點 + Cursor 分頁（同事補充）</div>
+    <div class="code"><span class="kw">GET</span>  <span class="str">/api/v1/inbox/count</span>?member_id={mid}&status=0
+     → 未讀數（badge）
+
+<span class="kw">GET</span>  <span class="str">/api/v1/inbox</span>?member_id={mid}&status=0&cursor={id}&limit=20
+     → 訊息列表（cursor-based 分頁，訊息量大時穩定）
+     → cursor = member_inbox.id，首次不帶 cursor 拿最新
+     → 回傳 next_cursor 供下頁使用
+
+<span class="kw">PUT</span>  <span class="str">/api/v1/inbox/{id}/read</span>       → 標記已讀
+<span class="kw">PUT</span>  <span class="str">/api/v1/inbox/read-all</span>        → 全部已讀
+<span class="kw">DEL</span>  <span class="str">/api/v1/inbox/{id}</span>            → 刪除</div>
+    <div class="alert ai" style="margin-top:10px">Cursor-based 分頁比 offset 分頁更穩定：offset 在資料新增時會有「跳過」或「重複」的問題，cursor 用 member_inbox.id 做定位，不受新資料影響。</div>
+  </div>
+  <div class="card">
+    <div class="ct">舊系統 vs 新系統</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc"></div><div class="cc">舊系統</div><div class="cc">新系統</div></div>
+      <div class="crow c3"><div class="cc">路徑</div><div class="cc" style="color:var(--danger)">Client → GS → PlatformWeb → PlatformApi</div><div class="cc" style="color:var(--success)">Client → MC API（直連）</div></div>
+      <div class="crow c3"><div class="cc">跳數</div><div class="cc" style="color:var(--danger)">4 層，任一斷則全斷</div><div class="cc" style="color:var(--success)">1 跳</div></div>
+      <div class="crow c3"><div class="cc">Auth</div><div class="cc">依賴 GS session</div><div class="cc" style="color:var(--success)">MC API 獨立驗 JWT</div></div>
+      <div class="crow c3"><div class="cc">即時性</div><div class="cc" style="color:var(--danger)">無，靠 polling flag</div><div class="cc" style="color:var(--success)">SSE 即時 + polling 備援</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 08 DB LOAD -->
+<section id="dbload" class="panel">
+  <div class="sh">
+    <div class="stag">08 / Evaluation</div>
+    <div class="stitle">DB Loading 分析</div>
+    <div class="sdesc">新系統對 OceanBase 的 loading 整體是淨減少。</div>
+  </div>
+  <div class="card">
+    <div class="ct">各 table loading 明細</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">Table</div><div class="cc">操作</div><div class="cc">評估</div></div>
+      <div class="crow c3"><div class="cc">outbox_msg</div><div class="cc">Relay poll（SKIP LOCKED）</div><div class="cc" style="color:var(--success)">極低。用完即刪，table 幾乎空，多 Pod 也安全</div></div>
+      <div class="crow c3"><div class="cc">member_inbox 寫</div><div class="cc">Worker INSERT IGNORE</div><div class="cc" style="color:var(--success)">低。不阻塞 Producer，~2K 則/天</div></div>
+      <div class="crow c3"><div class="cc">member_inbox 讀</div><div class="cc">GET /inbox/count（index）</div><div class="cc" style="color:var(--amber)">~3,300 QPS（100K 玩家），全走 idx_member_status</div></div>
+      <div class="crow c3"><div class="cc">member_inbox 讀</div><div class="cc">GET /inbox（count 變才發）</div><div class="cc" style="color:var(--success)">低。Client 快取，大部分時間只做 count check</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">舊 vs 新</div>
+    <div class="g2">
+      <div style="background:var(--danger-dim);border:1px solid #4a1414;border-radius:8px;padding:14px"><div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--danger);margin-bottom:8px">舊系統問題</div><div style="font-size:12px;color:#f08080;line-height:1.7">多個 service 競爭 poll 同一張大表<br>table 持續堆積歷史記錄<br>UPDATE status 產生寫鎖<br>成本隨資料量線性成長</div></div>
+      <div style="background:var(--success-dim);border:1px solid #1a4a38;border-radius:8px;padding:14px"><div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--success);margin-bottom:8px">新系統改善</div><div style="font-size:12px;color:var(--success);line-height:1.7">只有 Relay 一個地方 poll outbox_msg<br>用完即刪，table 恆定為小<br>其他 service 不碰 DB polling<br>Loading 不隨時間成長</div></div>
+    </div>
+  </div>
+  <div class="alert ai">SSE 的隱藏紅利：SSE 連線存在時，3,300 QPS 的 count query 會進一步下降，只有 SSE 斷線的 Client 才需要 polling。</div>
+</section>
+
+<!-- 09 DECISIONS -->
+<section id="decisions" class="panel">
+  <div class="sh">
+    <div class="stag">09 / Evaluation</div>
+    <div class="stitle">關鍵決策</div>
+    <div class="sdesc">SNS+SQS 改成 Kafka 的理由，以及 7 個 Open Items。</div>
+  </div>
+  <div class="card">
+    <div class="ct">為什麼從 SNS+SQS 換成 Kafka？</div>
+    <div class="alert aa" style="margin-bottom:12px">Q&A 確認生產環境已有 shared Kafka cluster，team 有 ops 知識與監控，加一個 topic 增量成本 = $0。</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc"></div><div class="cc">SNS+SQS（舊版）</div><div class="cc">Kafka（新版）</div></div>
+      <div class="crow c3"><div class="cc">成本</div><div class="cc">~$0.01/月（但需建全新 infra）</div><div class="cc" style="color:var(--success)">$0（cluster 已存在）</div></div>
+      <div class="crow c3"><div class="cc">DLQ</div><div class="cc" style="color:var(--success)">SQS 內建，設 JSON 即完成</div><div class="cc" style="color:var(--amber)">需自實作 retry + publish</div></div>
+      <div class="crow c3"><div class="cc">Replay</div><div class="cc">SQS Redrive（有限）</div><div class="cc" style="color:var(--success)">Reset offset，完整 replay</div></div>
+      <div class="crow c3"><div class="cc">Ops</div><div class="cc" style="color:var(--amber)">全新服務，需建 IAM/CloudWatch</div><div class="cc" style="color:var(--success)">沿用現有監控</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="ct">7 個 Open Items</div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#1</span>outbox vs outbox_msg 共用問題<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">DAL 也在用 outbox table 做 CDC 替換。兩個 relay 是否會互搶需與 DAL 團隊協調。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#2</span>idempotency_record 是否可棄用<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">Eric 確認已移到 Valkey。OceanBase 上的舊 table 是否正式廢除需確認。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#3</span>Auth token 路徑 ✓ 決議：JWT<span class="pill pd" style="margin-left:auto">Resolved</span></div><div class="qa-a">MC API 獨立驗證 JWT，不依賴 GS。Path A 架構成立，Open Item 關閉。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#4</span>DAL relay 能否兼任 Kafka producer<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">若 DAL 可以直接 produce 到 Kafka，可省去獨立的 Outbox Relay 服務。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#5</span>建 Kafka topics + consumer groups<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">需建立 msg-center-events、msg-center-events-dlq，以及對應的 consumer groups。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#6</span>Token.cs 安全性（HMAC / JWT）<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">現有 binary token 無加密簽名。公開 API 需評估加 HMAC 或遷移至 signed JWT。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#7</span>PlatformWeb postMessage 模式<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">Cocos 透過 postMessage(GET_PROMO_VALUE) 取得 auth context。inbox widget 是否繞過 PlatformWeb 需決定。</div></div>
+  </div>
+</section>
+
+<!-- 10 REVIEW -->
+<section id="review" class="panel">
+  <div class="sh">
+    <div class="stag">10 / Review &amp; Recommendations</div>
+    <div class="stitle">Review &amp; 建議</div>
+    <div class="sdesc">以 24/7 系統穩定性與最小元素設計角度的全面評估，包含同事 Alex_Ran-RDDV 的回饋更正。</div>
+  </div>
+
+  <!-- 優點 -->
+  <div class="card">
+    <div class="ct">優點</div>
+    <div class="dec"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">可靠性設計扎實</div><div class="desc">Transactional Outbox 確保訊息不丟，每個環節都有持久化或重試機制，沒有 fire-and-forget 的地方。</div></div></div>
+    <div class="dec"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">真正的解耦</div><div class="desc">Producer 只知道 DB，Consumer 只知道 Kafka，MC API 只知道 DB 和 Valkey。任何一段改動不影響其他段。</div></div></div>
+    <div class="dec"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">Fan-out 架構預留得好</div><div class="desc">加新 Consumer Group 零成本，不需要改 Producer，未來擴展路徑清晰。</div></div></div>
+    <div class="dec"><div class="dn" style="background:var(--teal-dim);color:var(--teal)">✓</div><div class="db"><div class="title">Client 直連 MC API</div><div class="desc">從 4 層鏈路壓成 1 跳，可靠性提升最明顯的一個決策。</div></div></div>
+  </div>
+
+  <!-- 需要改善 + 同事更正 -->
+  <div class="card">
+    <div class="ct">需要改善的點（含同事回饋更正）</div>
+
+    <div class="dec">
+      <div class="dn" style="background:var(--success-dim);color:var(--success)">①</div>
+      <div class="db">
+        <div class="title">Relay SPOF — <span style="color:var(--success);font-size:11px">同事更正：不是 SPOF</span></div>
+        <div class="desc">
+          原本擔心單一 Pod 掛掉會造成 outbox 累積。<br>
+          <strong style="color:var(--text)">同事確認（Section 9.8）：</strong>Relay 使用 <code style="font-family:'IBM Plex Mono',monospace;color:var(--amber);font-size:11px">SELECT ... FOR UPDATE SKIP LOCKED</code>，多個 Pod 可安全並行，每個 Pod 搶不同的 row，不需要 leader election，不是 SPOF。
+        </div>
+      </div>
+    </div>
+
+    <div class="dec">
+      <div class="dn" style="background:var(--success-dim);color:var(--success)">②</div>
+      <div class="db">
+        <div class="title">Valkey Checkpoint 脆弱 — <span style="color:var(--success);font-size:11px">同事更正：可直接移除</span></div>
+        <div class="desc">
+          原本擔心 Valkey 重啟後 checkpoint 消失，Relay 可能重複 produce。<br>
+          <strong style="color:var(--text)">同事確認：</strong>delete-after-publish 本身已解決問題——已成功 produce 的 row 已刪掉，Relay 重啟後從 outbox_msg 剩餘 row 繼續，自然不重複不遺漏。Checkpoint key 可以直接移除，減少一個 Valkey 依賴。
+        </div>
+      </div>
+    </div>
+
+    <div class="dec">
+      <div class="dn" style="background:var(--amber-dim);color:var(--amber)">③</div>
+      <div class="db">
+        <div class="title">Application-level DLQ 複雜度</div>
+        <div class="desc">Kafka DLQ 需自實作 retry counter（Valkey）+ publish to DLQ topic + 精確控制 commit 時機。任何實作細節出錯輕則重複、重則 pipeline 卡住。採用下方 Outbox Worker 簡化方案後可消除。</div>
+      </div>
+    </div>
+
+    <div class="dec">
+      <div class="dn" style="background:var(--amber-dim);color:var(--amber)">④</div>
+      <div class="db">
+        <div class="title">SSE 連線管理</div>
+        <div class="desc">Pod 重啟或 scale down 時所有 SSE 連線直接斷掉。需 Client 退避重連 + Sticky Session 配合，詳見建議 ⑤⑥。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 建議 ③ 複雜度 -->
+  <div class="card">
+    <div class="ct">建議 ③ — Phase 1 合併成單一 Outbox Worker</div>
+    <div class="g2" style="margin-bottom:12px">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text2);margin-bottom:8px">目前架構（7 個環節）</div>
+        <div class="code" style="margin:0;font-size:11px">outbox_msg
+  → Relay → Kafka
+  → Consumer Group
+  → member_inbox</div>
+      </div>
+      <div style="background:var(--teal-dim);border:1px solid #1a4a38;border-radius:8px;padding:14px">
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--teal);margin-bottom:8px">Phase 1 建議（合併）</div>
+        <div class="code" style="margin:0;font-size:11px">outbox_msg
+  → Outbox Worker
+  → member_inbox
+  + PUBLISH Valkey</div>
+      </div>
+    </div>
+    <div class="alert ai" style="margin:0">何時引入 Kafka？當出現第二個真實的 Consumer Group 需求（audit、push notification）時再接上，架構天然支援，不需要改 Producer。</div>
+  </div>
+
+  <!-- Polling 定位補充 -->
+  <div class="card">
+    <div class="ct">Polling 完整定位補充（同事回饋）</div>
+    <div class="alert as" style="margin-top:0;margin-bottom:12px">
+      Polling 不只是 SSE 備援，它還有一個更基礎的職責：<strong>Game Client 第一次連線時取得所有歷史訊息</strong>。SSE 只能推「連上線之後」的增量，連線前累積的訊息只有 polling 能拿到。
+    </div>
+    <div class="cmp">
+      <div class="crow c2 ch"><div class="cc"></div><div class="cc">職責</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--blue)">SSE</div><div class="cc">連線後的即時增量推送（新訊息信號）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--teal)">Polling</div><div class="cc">① 初始載入所有歷史訊息（最基礎職責）<br>② SSE 斷線後補漏<br>③ 備援安全網（30 秒）</div></div>
+    </div>
+  </div>
+
+  <!-- Cursor 分頁補充 -->
+  <div class="card">
+    <div class="ct">Cursor-based 分頁補充（同事回饋）</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">利用 <code style="font-family:'IBM Plex Mono',monospace;color:var(--amber);font-size:11px">member_inbox.id</code> 做 cursor 分頁，訊息量大時也能穩定運作。Offset 分頁在資料持續新增時會有跳過或重複的問題，cursor 不受影響。</div>
+    <div class="code" style="font-size:11px"><span class="cm">-- 首次請求（不帶 cursor，拿最新 20 筆）</span>
+<span class="kw">GET</span> /inbox?member_id={mid}&status=0&limit=20
+
+<span class="cm">-- 翻頁（帶 cursor = 上次最後一筆的 id）</span>
+<span class="kw">GET</span> /inbox?member_id={mid}&status=0&cursor={id}&limit=20
+
+<span class="cm">-- 對應 SQL</span>
+<span class="kw">SELECT</span> * <span class="kw">FROM</span> member_inbox
+<span class="kw">WHERE</span> member_id=? <span class="kw">AND</span> status=0 <span class="kw">AND</span> id &lt; :cursor
+<span class="kw">ORDER BY</span> id <span class="kw">DESC LIMIT</span> 20</div>
+  </div>
+
+  <!-- SSE 重連 -->
+  <div class="card">
+    <div class="ct">建議 ⑤ — SSE 重連策略</div>
+    <div class="g2">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:8px">Server 側</div>
+        <div class="code" style="font-size:11px"><span class="cm">-- 每則 event 帶 id</span>
+id: {outbox_id}
+event: inbox
+data: {"count": 3}
+<span class="cm">-- 每 30 秒 heartbeat</span>
+: ping</div>
+      </div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:8px">Client 側（退避重連）</div>
+        <div class="code" style="font-size:11px"><span class="cm">// 斷線退避重連</span>
+第 1 次 → 3s
+第 2 次 → 6s
+第 3 次 → 12s
+上限    → 60s
+<span class="cm">// 重連後補一次 polling</span>
+GET /inbox/count</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sticky Session -->
+  <div class="card">
+    <div class="ct">建議 ⑥ — Sticky Session</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">多 Pod 時若沒有 Sticky Session，Client 重連可能換 Pod，Valkey SUBSCRIBE 數量 = Pod 數 × Client 數，PUBLISH 時所有 Pod 都收到但只有一個有 SSE 連線可推，造成浪費。</div>
+    <div class="code" style="font-size:11px"><span class="cm"># K8s Nginx Ingress — Cookie-based affinity</span>
+nginx.ingress.kubernetes.io/affinity: <span class="str">"cookie"</span>
+nginx.ingress.kubernetes.io/session-cookie-name: <span class="str">"MC_API_SESSION"</span>
+nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</span></div>
+  </div>
+
+  <!-- 決議總表 -->
+  <div class="card">
+    <div class="ct">決議總表（含同事回饋更正）</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">#</div><div class="cc">問題</div><div class="cc">決議</div></div>
+      <div class="crow c3"><div class="cc">①</div><div class="cc">Relay SPOF</div><div class="cc" style="color:var(--success)">SKIP LOCKED 已支援多 Pod 安全並行，不是 SPOF（同事更正）</div></div>
+      <div class="crow c3"><div class="cc">②</div><div class="cc">Valkey Checkpoint</div><div class="cc" style="color:var(--success)">直接移除，delete-after-publish + SKIP LOCKED 已足夠（同事更正）</div></div>
+      <div class="crow c3"><div class="cc">③</div><div class="cc">複雜度過高</div><div class="cc" style="color:var(--teal)">Phase 1 合併成 Outbox Worker，有第二個 group 需求再引入 Kafka</div></div>
+      <div class="crow c3"><div class="cc">④</div><div class="cc">Auth token</div><div class="cc" style="color:var(--teal)">JWT，MC API 獨立驗證，Open Item #3 關閉</div></div>
+      <div class="crow c3"><div class="cc">⑤</div><div class="cc">SSE 重連</div><div class="cc" style="color:var(--teal)">Server: id + heartbeat；Client: 3→6→12→60s 退避，重連補 polling</div></div>
+      <div class="crow c3"><div class="cc">⑥</div><div class="cc">Sticky Session</div><div class="cc" style="color:var(--teal)">Cookie-based affinity，減少 Valkey SUBSCRIBE 浪費</div></div>
+      <div class="crow c3"><div class="cc">Polling</div><div class="cc">定位補充</div><div class="cc" style="color:var(--success)">初始載入 + SSE 備援 + 斷線補漏，不只是備援（同事補充）</div></div>
+      <div class="crow c3"><div class="cc">分頁</div><div class="cc">GET /inbox 分頁</div><div class="cc" style="color:var(--success)">加 cursor-based 分頁（member_inbox.id），訊息量大時穩定（同事補充）</div></div>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+<script>
+function show(id,el){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  el.classList.add('active');
+}
+</script>
+</body>
+</html>

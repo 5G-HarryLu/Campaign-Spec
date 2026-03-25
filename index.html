@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampaignServer — Technical Specs</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+    background:#0d1117;color:#e6edf3;min-height:100vh;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    padding:40px 20px;
+  }
+
+  .header{text-align:center;margin-bottom:48px}
+  .header h1{font-size:36px;font-weight:700;margin-bottom:8px}
+  .header .sub{font-size:15px;color:#8b949e}
+  .header .badge{
+    display:inline-block;font-size:11px;font-weight:700;letter-spacing:1.5px;
+    text-transform:uppercase;color:#f97316;background:rgba(249,115,22,.12);
+    padding:4px 12px;border-radius:6px;margin-bottom:16px;
+  }
+
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+    gap:24px;max-width:900px;width:100%;
+  }
+
+  .card{
+    background:#161b22;border:1.5px solid #30363d;border-radius:16px;
+    padding:32px;transition:all .2s;cursor:pointer;position:relative;
+    text-decoration:none;color:inherit;display:block;overflow:hidden;
+  }
+  .card:hover{border-color:#484f58;transform:translateY(-4px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+
+  .card .icon{
+    width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:28px;margin-bottom:20px;
+  }
+  .card .title{font-size:20px;font-weight:700;margin-bottom:8px}
+  .card .desc{font-size:13px;color:#8b949e;line-height:1.6;margin-bottom:16px}
+
+  .card .tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tag{
+    font-size:10px;font-weight:600;letter-spacing:.5px;padding:3px 10px;
+    border-radius:5px;
+  }
+
+  .card-mc .icon{background:#0d1a30;color:#60a5fa}
+  .card-mc:hover{border-color:#1e3a5f}
+  .card-mc .tag{background:#0d1a30;color:#60a5fa}
+
+  .card-tour .icon{background:#2d0d20;color:#f472b6}
+  .card-tour:hover{border-color:#7c1555}
+  .card-tour .tag{background:#2d0d20;color:#f472b6}
+
+  .status{
+    display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
+    margin-bottom:20px;
+  }
+  .status .dot{width:8px;height:8px;border-radius:50%}
+  .dot-live{background:#4ade80}
+  .dot-wip{background:#facc15}
+
+  .arrow{
+    position:absolute;right:24px;top:50%;transform:translateY(-50%);
+    font-size:24px;color:#30363d;transition:all .2s;
+  }
+  .card:hover .arrow{color:#8b949e;right:20px}
+
+  .footer{
+    margin-top:48px;text-align:center;font-size:12px;color:#484f58;
+  }
+  .footer a{color:#8b949e}
+
+  @media(max-width:500px){
+    .grid{grid-template-columns:1fr}
+    .header h1{font-size:24px}
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="badge">CampaignServer Team</div>
+  <h1>Technical Specifications</h1>
+  <div class="sub">選擇一個系統查看完整架構文件</div>
+</div>
+
+<div class="grid">
+
+  <a href="./message-center/" class="card card-mc">
+    <div class="icon">📨</div>
+    <div class="status"><span class="dot dot-live"></span>Production</div>
+    <div class="title">Message Center</div>
+    <div class="desc">
+      端對端訊息管線架構 — 從 Producer 到 Game Client 的完整流程。
+      涵蓋 Outbox Pattern、Member Inbox、SSE Bridge、Valkey Pub/Sub。
+    </div>
+    <div class="tags">
+      <span class="tag">Outbox</span>
+      <span class="tag">Valkey</span>
+      <span class="tag">SSE</span>
+      <span class="tag">REST API</span>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+
+  <a href="./tournament/" class="card card-tour">
+    <div class="icon">🏆</div>
+    <div class="status"><span class="dot dot-wip"></span>In Development</div>
+    <div class="title">Tournament System</div>
+    <div class="desc">
+      賽事系統架構 — Unified Aggregator + Strategy Pattern。
+      涵蓋 Score Calculation、Leaderboard、Reward Distribution。
+    </div>
+    <div class="tags">
+      <span class="tag">Kafka CDC</span>
+      <span class="tag">Redis Sorted Set</span>
+      <span class="tag">Strategy Pattern</span>
+      <span class="tag">Prize Pool</span>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+
+</div>
+
+<div class="footer">
+  CampaignServer Team · Updated 2026-03-25 · <a href="https://github.com" target="_blank">GitHub</a>
+</div>
+
+</body>
+</html>

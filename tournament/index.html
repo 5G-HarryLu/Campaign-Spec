@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tournament System — Technical Spec</title>
+<style>
+/* ══════════════════════════════════════════════
+   RESET & BASE
+   ══════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0d1117;--surface:#161b22;--border:#30363d;--border-hi:#484f58;
+  --text:#e6edf3;--text2:#c9d1d9;--text3:#8b949e;
+  --green:#4ade80;--green-bg:#0d2818;--green-bd:#1a5c30;
+  --red:#f87171;--red-bg:#3d1c1c;--red-bd:#8b3a3a;
+  --orange:#fb923c;--orange-bg:#2d1a08;--orange-bd:#7c4a15;
+  --blue:#60a5fa;--blue-bg:#0d1a30;--blue-bd:#1e3a5f;
+  --purple:#c084fc;--purple-bg:#1e1030;--purple-bd:#4c2882;
+  --pink:#f472b6;--pink-bg:#2d0d20;--pink-bd:#7c1555;
+  --teal:#2dd4bf;--teal-bg:#0a2525;--teal-bd:#155e5e;
+  --yellow:#facc15;--yellow-bg:#2d2508;--yellow-bd:#7c6a15;
+  --accent:#f97316;
+}
+html{scroll-behavior:smooth}
+body{font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);line-height:1.6}
+a{color:var(--blue);text-decoration:none}
+code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
+
+/* ══════════════════════════════════════════════
+   LAYOUT: Sidebar + Content
+   ══════════════════════════════════════════════ */
+.app{display:flex;min-height:100vh}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:260px;min-width:260px;background:var(--surface);border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;padding:24px 0;
+  display:flex;flex-direction:column;
+}
+.sidebar-logo{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.sidebar-logo h2{font-size:15px;font-weight:700;color:var(--accent)}
+.sidebar-logo .sub{font-size:11px;color:var(--text3);margin-top:2px}
+
+.nav-group{margin-bottom:8px}
+.nav-group-title{
+  font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
+  color:var(--text3);padding:8px 20px 4px;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:8px 20px;cursor:pointer;
+  font-size:13px;color:var(--text3);border-left:3px solid transparent;
+  transition:all .15s;
+}
+.nav-item:hover{background:rgba(255,255,255,.04);color:var(--text2)}
+.nav-item.active{color:var(--text);background:rgba(255,255,255,.06);border-left-color:var(--accent);font-weight:600}
+.nav-item .num{
+  font-size:10px;font-weight:700;width:20px;height:20px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--border);color:var(--text3);flex-shrink:0;
+}
+.nav-item.active .num{background:var(--accent);color:#000}
+
+.sidebar-footer{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border);font-size:11px;color:var(--text3)}
+
+/* ── Main content ── */
+.main{flex:1;min-width:0;padding:40px 48px 80px}
+
+/* ── Tab pages ── */
+.tab-page{display:none}
+.tab-page.active{display:block}
+
+/* ══════════════════════════════════════════════
+   COMPONENTS
+   ══════════════════════════════════════════════ */
+
+/* Section headers */
+.sec-label{font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.sec-title{font-size:28px;font-weight:700;margin-bottom:4px}
+.sec-sub{font-size:14px;color:var(--text3);margin-bottom:32px}
+
+/* Cards */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:24px}
+.card-title{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:700;margin-bottom:16px}
+.card-title .bar{width:4px;height:18px;border-radius:2px;background:var(--accent)}
+
+/* Box */
+.box{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;border-radius:12px;padding:14px 22px;font-size:14px;font-weight:600;text-align:center;position:relative;min-width:140px;line-height:1.4}
+.box .sub{font-size:11px;font-weight:400;opacity:.65;margin-top:2px}
+.box-red{background:var(--red-bg);border:1.5px solid var(--red-bd);color:var(--red)}
+.box-green{background:var(--green-bg);border:1.5px solid var(--green-bd);color:var(--green)}
+.box-blue{background:var(--blue-bg);border:1.5px solid var(--blue-bd);color:var(--blue)}
+.box-purple{background:var(--purple-bg);border:1.5px solid var(--purple-bd);color:var(--purple)}
+.box-orange{background:var(--orange-bg);border:1.5px solid var(--orange-bd);color:var(--orange)}
+.box-teal{background:var(--teal-bg);border:1.5px solid var(--teal-bd);color:var(--teal)}
+.box-yellow{background:var(--yellow-bg);border:1.5px solid var(--yellow-bd);color:var(--yellow)}
+.box-pink{background:var(--pink-bg);border:1.5px solid var(--pink-bd);color:var(--pink)}
+.box-gray{background:#1c1c1c;border:1.5px dashed #555;color:#9ca3af}
+
+/* Layout helpers */
+.row{display:flex;align-items:flex-start;justify-content:center;gap:24px;flex-wrap:wrap}
+.col{display:flex;flex-direction:column;align-items:center;gap:16px}
+.split-row{display:flex;gap:32px;justify-content:center;align-items:flex-start;flex-wrap:wrap}
+.split-col{flex:1;min-width:280px;max-width:480px;display:flex;flex-direction:column;align-items:center}
+
+/* Arrows */
+.arrow-down{display:flex;flex-direction:column;align-items:center;margin:10px 0}
+.arrow-down .line{width:2px;height:22px;background:var(--border)}
+.arrow-down .head{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--border)}
+.arrow-down .label{font-size:11px;color:var(--text3);margin:3px 0;white-space:nowrap}
+.arrow-down.green .line{background:var(--green)}.arrow-down.green .head{border-top-color:var(--green)}
+.arrow-down.orange .line{background:var(--orange)}.arrow-down.orange .head{border-top-color:var(--orange)}
+.arrow-down.pink .line{background:var(--pink)}.arrow-down.pink .head{border-top-color:var(--pink)}
+.arrow-down.yellow .line{background:var(--yellow)}.arrow-down.yellow .head{border-top-color:var(--yellow)}
+
+/* Tags */
+.tag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;padding:2px 8px;border-radius:4px;margin-left:4px;vertical-align:middle}
+.tag-kafka{background:#1a3a20;color:var(--green)}
+.tag-reuse{background:var(--teal-bg);color:var(--teal)}
+.tag-new{background:var(--pink-bg);color:var(--pink)}
+.tag-mod{background:var(--yellow-bg);color:var(--yellow)}
+
+/* Detail lists */
+.detail{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:8px;width:100%}
+.detail .item{display:flex;align-items:center;gap:8px;font-size:12px;padding:4px 0;color:var(--text2)}
+.detail .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.dot-green{background:var(--green)}.dot-orange{background:var(--orange)}.dot-blue{background:var(--blue)}.dot-purple{background:var(--purple)}.dot-pink{background:var(--pink)}.dot-yellow{background:var(--yellow)}
+
+/* Group box */
+.group-box{border:1.5px dashed var(--border);border-radius:14px;padding:24px 20px 20px;position:relative;margin:8px 0}
+.group-box .glabel{position:absolute;top:-11px;left:20px;background:var(--surface);padding:0 10px;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase}
+.new-badge{position:absolute;top:-8px;right:-8px;background:var(--pink);color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+.mod-badge{position:absolute;top:-8px;right:-8px;background:var(--yellow);color:#000;font-size:9px;font-weight:700;padding:2px 6px;border-radius:4px}
+
+/* Annotation */
+.note{font-size:11px;color:var(--text3);background:var(--bg);border:1px dashed var(--border);border-radius:6px;padding:6px 12px;margin:4px 0;text-align:center;max-width:280px}
+
+/* Tables */
+.spec-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.spec-table th{text-align:left;padding:10px 14px;background:var(--bg);color:var(--text3);font-weight:600;font-size:11px;letter-spacing:.5px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+.spec-table td{padding:10px 14px;border-bottom:1px solid var(--border);color:var(--text2);vertical-align:top}
+.spec-table tr:last-child td{border-bottom:none}
+.spec-table .hi{color:var(--pink);font-weight:600}
+
+/* Code blocks */
+.code-block{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin:12px 0;overflow-x:auto}
+.code-block pre{font-size:12px;line-height:1.7;color:var(--text2)}
+.code-block .lang{font-size:10px;color:var(--text3);margin-bottom:8px;font-weight:600;letter-spacing:1px}
+
+/* Inline code */
+.ic{background:rgba(255,255,255,.08);padding:2px 6px;border-radius:4px;font-size:12px;color:var(--orange)}
+
+/* Legend */
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text3)}
+.legend-swatch{width:12px;height:12px;border-radius:3px}
+
+/* Divider */
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:40px 0}
+
+/* Callout */
+.callout{border-left:4px solid var(--accent);background:rgba(249,115,22,.06);padding:16px 20px;border-radius:0 10px 10px 0;margin:16px 0;font-size:13px;color:var(--text2)}
+.callout b{color:var(--accent)}
+
+/* Progress bar */
+.progress-wrap{display:flex;align-items:center;gap:12px;margin:8px 0}
+.progress-bar{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px}
+.progress-label{font-size:12px;color:var(--text3);min-width:36px;text-align:right}
+
+/* Phase timeline */
+.phase{display:flex;gap:16px;margin:12px 0;align-items:flex-start}
+.phase-num{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;flex-shrink:0}
+.phase-body{flex:1}
+.phase-title{font-weight:700;font-size:14px;margin-bottom:4px}
+.phase-items{font-size:12px;color:var(--text3);line-height:1.8}
+
+/* Responsive */
+@media(max-width:900px){
+  .sidebar{display:none}
+  .main{padding:20px 16px 60px}
+  .split-row{flex-direction:column;align-items:center}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══════════════════════════════════════════════
+     SIDEBAR NAVIGATION
+     ══════════════════════════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h2>🏆 Tournament Spec</h2>
+    <div class="sub">Technical Architecture v1.0</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">概覽</div>
+    <div class="nav-item active" data-tab="overview"><span class="num">1</span>系統總覽</div>
+    <div class="nav-item" data-tab="architecture"><span class="num">2</span>架構流程圖</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">基礎設施</div>
+    <div class="nav-item" data-tab="monorepo"><span class="num">3</span>Monorepo 策略</div>
+    <div class="nav-item" data-tab="reuse"><span class="num">4</span>複用基礎設施</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">核心服務</div>
+    <div class="nav-item" data-tab="scoring"><span class="num">5</span>計分引擎</div>
+    <div class="nav-item" data-tab="leaderboard"><span class="num">6</span>排行榜</div>
+    <div class="nav-item" data-tab="reward"><span class="num">7</span>獎勵發放</div>
+  </div>
+
+  <div class="nav-group">
+    <div class="nav-group-title">執行計畫</div>
+    <div class="nav-item" data-tab="roadmap"><span class="num">8</span>開發路線圖</div>
+    <div class="nav-item" data-tab="reference"><span class="num">9</span>參考索引</div>
+  </div>
+
+  <div class="sidebar-footer">
+    CampaignServer Team<br>
+    Updated: 2026-03-25
+  </div>
+</aside>
+
+<!-- ══════════════════════════════════════════════
+     MAIN CONTENT
+     ══════════════════════════════════════════════ -->
+<div class="main">
+
+<!-- ─────────────────────────────────────────────
+     TAB 1: OVERVIEW
+     ───────────────────────────────────────────── -->
+<div class="tab-page active" id="overview">
+  <div class="sec-label">01 / Overview</div>
+  <h1 class="sec-title">Tournament 系統總覽</h1>
+  <p class="sec-sub">基於 Tournament_General_Requirements_0.0.1.pdf 與 FRB 專案分析<br>負責範圍：Service 2 (Score Calculation)、Service 3 (Leaderboard)、Service 4 (Reward Distribution)</p>
+
+  <div class="callout">
+    <b>What is Tournament?</b> — 一種促銷活動，玩家在指定時間內參與遊戲並累積分數，依排行榜名次獲得獎勵。
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>需要的 6 大 Service</div>
+    <table class="spec-table">
+      <tr><th>#</th><th>Service</th><th>說明</th><th>負責</th></tr>
+      <tr><td>1</td><td>Tournament Config Service</td><td>賽事配置 (Back Office)</td><td>—</td></tr>
+      <tr class="hi"><td class="hi">2</td><td class="hi">Score Calculation Service</td><td class="hi">計分引擎</td><td class="hi">✅ 我們</td></tr>
+      <tr class="hi"><td class="hi">3</td><td class="hi">Leaderboard Service</td><td class="hi">即時排行榜</td><td class="hi">✅ 我們</td></tr>
+      <tr class="hi"><td class="hi">4</td><td class="hi">Reward Distribution Service</td><td class="hi">獎勵發放</td><td class="hi">✅ 我們</td></tr>
+      <tr><td>5</td><td>Tournament UI / API Gateway</td><td>前端 API</td><td>—</td></tr>
+      <tr><td>6</td><td>Back Office Service</td><td>後台管理</td><td>—</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>現有 FRB 事件流</div>
+    <div class="col">
+      <div class="box box-red">Accounting DB<span class="sub">OceanBase / MongoDB</span></div>
+      <div class="arrow-down green"><div class="line"></div><div class="label">CDC (Kafka)</div><div class="head"></div></div>
+      <div class="box box-green">Aggregator<span class="sub">消費 bet → Redis 累積</span></div>
+      <div class="arrow-down orange"><div class="line"></div><div class="label">Redis Pub/Sub</div><div class="head"></div></div>
+      <div class="box box-blue">Campaign Service<span class="sub">門檻檢查 → Ticket</span></div>
+      <div class="arrow-down orange"><div class="line"></div><div class="label">OceanBase / Redis</div><div class="head"></div></div>
+      <div class="box box-gray">GameServer → Client</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>核心模組 & 技術棧</div>
+    <div class="row" style="gap:16px">
+      <div class="detail" style="max-width:260px">
+        <div class="item" style="font-weight:700;color:var(--green)">核心模組</div>
+        <div class="item"><span class="dot dot-green"></span>Aggregator — CDC consumer + Redis 累積</div>
+        <div class="item"><span class="dot dot-green"></span>Campaign — Bet 處理 + ticket 產生</div>
+        <div class="item"><span class="dot dot-green"></span>FreeRoundBonus.Shared — Models, constants</div>
+      </div>
+      <div class="detail" style="max-width:260px">
+        <div class="item" style="font-weight:700;color:var(--orange)">技術棧</div>
+        <div class="item"><span class="dot dot-green"></span>Kafka — CDC from accounting</div>
+        <div class="item"><span class="dot dot-orange"></span>Redis — Pub/Sub, Hash, 分散式鎖</div>
+        <div class="item"><span class="dot dot-blue"></span>MySQL — 活動配置, threshold</div>
+        <div class="item"><span class="dot dot-purple"></span>OceanBase — Ticket 儲存</div>
+        <div class="item"><span class="dot dot-orange"></span>Polly — Retry + Circuit Breaker</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>複用率總覽 ~60%</div>
+    <div class="progress-wrap"><div class="progress-bar"><div class="progress-fill" style="width:60%;background:linear-gradient(90deg,var(--teal),var(--green))"></div></div><div class="progress-label" style="color:var(--teal)">60%</div></div>
+    <p style="font-size:12px;color:var(--text3);margin-top:6px">核心業務邏輯（計分策略、排行榜、排名發獎）需新寫，基礎設施大量複用。</p>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 2: ARCHITECTURE DIAGRAMS
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="architecture">
+  <div class="sec-label">02 / Architecture</div>
+  <h1 class="sec-title">架構流程圖</h1>
+  <p class="sec-sub">統一 Aggregator + Strategy Pattern — 單一 Consumer Group，BetRouter 路由到對應 Handler</p>
+
+  <!-- Current FRB -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>現有 FRB 端對端管線</div>
+    <div class="col">
+      <div class="box box-red">Accounting DB<span class="sub">OceanBase / MongoDB</span></div>
+      <div class="arrow-down green"><div class="line"></div><div class="label">CDC (Canal / Debezium)</div><div class="head"></div></div>
+      <div class="box box-green">Kafka<span class="sub">Topic: bet_transactions</span><span class="tag tag-kafka">CDC</span></div>
+      <div class="arrow-down green"><div class="line"></div><div class="label">Batch consume (max 10K)</div><div class="head"></div></div>
+
+      <div class="group-box" style="max-width:500px;width:100%">
+        <span class="glabel" style="color:var(--green)">FRB AGGREGATOR</span>
+        <div class="detail" style="max-width:100%">
+          <div class="item"><span class="dot dot-green"></span>KafkaCdcConsumer — 批次消費 + 手動 commit</div>
+          <div class="item"><span class="dot dot-green"></span>CdcProcessorService — CDC envelope 解析</div>
+          <div class="item"><span class="dot dot-blue"></span>CampaignValidator — 活動 / Operator / Game 驗證</div>
+          <div class="item"><span class="dot dot-orange"></span>BetAggregationService — Lua HINCRBY total_bet</div>
+          <div class="item"><span class="dot dot-orange"></span>RedisBetEventPublisher — Pipeline PUBLISH</div>
+        </div>
+      </div>
+
+      <div class="arrow-down orange"><div class="line"></div><div class="label">Redis Pub/Sub — frb:bet:{campaignId}</div><div class="head"></div></div>
+
+      <div class="group-box" style="max-width:520px;width:100%">
+        <span class="glabel" style="color:var(--green)">FRB CAMPAIGN SERVICE</span>
+        <div class="detail" style="max-width:100%">
+          <div class="item"><span class="dot dot-orange"></span>BetEventProcessor — 接收 bet event，檢查門檻</div>
+          <div class="item"><span class="dot dot-blue"></span>ThresholdChecker — TotalBet ≥ Threshold?</div>
+          <div class="item"><span class="dot dot-purple"></span>TicketService → OceanBase</div>
+          <div class="item"><span class="dot dot-orange"></span>RedisNotificationPublisher → GameServer</div>
+        </div>
+      </div>
+
+      <div class="arrow-down orange"><div class="line"></div><div class="label">frb:ticket:pending</div><div class="head"></div></div>
+      <div class="row" style="gap:20px">
+        <div class="box box-blue">GameServer</div>
+        <div class="box box-teal">MC API</div>
+        <div class="box box-orange">Valkey</div>
+      </div>
+      <div class="arrow-down"><div class="line"></div><div class="head"></div></div>
+      <div class="box box-gray">Game Client<span class="sub">SSE + Polling</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- New: Unified Aggregator -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>新架構 — Unified Aggregator + Strategy Pattern</div>
+    <div class="callout" style="margin-bottom:20px">
+      <b>核心改動：</b>單一 Consumer Group 讀取一次，BetRouter 依 CampaignType 路由到 IBetHandler 實作。未來新增活動類型只需加一個 Handler。
+    </div>
+
+    <div class="col">
+      <div class="box box-red">Accounting DB</div>
+      <div class="arrow-down green"><div class="line"></div><div class="label">CDC</div><div class="head"></div></div>
+      <div class="box box-green">Kafka<span class="sub">Topic: bet_transactions (共用)</span></div>
+      <div class="arrow-down green"><div class="line"></div><div class="label">Single Group: campaign-aggregator</div><div class="head"></div></div>
+      <div class="note" style="max-width:380px">✅ 每筆 bet 只讀一次 — 不再 N 個 consumer group 重複讀取</div>
+
+      <!-- Unified Aggregator -->
+      <div class="group-box" style="max-width:740px;width:100%;border-color:var(--yellow)">
+        <span class="glabel" style="color:var(--yellow)">UNIFIED AGGREGATOR</span>
+        <span class="mod-badge">REDESIGN</span>
+
+        <div class="detail" style="max-width:100%">
+          <div class="item" style="font-weight:700;color:var(--yellow)">共用管線</div>
+          <div class="item"><span class="dot dot-green"></span>KafkaCdcConsumer <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-green"></span>CdcProcessorService <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-blue"></span>CampaignSync (所有活動類型) <span class="tag tag-mod">改造</span></div>
+        </div>
+
+        <!-- BetRouter -->
+        <div style="background:#1a1a00;border:1.5px solid var(--yellow);border-radius:10px;padding:16px 20px;width:100%;margin-top:12px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span class="dot dot-yellow"></span>
+            <span style="font-weight:700;color:var(--yellow);font-size:13px">BetRouter — 路由核心</span>
+            <span class="tag tag-new">新增</span>
+          </div>
+          <div style="font-size:12px;color:var(--text2);line-height:1.7">
+            bet event → 查詢 running 賽事 → 比對 operator + game + time → 依 <b>CampaignType</b> 路由
+          </div>
+        </div>
+
+        <!-- Handlers -->
+        <div style="display:flex;gap:12px;width:100%;flex-wrap:wrap;margin-top:12px">
+          <div style="flex:1;min-width:180px" class="detail" >
+            <div class="item" style="font-weight:700;color:var(--green)"><span class="dot dot-green"></span>FrbBetHandler <span class="tag tag-reuse">現有</span></div>
+            <div class="item" style="padding-left:14px;font-size:11px;color:var(--text3)">HINCRBY total_bet</div>
+            <div class="item" style="padding-left:14px;font-size:11px;color:var(--text3)">PUBLISH frb:bet:{cid}</div>
+          </div>
+          <div style="flex:1;min-width:180px" class="detail" >
+            <div class="item" style="font-weight:700;color:var(--pink)"><span class="dot dot-pink"></span>TournamentBetHandler <span class="tag tag-new">新增</span></div>
+            <div class="item" style="padding-left:14px;font-size:11px;color:var(--text3)">ScoreCalculatorFactory (4策略)</div>
+            <div class="item" style="padding-left:14px;font-size:11px;color:var(--text3)">ZADD leaderboard + PUBLISH</div>
+          </div>
+          <div style="flex:1;min-width:140px" class="detail" style="border-style:dashed">
+            <div class="item" style="font-weight:700;color:#666"><span class="dot" style="background:#555"></span>Future Handler</div>
+            <div class="item" style="padding-left:14px;font-size:11px;color:#555">實作 IBetHandler 即可</div>
+          </div>
+        </div>
+
+        <div class="row" style="gap:10px;margin-top:12px">
+          <div class="note" style="border-color:var(--yellow)">🛡️ 每個 Handler 獨立 try-catch</div>
+          <div class="note" style="border-color:var(--yellow)">⚡ Feature Flag 隨時開關</div>
+          <div class="note" style="border-color:var(--yellow)">🔀 一筆 bet 可命中多個活動</div>
+        </div>
+      </div>
+
+      <!-- Fan out downstream -->
+      <div style="display:flex;gap:0;width:100%;max-width:800px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div class="arrow-down orange"><div class="line"></div><div class="label">frb:bet:{cid}</div><div class="head"></div></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div class="arrow-down pink"><div class="line"></div><div class="label">tournament:bet:{tid} + ZADD</div><div class="head"></div></div>
+        </div>
+      </div>
+
+      <div class="split-row" style="gap:24px">
+        <div class="split-col" style="gap:12px">
+          <div class="group-box" style="width:100%"><span class="glabel" style="color:var(--green)">FRB CAMPAIGN</span>
+            <div class="detail" style="max-width:100%">
+              <div class="item"><span class="dot dot-orange"></span>BetEventProcessor</div>
+              <div class="item"><span class="dot dot-blue"></span>ThresholdChecker</div>
+              <div class="item"><span class="dot dot-purple"></span>TicketService → OceanBase</div>
+            </div>
+            <div style="margin-top:6px"><span class="tag tag-reuse">100% 不動</span></div>
+          </div>
+          <div class="arrow-down orange"><div class="line"></div><div class="head"></div></div>
+          <div class="box box-blue">GameServer<span class="sub">Free Spin Ticket</span></div>
+        </div>
+        <div class="split-col" style="gap:12px">
+          <div class="group-box" style="width:100%;border-color:var(--pink-bd)"><span class="glabel" style="color:var(--pink)">TOURNAMENT SERVICE</span><span class="new-badge">NEW</span>
+            <div class="detail" style="max-width:100%">
+              <div class="item"><span class="dot dot-orange"></span><b>Leaderboard</b> — Sorted Set, Tiebreaker</div>
+              <div class="item"><span class="dot dot-purple"></span><b>Reward</b> — TournamentEnd Job, Prize Pool</div>
+              <div class="item"><span class="dot dot-blue"></span>Leaderboard API</div>
+            </div>
+          </div>
+          <div class="arrow-down pink"><div class="line"></div><div class="head"></div></div>
+          <div class="box box-pink">Tournament UI<span class="sub">排行榜 + 獎勵</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--yellow)"></div>Unified Aggregator (改造)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>FRB 現有</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--pink)"></div>Tournament 新增</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--orange)"></div>Redis 通訊</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 3: MONOREPO
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="monorepo">
+  <div class="sec-label">03 / Infrastructure</div>
+  <h1 class="sec-title">Monorepo 策略</h1>
+  <p class="sec-sub">與 FRB 共用 Repository — Monorepo ≠ Monolith</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>為什麼選擇 Monorepo</div>
+    <div class="detail" style="max-width:100%">
+      <div class="item"><span class="dot dot-green"></span><b>共用 Shared 層大量重疊</b> — RedisKeys、Enums、ResiliencePolicies 直接引用</div>
+      <div class="item"><span class="dot dot-green"></span><b>同一條 Kafka CDC pipeline</b> — accounting 表，message format 一模一樣</div>
+      <div class="item"><span class="dot dot-green"></span><b>同一套基礎設施連線</b> — Redis / MySQL / OceanBase / Kafka</div>
+      <div class="item"><span class="dot dot-green"></span><b>開發效率</b> — 改 Shared 一次到位，不用跨 repo 同步</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>建議目錄結構</div>
+    <div class="code-block"><div class="lang">DIRECTORY STRUCTURE</div><pre>free-round-bonus/                               (rename → campaign-server 或保留)
+├── src/
+│   │
+│   │  ═══════════════════════════════════════
+│   │  Service 2: Score Calculation (Aggregator 改造)
+│   │  ═══════════════════════════════════════
+│   ├── Aggregator/                             # 🔄 Unified Aggregator
+│   │   ├── Program.cs
+│   │   ├── Application/
+│   │   │   └── Services/
+│   │   │       ├── CdcProcessorService.cs        # 複用 — CDC 批次處理
+│   │   │       └── BetRouter.cs                  # 🆕 路由核心
+│   │   ├── Domain/
+│   │   │   ├── Handlers/                         # 🆕 Strategy Pattern
+│   │   │   │   ├── IBetHandler.cs                  # 介面
+│   │   │   │   ├── FrbBetHandler.cs                # 現有 FRB 邏輯搬入
+│   │   │   │   └── TournamentBetHandler.cs         # 🆕 Tournament 計分
+│   │   │   ├── Services/
+│   │   │   │   ├── CampaignValidator.cs            # 複用 + 擴展
+│   │   │   │   ├── ScoreCalculatorFactory.cs       # 🆕 Factory
+│   │   │   │   └── Calculators/                    # 🆕 4 種計分策略
+│   │   │   │       ├── MaxMultiplierCalc.cs
+│   │   │   │       ├── AccumulatedMultiplierCalc.cs
+│   │   │   │       ├── TotalWinCalc.cs
+│   │   │   │       └── TurnoverCalc.cs
+│   │   │   └── Entities/
+│   │   │       ├── BetRecord.cs                    # 複用
+│   │   │       └── ScoreResult.cs                  # 🆕
+│   │   └── Infrastructure/
+│   │       ├── Kafka/
+│   │       │   └── KafkaCdcConsumer.cs             # 複用
+│   │       └── Redis/
+│   │           ├── RedisPlayerProgressRepo.cs      # 複用
+│   │           ├── RedisBetEventPublisher.cs       # 複用
+│   │           └── LuaScripts/                     # 🆕 Tournament Lua
+│   │               ├── max_multiplier_update.lua
+│   │               └── accumulative_score.lua
+│   │
+│   │  ═══════════════════════════════════════
+│   │  FRB Campaign (不動)
+│   │  ═══════════════════════════════════════
+│   ├── Campaign/                               # 100% 不動
+│   │   ├── Api/Controllers/
+│   │   ├── Application/Services/
+│   │   ├── Domain/
+│   │   ├── Host/                                 # BG Services
+│   │   └── Infrastructure/
+│   │
+│   │  ═══════════════════════════════════════
+│   │  Service 3 + 4: Leaderboard & Reward
+│   │  ═══════════════════════════════════════
+│   ├── Tournament.Service/                     # 🆕
+│   │   ├── Program.cs
+│   │   ├── Api/
+│   │   │   └── Controllers/
+│   │   │       ├── LeaderboardController.cs      # 🆕 GET /leaderboard
+│   │   │       └── RewardController.cs           # 🆕 GET/POST /reward
+│   │   │
+│   │   ├── Leaderboard/                          # 🆕 Service 3
+│   │   │   ├── LeaderboardQueryService.cs          # ZREVRANGE, ZREVRANK
+│   │   │   ├── TiebreakerEncoder.cs                # score 編碼/解碼
+│   │   │   └── NameMaskingService.cs               # Player123 → P***23
+│   │   │
+│   │   ├── Reward/                               # 🆕 Service 4
+│   │   │   ├── RewardCalculator.cs                 # Prize Pool → PlayerReward[]
+│   │   │   ├── LeaderboardSnapshotService.cs       # 凍結排名 → OceanBase
+│   │   │   ├── RewardClaimService.cs               # Auto/Manual Claim
+│   │   │   └── RewardStateMachine.cs               # Pending→Claimed→Completed
+│   │   │
+│   │   ├── Host/                                 # 🆕 Background Services
+│   │   │   ├── TournamentEndDetectionJob.cs        # 每分鐘掃描結束的賽事
+│   │   │   ├── RewardExpirationJob.cs              # 過期清理 (複用模式)
+│   │   │   └── RewardReconciliationJob.cs          # 補漏掃描 (複用模式)
+│   │   │
+│   │   └── Infrastructure/
+│   │       ├── Redis/
+│   │       │   └── RedisLeaderboardRepo.cs         # Sorted Set 操作
+│   │       ├── OceanBase/
+│   │       │   ├── OceanBaseRewardRepo.cs           # tournament_reward
+│   │       │   └── OceanBaseSnapshotRepo.cs         # tournament_reward_snapshot
+│   │       └── MySQL/
+│   │           └── TournamentConfigRepo.cs          # 讀取賽事 + Prize Pool 配置
+│   │
+│   │  ═══════════════════════════════════════
+│   │  Shared Libraries
+│   │  ═══════════════════════════════════════
+│   ├── CampaignServer.Shared/                  # 🆕 抽出共用
+│   │   ├── Kafka/
+│   │   │   ├── CdcEnvelope.cs
+│   │   │   └── BetTransactionMessage.cs
+│   │   ├── Redis/
+│   │   │   ├── ResiliencePolicies.cs
+│   │   │   └── DistributedLock.cs
+│   │   ├── Models/
+│   │   │   └── CampaignBase.cs
+│   │   └── Constants/
+│   │       └── SharedRedisKeys.cs
+│   │
+│   ├── FreeRoundBonus.Shared/                  # FRB 專屬 (保留)
+│   │   ├── Enums/ (TicketStatus, CampaignType...)
+│   │   ├── Constants/RedisKeys.cs
+│   │   └── DTOs/
+│   │
+│   └── Tournament.Shared/                      # 🆕 Tournament 專屬
+│       ├── Enums/
+│       │   ├── ScoringMode.cs                    # MaxMultiplier, AccumMulti...
+│       │   └── RewardStatus.cs                   # Pending, Claimed, Completed...
+│       ├── Models/
+│       │   ├── TournamentInfo.cs
+│       │   ├── PrizePoolTier.cs
+│       │   ├── PlayerReward.cs
+│       │   ├── RankEntry.cs
+│       │   └── LeaderboardResponse.cs
+│       └── Constants/
+│           └── TournamentRedisKeys.cs
+│
+├── docs/sql/
+│   ├── ddl-frb-ticket-oceanbase.sql            # 現有
+│   ├── ddl-tournament-reward-oceanbase.sql      # 🆕
+│   └── ddl-tournament-config-mysql.sql          # 🆕
+│
+├── tests/
+│   ├── Aggregator.Tests/                        # 現有 + 新增 handler tests
+│   └── Tournament.Service.Tests/                # 🆕
+│       ├── Leaderboard/
+│       ├── Reward/
+│       └── Integration/
+│
+├── docker-compose.yml
+└── FreeRoundBonus.sln                           # 加入新 projects</pre></div>
+    <div class="callout">
+      <b>⚡ 重點改動：</b>不再有獨立的 <span class="ic">Tournament.Aggregator/</span>。
+      原有的 <span class="ic">Aggregator/</span> 改造為 Unified Aggregator，加入 <span class="ic">BetRouter</span> + <span class="ic">IBetHandler</span> Strategy Pattern。
+      FRB 現有邏輯搬入 <span class="ic">FrbBetHandler</span>，Tournament 計分邏輯放在 <span class="ic">TournamentBetHandler</span> + <span class="ic">ScoreCalculatorFactory</span>。
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Shared 層模組關係</div>
+    <div class="row" style="gap:16px;align-items:stretch">
+      <div style="flex:1;min-width:200px" class="col" >
+        <div class="box box-teal" style="width:100%;position:relative">CampaignServer.Shared<span class="sub">兩邊共用 (抽出)</span><span class="mod-badge">EXTRACT</span></div>
+        <div class="detail"><div class="item"><span class="dot dot-green"></span>CdcEnvelope / BetTransactionMessage</div><div class="item"><span class="dot dot-orange"></span>ResiliencePolicies / DistributedLock</div><div class="item"><span class="dot dot-yellow"></span>IBetHandler / BetRouter</div></div>
+      </div>
+      <div style="flex:1;min-width:200px" class="col">
+        <div class="box box-green" style="width:100%">FreeRoundBonus.Shared<span class="sub">FRB 專屬</span></div>
+        <div class="detail"><div class="item"><span class="dot dot-green"></span>TicketStatus / FRB RedisKeys</div><div class="item"><span class="dot dot-green"></span>Threshold models / Ticket DTOs</div><div class="item"><span class="dot dot-green"></span>FrbBetHandler</div></div>
+      </div>
+      <div style="flex:1;min-width:200px" class="col">
+        <div class="box box-pink" style="width:100%;position:relative">Tournament.Shared<span class="sub">Tournament 專屬</span><span class="new-badge">NEW</span></div>
+        <div class="detail"><div class="item"><span class="dot dot-purple"></span>ScoringMode / RewardStatus enums</div><div class="item"><span class="dot dot-purple"></span>Leaderboard models / PrizePoolTier</div><div class="item"><span class="dot dot-purple"></span>TournamentBetHandler / ScoreCalcFactory</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>部署獨立 (Monorepo ≠ Monolith)</div>
+    <div class="code-block"><div class="lang">DOCKER</div><pre># 獨立的 container — 注意：Aggregator 只有一個 (Unified)
+docker build -f src/Aggregator/Dockerfile         → campaign-aggregator  # 🔄 改名，處理所有活動類型
+docker build -f src/Campaign/Dockerfile            → frb-campaign
+docker build -f src/Tournament.Service/Dockerfile  → tournament-service   # 🆕 Leaderboard + Reward</pre></div>
+    <div class="callout"><b>⚠️ 注意：</b><br>
+    • 不要讓 Tournament.Shared 直接引用 FreeRoundBonus.Shared — 會耦合 FRB 的 domain<br>
+    • Aggregator 統一為一個 process，透過 IBetHandler 策略分流，不再拆成多個 consumer</div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 4: REUSE
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="reuse">
+  <div class="sec-label">04 / Reusable Infrastructure</div>
+  <h1 class="sec-title">可複用的基礎設施</h1>
+  <p class="sec-sub">從 FRB 專案中直接複用的模組與模式</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>3.1 Kafka CDC 事件消費管線</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">來源：<span class="ic">KafkaCdcConsumer.cs</span> + <span class="ic">CdcProcessorService.cs</span></p>
+    <div class="detail" style="max-width:100%">
+      <div class="item"><span class="dot dot-green"></span>消費 accounting 表的 bet 事件（同一資料來源）</div>
+      <div class="item"><span class="dot dot-green"></span>批次消費 + 手動 commit 模式 (EnableAutoCommit = false)</div>
+      <div class="item"><span class="dot dot-green"></span>CDC envelope (BetTransactionMessage) 解析</div>
+      <div class="item"><span class="dot dot-green"></span>Max 10,000 messages per batch 防阻塞</div>
+      <div class="item"><span class="dot dot-green"></span>UTC+8 時間戳校正</div>
+    </div>
+    <div class="code-block"><div class="lang">CDC MESSAGE FORMAT (JSON)</div><pre>{
+  "type": "INSERT",
+  "table": "accounting",
+  "data": [{
+    "id": "123",
+    "member_id": "member1",
+    "operator_id": "op1",
+    "game_id": "game1",
+    "bet": 10000,
+    "win": 50000,
+    "agent_id": 0,
+    "created_at": 1674000000,
+    "currency_sn": 1
+  }]
+}</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>3.2 Campaign 驗證邏輯</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">來源：<span class="ic">CampaignValidator.cs</span></p>
+    <div class="split-row" style="gap:16px">
+      <div class="detail" style="flex:1">
+        <div class="item" style="font-weight:600;color:var(--teal)">複用驗證</div>
+        <div class="item"><span class="dot dot-green"></span>Campaign 存在</div>
+        <div class="item"><span class="dot dot-green"></span>Bet time 在活動期間內</div>
+        <div class="item"><span class="dot dot-green"></span>Operator 參與中</div>
+        <div class="item"><span class="dot dot-green"></span>Game 在參與清單</div>
+        <div class="item"><span class="dot dot-green"></span>Currency 匹配</div>
+        <div class="item"><span class="dot dot-green"></span>Status = Running</div>
+      </div>
+      <div class="detail" style="flex:1;border-color:var(--pink-bd)">
+        <div class="item" style="font-weight:600;color:var(--pink)">Tournament 額外驗證</div>
+        <div class="item"><span class="dot dot-pink"></span>Tournament type 判斷</div>
+        <div class="item"><span class="dot dot-pink"></span>Min Bet 條件檢查</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>3.3 Redis 累積機制</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">來源：<span class="ic">RedisPlayerProgressRepository.cs</span></p>
+    <div class="code-block"><div class="lang">EXISTING LUA SCRIPT</div><pre>local newTotal = redis.call('HINCRBY', KEYS[1], 'total_bet', ARGV[1])
+redis.call('HSET', KEYS[1],
+    'updated_at', ARGV[2],
+    'last_game_id', ARGV[3],
+    'account', ARGV[4],
+    'agent_id', ARGV[5],
+    'agent_path', ARGV[6])
+if tonumber(ARGV[7]) > 0 then
+    local ttl = redis.call('TTL', KEYS[1])
+    if ttl == -1 then
+        redis.call('EXPIRE', KEYS[1], ARGV[7])
+    end
+end
+return newTotal</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>3.4 ~ 3.6 其他複用模式</div>
+    <table class="spec-table">
+      <tr><th>模式</th><th>來源</th><th>複用方式</th></tr>
+      <tr><td>Redis Pub/Sub</td><td>RedisBetEventPublisher / Subscriber</td><td>動態 channel 訂閱, Pipeline PUBLISH</td></tr>
+      <tr><td>Campaign Sync</td><td>CampaignSyncBackgroundService</td><td>MySQL → Memory 定期同步 (5s)</td></tr>
+      <tr><td>Resilience Policy</td><td>ResiliencePolicies.cs</td><td>Retry 3x + Circuit Breaker (5 failures/30s)</td></tr>
+      <tr><td>分散式鎖</td><td>SET NX EX pattern</td><td>防並行處理衝突</td></tr>
+      <tr><td>Health Check</td><td>Liveness + Readiness probe</td><td>K8s 整合</td></tr>
+      <tr><td>Reconciliation</td><td>ReconciliationScanBackgroundService</td><td>定期補漏 (10min)</td></tr>
+      <tr><td>Expiration Job</td><td>TicketExpirationBackgroundService</td><td>過期清理 (batch 100)</td></tr>
+      <tr><td>Idempotency</td><td>DB unique constraint</td><td>防重複處理</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 5: SCORING
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="scoring">
+  <div class="sec-label">05 / Service 2</div>
+  <h1 class="sec-title">Score Calculation Engine</h1>
+  <p class="sec-sub">4 種計分模式 × Strategy Pattern — 與 FRB 的核心差異</p>
+
+  <!-- ★ SCORE CALCULATION FLOW DIAGRAM ★ -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Score Calculation 內部流程圖</div>
+    <div class="col">
+
+      <div class="box box-green">Kafka CDC Batch<span class="sub">BetTransactionMessage[]</span></div>
+
+      <div class="arrow-down green"><div class="line"></div><div class="label">CdcProcessorService 解析</div><div class="head"></div></div>
+
+      <div class="box box-yellow" style="min-width:240px">BetRouter.RouteAsync()<span class="sub">查詢 running 賽事 cache</span></div>
+
+      <div class="arrow-down yellow"><div class="line"></div><div class="label">matched campaigns (可能多個)</div><div class="head"></div></div>
+
+      <!-- Decision: campaign type -->
+      <div style="display:flex;gap:0;width:100%;max-width:800px">
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div style="background:var(--green-bg);border:1.5px solid var(--green-bd);border-radius:10px;padding:12px 16px;text-align:center;font-size:12px;color:var(--green);font-weight:600;width:90%">
+            Type = FRB<br><span style="font-weight:400;font-size:11px;color:var(--text3)">→ FrbBetHandler</span>
+          </div>
+          <div class="arrow-down green"><div class="line"></div><div class="head"></div></div>
+          <div class="box box-green" style="font-size:12px;min-width:120px">HINCRBY<br>total_bet<span class="sub">現有 Lua Script</span></div>
+          <div class="arrow-down orange"><div class="line"></div><div class="label">PUBLISH frb:bet:{cid}</div><div class="head"></div></div>
+          <div class="box box-blue" style="font-size:12px;min-width:120px">FRB Campaign<span class="sub">門檻 → Ticket</span></div>
+        </div>
+
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:10px;padding:12px 16px;text-align:center;font-size:12px;color:var(--pink);font-weight:600;width:90%">
+            Type = Tournament<br><span style="font-weight:400;font-size:11px;color:var(--text3)">→ TournamentBetHandler</span>
+          </div>
+          <div class="arrow-down pink"><div class="line"></div><div class="head"></div></div>
+
+          <!-- Score Calculator Factory -->
+          <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:10px;padding:14px;width:90%;text-align:center">
+            <div style="font-weight:700;color:var(--pink);font-size:12px;margin-bottom:8px">ScoreCalculatorFactory</div>
+            <div style="display:flex;gap:6px;justify-content:center;flex-wrap:wrap">
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text3)">MaxMultiplier</div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text3)">AccumMulti</div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text3)">TotalWin</div>
+              <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:10px;color:var(--text3)">Turnover</div>
+            </div>
+          </div>
+
+          <div class="arrow-down pink"><div class="line"></div><div class="label">score result</div><div class="head"></div></div>
+
+          <div style="background:var(--orange-bg);border:1.5px solid var(--orange-bd);border-radius:10px;padding:14px;width:90%;text-align:center">
+            <div style="font-weight:700;color:var(--orange);font-size:12px;margin-bottom:6px">Redis 原子寫入 (Lua)</div>
+            <div style="font-size:11px;color:var(--text3);line-height:1.6">
+              HSET progress:{tid}:{oid}:{mid} score<br>
+              ZADD leaderboard:{tid} score member
+            </div>
+          </div>
+
+          <div class="arrow-down orange"><div class="line"></div><div class="label">PUBLISH tournament:bet:{tid}</div><div class="head"></div></div>
+          <div class="box box-pink" style="font-size:12px;min-width:120px">Tournament Service<span class="sub">Leaderboard + Reward</span></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--yellow)"></div>BetRouter (路由)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--green)"></div>FRB 路徑</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--pink)"></div>Tournament 路徑</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--orange)"></div>Redis 操作</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>與 FRB 的差異</div>
+    <table class="spec-table">
+      <tr><th>FRB 現有</th><th>Tournament 需改造</th></tr>
+      <tr><td><span class="ic">HINCRBY total_bet</span> 單一累積</td><td class="hi">4 種計分公式切換</td></tr>
+      <tr><td>只看 bet_amount</td><td class="hi">需要 bet_amount <b>+ win_amount</b></td></tr>
+      <tr><td>無 max 比較邏輯</td><td class="hi">MaxMultiplier 需讀取比較後決定是否更新</td></tr>
+      <tr><td>無四捨五入</td><td class="hi">小數 > 0.5 進位，≤ 0.5 捨去</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>4 種計分模式</div>
+    <div class="callout"><b>規則：</b>Only 1 Mode per tournament per operator per time</div>
+    <div class="row" style="gap:12px;margin-top:16px;align-items:stretch">
+      <div style="flex:1;min-width:200px;background:var(--pink-bg);border:1px solid var(--pink-bd);border-radius:10px;padding:16px">
+        <div style="font-weight:700;color:var(--pink);font-size:13px;margin-bottom:8px">Mode 1: Max Single Multiplier</div>
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score = Win / Base Bet
+僅記錄最高單筆倍數
+同分 → 先達成者排名較高</pre></div>
+      </div>
+      <div style="flex:1;min-width:200px;background:var(--purple-bg);border:1px solid var(--purple-bd);border-radius:10px;padding:16px">
+        <div style="font-weight:700;color:var(--purple);font-size:13px;margin-bottom:8px">Mode 2: Accumulated Multiplier</div>
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Win / Bet
+僅當 multiplier > 1
+四捨五入處理</pre></div>
+      </div>
+      <div style="flex:1;min-width:200px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:10px;padding:16px">
+        <div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:8px">Mode 3: Total Win</div>
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Win Amount
+1 分 = 1 貨幣單位</pre></div>
+      </div>
+      <div style="flex:1;min-width:200px;background:var(--orange-bg);border:1px solid var(--orange-bd);border-radius:10px;padding:16px">
+        <div style="font-weight:700;color:var(--orange);font-size:13px;margin-bottom:8px">Mode 4: Turnover</div>
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Bet Amount</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>ScoreCalculator 策略模式</div>
+    <div class="code-block"><div class="lang">C# — STRATEGY PATTERN</div><pre>public interface IScoreCalculator
+{
+    Task&lt;ScoreResult&gt; CalculateAsync(BetEvent betEvent, PlayerProgress progress);
+}
+
+public class MaxMultiplierCalculator : IScoreCalculator { ... }
+public class AccumulatedMultiplierCalculator : IScoreCalculator { ... }
+public class TotalWinCalculator : IScoreCalculator { ... }
+public class TurnoverCalculator : IScoreCalculator { ... }
+
+public class ScoreCalculatorFactory
+{
+    public IScoreCalculator Create(ScoringMode mode) =&gt; mode switch
+    {
+        ScoringMode.MaxMultiplier =&gt; new MaxMultiplierCalculator(),
+        ScoringMode.AccumulatedMultiplier =&gt; new AccumulatedMultiplierCalculator(),
+        ScoringMode.TotalWin =&gt; new TotalWinCalculator(),
+        ScoringMode.Turnover =&gt; new TurnoverCalculator(),
+        _ =&gt; throw new ArgumentOutOfRangeException()
+    };
+}</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>新增 Lua Scripts</div>
+    <div class="split-row" style="gap:16px">
+      <div style="flex:1;min-width:280px">
+        <div class="code-block"><div class="lang">LUA — MaxMultiplier (原子比較更新)</div><pre>local currentMax = tonumber(
+  redis.call('HGET', KEYS[1], 'score') or '0')
+local newMultiplier = tonumber(ARGV[1])
+if newMultiplier > currentMax then
+    redis.call('HSET', KEYS[1], 'score', ARGV[1])
+    redis.call('HSET', KEYS[1],
+      'first_achieved_at', ARGV[2])
+    redis.call('ZADD', KEYS[2], ARGV[1], ARGV[3])
+    return 1  -- updated
+end
+return 0  -- not updated</pre></div>
+      </div>
+      <div style="flex:1;min-width:280px">
+        <div class="code-block"><div class="lang">LUA — Accumulated / TotalWin / Turnover</div><pre>local newScore = redis.call(
+  'HINCRBYFLOAT', KEYS[1], 'score', ARGV[1])
+redis.call('HSET', KEYS[1],
+  'updated_at', ARGV[2])
+redis.call('ZADD', KEYS[2], newScore, ARGV[3])
+return newScore</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Redis Key 設計</div>
+    <div class="code-block"><div class="lang">REDIS KEYS</div><pre># Player Score Progress (Hash)
+tournament:progress:{tournamentId}:{operatorId}:{memberId}
+  ├─ score              [float]   當前分數
+  ├─ first_achieved_at  [ISO-8601] 首次達到此分數的時間
+  ├─ updated_at         [ISO-8601]
+  ├─ account            [string]
+  ├─ last_game_id       [string]
+  └─ total_bets         [int]     總下注次數
+
+# Leaderboard (Sorted Set)
+tournament:leaderboard:{tournamentId}
+  member: {operatorId}:{memberId}
+  score:  float</pre></div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 6: LEADERBOARD
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="leaderboard">
+  <div class="sec-label">06 / Service 3</div>
+  <h1 class="sec-title">Leaderboard Service</h1>
+  <p class="sec-sub">Redis Sorted Set 即時排行榜 — 全新模組</p>
+
+  <!-- ★ LEADERBOARD FLOW DIAGRAM ★ -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Leaderboard 內部流程圖</div>
+    <div class="split-row" style="gap:24px;align-items:flex-start">
+
+      <!-- LEFT: Write Path -->
+      <div class="split-col" style="gap:0;min-width:280px">
+        <div style="font-weight:700;color:var(--orange);font-size:13px;margin-bottom:12px;text-align:center">✏️ 寫入路徑 (from Aggregator)</div>
+
+        <div class="box box-yellow" style="font-size:12px;min-width:220px">TournamentBetHandler<span class="sub">Aggregator 計分完成</span></div>
+        <div class="arrow-down orange"><div class="line"></div><div class="label">Lua Script 原子操作</div><div class="head"></div></div>
+
+        <div style="background:var(--orange-bg);border:1.5px solid var(--orange-bd);border-radius:10px;padding:14px;width:100%;text-align:center">
+          <div style="font-weight:700;color:var(--orange);font-size:12px;margin-bottom:8px">Redis 雙寫 (同一 Lua)</div>
+          <div style="display:flex;gap:8px;justify-content:center">
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;flex:1;text-align:center">
+              <div style="font-size:11px;font-weight:600;color:var(--orange)">Hash</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px">progress:{tid}:{oid}:{mid}<br>score, updated_at...</div>
+            </div>
+            <div style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px;flex:1;text-align:center">
+              <div style="font-size:11px;font-weight:600;color:var(--pink)">Sorted Set</div>
+              <div style="font-size:10px;color:var(--text3);margin-top:4px">leaderboard:{tid}<br>ZADD score member</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="arrow-down orange"><div class="line"></div><div class="label">PUBLISH tournament:bet:{tid}</div><div class="head"></div></div>
+
+        <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:10px;padding:14px;width:100%;text-align:center">
+          <div style="font-weight:700;color:var(--pink);font-size:12px;margin-bottom:4px">Tiebreaker 編碼</div>
+          <div style="font-size:11px;color:var(--text3);line-height:1.6">
+            encoded_score = actual_score<br>+ (1 - timestamp_normalized)<br>
+            <span style="color:var(--teal)">先達成 → 小數部分較大 → 排名較前</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Read Path -->
+      <div class="split-col" style="gap:0;min-width:280px">
+        <div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:12px;text-align:center">👁️ 讀取路徑 (API Query)</div>
+
+        <div class="box box-blue" style="font-size:12px;min-width:220px">Tournament UI / API Gateway<span class="sub">GET /leaderboard</span></div>
+        <div class="arrow-down" style="margin:10px 0"><div class="line" style="background:var(--blue)"></div><div class="label">REST API 請求</div><div class="head" style="border-top-color:var(--blue)"></div></div>
+
+        <div style="background:var(--blue-bg);border:1.5px solid var(--blue-bd);border-radius:10px;padding:14px;width:100%">
+          <div style="font-weight:700;color:var(--blue);font-size:12px;margin-bottom:8px;text-align:center">Leaderboard API</div>
+          <div class="detail" style="margin:0;border-color:var(--blue-bd)">
+            <div class="item"><span class="dot dot-orange"></span>ZREVRANGE 0 N → Top N 排名</div>
+            <div class="item"><span class="dot dot-orange"></span>ZREVRANK → 特定玩家排名</div>
+            <div class="item"><span class="dot dot-orange"></span>ZSCORE → 特定玩家分數</div>
+            <div class="item"><span class="dot dot-orange"></span>ZCARD → 總參與人數</div>
+          </div>
+        </div>
+
+        <div class="arrow-down" style="margin:10px 0"><div class="line" style="background:var(--blue)"></div><div class="head" style="border-top-color:var(--blue)"></div></div>
+
+        <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:10px;padding:14px;width:100%;text-align:center">
+          <div style="font-weight:700;color:var(--pink);font-size:12px;margin-bottom:8px">Response 後處理</div>
+          <div class="detail" style="margin:0;border-color:var(--pink-bd)">
+            <div class="item"><span class="dot dot-pink"></span>decode score → 還原 actual_score</div>
+            <div class="item"><span class="dot dot-pink"></span>Name Masking: P***23</div>
+            <div class="item"><span class="dot dot-pink"></span>玩家不在 Top N → 只回 score 不回 rank</div>
+            <div class="item"><span class="dot dot-pink"></span>Your Rank + Your Score 組裝</div>
+          </div>
+        </div>
+
+        <div class="arrow-down" style="margin:10px 0"><div class="line" style="background:var(--blue)"></div><div class="head" style="border-top-color:var(--blue)"></div></div>
+        <div class="box box-gray" style="font-size:12px">JSON Response<span class="sub">{ ranks, total, yourRank, yourScore }</span></div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--orange)"></div>寫入路徑 (Aggregator → Redis)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div>讀取路徑 (API → Redis → Response)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--pink)"></div>新邏輯 (Tiebreaker / Masking)</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>技術方案：Redis Sorted Set</div>
+    <div class="code-block"><div class="lang">REDIS COMMANDS</div><pre>ZADD   tournament:leaderboard:{tid} {score} {oid}:{mid}
+ZREVRANGE tournament:leaderboard:{tid} 0 99 WITHSCORES  -- Top 100
+ZREVRANK  tournament:leaderboard:{tid} {mid}             -- 玩家排名
+ZSCORE    tournament:leaderboard:{tid} {mid}             -- 玩家分數
+ZCARD     tournament:leaderboard:{tid}                   -- 總參與人數</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>排行榜功能需求</div>
+    <table class="spec-table">
+      <tr><th>功能</th><th>說明</th></tr>
+      <tr><td>排序</td><td>Score Descending</td></tr>
+      <tr><td>顯示範圍</td><td>Top N (可設定，如 Top 100)</td></tr>
+      <tr><td>顯示欄位</td><td>Rank, Player (遮蔽), Score</td></tr>
+      <tr><td>玩家名稱遮蔽</td><td><span class="ic">Player123</span> → <span class="ic">P***23</span></td></tr>
+      <tr><td>未上榜玩家</td><td>顯示個人分數，不顯示名次</td></tr>
+      <tr><td>玩家資訊</td><td>頁面頂部顯示 Your Rank + Your Score</td></tr>
+      <tr><td>同分處理</td><td>First in first win (first_achieved_at tiebreaker)</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>同分排序方案 — Score 編碼時間戳</div>
+    <div class="callout">Redis Sorted Set 原生不支援 tiebreaker，需要在 score 中編碼時間資訊。</div>
+    <div class="code-block"><div class="lang">TIEBREAKER ENCODING</div><pre>score = actual_score + (1 - timestamp_normalized)
+
+// 例：score=100, achieved at T1 (earlier)
+// encoded = 100.999999 (earlier time = higher decimal)
+
+// 例：score=100, achieved at T2 (later)
+// encoded = 100.888888 (later time = lower decimal)
+
+// 結果：同分時先達成的 encoded score 較大，自然排前面</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>API 端點設計</div>
+    <div class="code-block"><div class="lang">REST API</div><pre>GET /api/tournament/{tournamentId}/leaderboard
+    ?top=100
+    &amp;operatorId=xxx
+Response: { ranks: [{rank, player, score}], total: 5000 }
+
+GET /api/tournament/{tournamentId}/player/{memberId}
+Response: { rank: 152, score: 450.5, top: false }</pre></div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 7: REWARD
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="reward">
+  <div class="sec-label">07 / Service 4</div>
+  <h1 class="sec-title">Reward Distribution Service</h1>
+  <p class="sec-sub">活動結束後依排名批次發獎 — 獎勵狀態機</p>
+
+  <!-- ★ REWARD DISTRIBUTION FLOW DIAGRAM ★ -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Reward Distribution 完整流程圖</div>
+
+    <div class="col">
+
+      <!-- Phase 1: Detection -->
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--orange-bg);border:1.5px solid var(--orange-bd);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--orange);font-size:14px;flex-shrink:0">1</div>
+        <div style="font-weight:700;color:var(--orange);font-size:14px">偵測結束</div>
+      </div>
+      <div class="box box-orange" style="min-width:280px">TournamentEndBackgroundService<span class="sub">每分鐘掃描：有沒有剛結束的 tournament?</span></div>
+
+      <div class="arrow-down orange"><div class="line"></div><div class="label">EndAt ≤ now && Status = Running</div><div class="head"></div></div>
+
+      <!-- Phase 2: Freeze -->
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--red-bg);border:1.5px solid var(--red-bd);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--red);font-size:14px;flex-shrink:0">2</div>
+        <div style="font-weight:700;color:var(--red);font-size:14px">凍結排行榜</div>
+      </div>
+      <div style="background:var(--red-bg);border:1.5px solid var(--red-bd);border-radius:10px;padding:16px;max-width:400px;width:100%;text-align:center">
+        <div style="font-weight:700;color:var(--red);font-size:13px;margin-bottom:8px">Leaderboard Snapshot</div>
+        <div class="detail" style="margin:0;border-color:var(--red-bd)">
+          <div class="item"><span class="dot dot-orange"></span>分散式鎖：lock:tournament:end:{tid}</div>
+          <div class="item"><span class="dot dot-orange"></span>ZREVRANGE leaderboard:{tid} 0 -1 WITHSCORES</div>
+          <div class="item"><span class="dot dot-purple"></span>Snapshot → OceanBase tournament_reward_snapshot</div>
+          <div class="item"><span class="dot dot-orange"></span>Tournament status → Result</div>
+        </div>
+      </div>
+
+      <div class="arrow-down pink"><div class="line"></div><div class="label">final ranking list</div><div class="head"></div></div>
+
+      <!-- Phase 3: Calculate -->
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--pink);font-size:14px;flex-shrink:0">3</div>
+        <div style="font-weight:700;color:var(--pink);font-size:14px">計算獎勵</div>
+      </div>
+      <div style="background:var(--pink-bg);border:1.5px solid var(--pink-bd);border-radius:10px;padding:16px;max-width:400px;width:100%;text-align:center">
+        <div style="font-weight:700;color:var(--pink);font-size:13px;margin-bottom:8px">RewardCalculator</div>
+        <div class="detail" style="margin:0;border-color:var(--pink-bd)">
+          <div class="item"><span class="dot dot-blue"></span>讀取 Prize Pool Config (MySQL)</div>
+          <div class="item"><span class="dot dot-pink"></span>Rank 1 → Prize 5000</div>
+          <div class="item"><span class="dot dot-pink"></span>Rank 2-5 → Prize 1000 each</div>
+          <div class="item"><span class="dot dot-pink"></span>Rank 6-20 → Prize 200 each</div>
+          <div class="item"><span class="dot dot-purple"></span>Build List&lt;PlayerReward&gt;</div>
+        </div>
+      </div>
+
+      <div class="arrow-down purple"><div class="line" style="background:var(--purple)"></div><div class="label">reward list</div><div class="head" style="border-top-color:var(--purple)"></div></div>
+
+      <!-- Phase 4: Persist -->
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--purple-bg);border:1.5px solid var(--purple-bd);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--purple);font-size:14px;flex-shrink:0">4</div>
+        <div style="font-weight:700;color:var(--purple);font-size:14px">寫入 & 發放</div>
+      </div>
+      <div style="background:var(--purple-bg);border:1.5px solid var(--purple-bd);border-radius:10px;padding:16px;max-width:400px;width:100%;text-align:center">
+        <div style="font-weight:700;color:var(--purple);font-size:13px;margin-bottom:8px">Batch Insert → OceanBase</div>
+        <div class="detail" style="margin:0;border-color:var(--purple-bd)">
+          <div class="item"><span class="dot dot-purple"></span>tournament_reward 表 (Pending 狀態)</div>
+          <div class="item"><span class="dot dot-purple"></span>Polly Retry + Circuit Breaker</div>
+          <div class="item"><span class="dot dot-purple"></span>Idempotency: unique(tid, rank)</div>
+        </div>
+      </div>
+
+      <div class="arrow-down purple"><div class="line" style="background:var(--purple)"></div><div class="head" style="border-top-color:var(--purple)"></div></div>
+
+      <!-- Phase 5: Claim -->
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="background:var(--teal-bg);border:1.5px solid var(--teal-bd);border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--teal);font-size:14px;flex-shrink:0">5</div>
+        <div style="font-weight:700;color:var(--teal);font-size:14px">領獎 & 過期</div>
+      </div>
+      <div style="display:flex;gap:16px;max-width:500px;width:100%;justify-content:center">
+        <div style="flex:1;background:var(--teal-bg);border:1.5px solid var(--teal-bd);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-weight:700;color:var(--teal);font-size:12px;margin-bottom:6px">Auto Claim</div>
+          <div style="font-size:11px;color:var(--text3)">自動轉入<br>玩家錢包</div>
+        </div>
+        <div style="flex:1;background:var(--blue-bg);border:1.5px solid var(--blue-bd);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-weight:700;color:var(--blue);font-size:12px;margin-bottom:6px">Manual Claim</div>
+          <div style="font-size:11px;color:var(--text3)">通知玩家<br>主動領取</div>
+        </div>
+        <div style="flex:1;background:var(--red-bg);border:1.5px solid var(--red-bd);border-radius:10px;padding:14px;text-align:center">
+          <div style="font-weight:700;color:var(--red);font-size:12px;margin-bottom:6px">Expire</div>
+          <div style="font-size:11px;color:var(--text3)">n 天未領<br>自動過期</div>
+        </div>
+      </div>
+
+      <!-- State Machine visual -->
+      <div style="margin-top:16px;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:16px;max-width:500px;width:100%">
+        <div style="font-size:12px;font-weight:600;color:var(--yellow);margin-bottom:12px;text-align:center">獎勵狀態機</div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;flex-wrap:wrap">
+          <div style="background:var(--yellow-bg);border:1px solid var(--yellow-bd);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--yellow)">Pending</div>
+          <div style="color:var(--text3);font-size:12px">→</div>
+          <div style="background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--blue)">Claimed</div>
+          <div style="color:var(--text3);font-size:12px">→</div>
+          <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--green)">Completed ✓</div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px">
+          <div style="background:var(--yellow-bg);border:1px solid var(--yellow-bd);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--yellow)">Pending</div>
+          <div style="color:var(--text3);font-size:12px">→ (n days)</div>
+          <div style="background:var(--red-bg);border:1px solid var(--red-bd);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;color:var(--red)">Expired ✗</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--orange)"></div>1. 偵測結束</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--red)"></div>2. 凍結快照</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--pink)"></div>3. 獎勵計算</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--purple)"></div>4. 寫入發放</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:var(--teal)"></div>5. 領獎/過期</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>與 FRB 的差異</div>
+    <table class="spec-table">
+      <tr><th>FRB 現有</th><th>Tournament 需改造</th></tr>
+      <tr><td>即時觸發 (bet → ticket)</td><td class="hi"><b>活動結束後</b>依排名批次發獎</td></tr>
+      <tr><td>Free Spin ticket 結構</td><td class="hi">Cash 獎勵結構</td></tr>
+      <tr><td>單人多等級 ticket</td><td class="hi">固定獎池 rank-based 分配</td></tr>
+      <tr><td>持續監聽</td><td class="hi">排程觸發</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Prize Pool 配置</div>
+    <div class="code-block"><div class="lang">EXAMPLE</div><pre>固定獎池：Total Prize Pool = 10,000
+
+| Rank  | Prize |
+|-------|-------|
+| 1     | 5,000 |
+| 2-5   | 1,000 |
+| 6-20  |   200 |</pre></div>
+    <p style="font-size:12px;color:var(--text3);margin-top:8px"><b>獎勵類型：</b>Cash (初版) / Free Spins (未來擴展)</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>發獎流程</div>
+    <div class="col" style="gap:8px">
+      <div class="box box-red">Tournament End<span class="sub">時間到</span></div>
+      <div class="arrow-down pink"><div class="line"></div><div class="label">1. 凍結 Leaderboard</div><div class="head"></div></div>
+      <div class="box box-orange">Snapshot<span class="sub">讀取最終排名</span></div>
+      <div class="arrow-down pink"><div class="line"></div><div class="label">2. 依 Prize Pool 計算獎金</div><div class="head"></div></div>
+      <div class="box box-purple">RewardCalculator<span class="sub">batch insert → OceanBase</span></div>
+      <div class="arrow-down pink"><div class="line"></div><div class="label">3. Auto Claim 或通知 Manual Claim</div><div class="head"></div></div>
+      <div class="box box-pink">玩家領獎<span class="sub">未領取 → Expire after n days</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>RewardCalculator</div>
+    <div class="code-block"><div class="lang">C#</div><pre>public class RewardCalculator
+{
+    public List&lt;PlayerReward&gt; Calculate(
+        List&lt;RankEntry&gt; finalRanking,
+        List&lt;PrizePoolTier&gt; prizeConfig)
+    {
+        var rewards = new List&lt;PlayerReward&gt;();
+        foreach (var tier in prizeConfig)
+        {
+            var playersInTier = finalRanking
+                .Where(r =&gt; r.Rank &gt;= tier.RankFrom
+                          &amp;&amp; r.Rank &lt;= tier.RankTo);
+            foreach (var player in playersInTier)
+            {
+                rewards.Add(new PlayerReward
+                {
+                    PlayerId = player.MemberId,
+                    Rank = player.Rank,
+                    Amount = tier.Prize,
+                    Currency = tournament.Currency,
+                    Status = RewardStatus.Pending
+                });
+            }
+        }
+        return rewards;
+    }
+}</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>獎勵狀態機</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin:16px 0">
+      <div class="box box-yellow" style="min-width:100px">Pending</div>
+      <div style="color:var(--text3)">→</div>
+      <div class="box box-blue" style="min-width:100px">Claimed<span class="sub">Auto or Manual</span></div>
+      <div style="color:var(--text3)">→</div>
+      <div class="box box-green" style="min-width:100px">Completed<span class="sub">funds transferred</span></div>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin:8px 0">
+      <div class="box box-yellow" style="min-width:100px">Pending</div>
+      <div style="color:var(--text3)">→</div>
+      <div class="box box-red" style="min-width:100px">Expired<span class="sub">after n days</span></div>
+    </div>
+    <p style="font-size:12px;color:var(--text3);margin-top:12px;text-align:center"><b>幣別：</b>Multiplier 類規則 OR Tournament 開始時鎖定匯率</p>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 8: ROADMAP
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="roadmap">
+  <div class="sec-label">08 / Roadmap</div>
+  <h1 class="sec-title">開發路線圖</h1>
+  <p class="sec-sub">4 個 Phase — 從計分引擎到 E2E 測試</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>開發順序</div>
+
+    <div class="phase">
+      <div class="phase-num" style="background:var(--pink-bg);color:var(--pink)">1</div>
+      <div class="phase-body">
+        <div class="phase-title" style="color:var(--pink)">Score Calculation</div>
+        <div class="phase-items">
+          • Fork Aggregator 結構<br>
+          • 新增 ScoreCalculatorFactory + 4 種策略<br>
+          • 新增 Lua Scripts (MaxMultiplier + Accumulated)<br>
+          • Tournament Config 讀取 (scoring mode)<br>
+          • 單元測試 4 種計分公式
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num" style="background:var(--purple-bg);color:var(--purple)">2</div>
+      <div class="phase-body">
+        <div class="phase-title" style="color:var(--purple)">Leaderboard</div>
+        <div class="phase-items">
+          • Redis Sorted Set 模組<br>
+          • 同分 tiebreaker 機制<br>
+          • Leaderboard query API<br>
+          • 玩家名稱遮蔽<br>
+          • Interval update 策略
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num" style="background:var(--orange-bg);color:var(--orange)">3</div>
+      <div class="phase-body">
+        <div class="phase-title" style="color:var(--orange)">Reward Distribution</div>
+        <div class="phase-items">
+          • Tournament End detection job<br>
+          • Leaderboard snapshot (凍結排名)<br>
+          • RewardCalculator + Prize Pool 配置<br>
+          • 批次發獎 + 狀態機<br>
+          • 過期清理 + 補漏
+        </div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num" style="background:var(--green-bg);color:var(--green)">4</div>
+      <div class="phase-body">
+        <div class="phase-title" style="color:var(--green)">Integration & Testing</div>
+        <div class="phase-items">
+          • End-to-end: Spin Event → Score → Leaderboard → Reward<br>
+          • 高併發排行榜壓測<br>
+          • 同分排名正確性測試<br>
+          • 發獎失敗重試測試
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>風險注意事項</div>
+    <table class="spec-table">
+      <tr><th>風險</th><th>應對方案</th></tr>
+      <tr><td>高併發排行榜更新</td><td>Interval updates (非即時)</td></tr>
+      <tr><td>Spin Event 重複計算</td><td>1 Tournament 1 Rule at a time</td></tr>
+      <tr><td>不同幣別換算</td><td>Multiplier 規則 OR 固定匯率</td></tr>
+      <tr><td>同分排名公平性</td><td>First in first win (timestamp tiebreaker)</td></tr>
+      <tr><td>獎勵發送失敗</td><td>Manual Claim & Confirm + retry</td></tr>
+      <tr><td>未領取獎勵</td><td>Expire after n days</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 9: REFERENCE
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="reference">
+  <div class="sec-label">09 / Reference</div>
+  <h1 class="sec-title">關鍵 FRB 參考檔案索引</h1>
+  <p class="sec-sub">快速查找需要複用或參考的原始碼</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Aggregator 相關</div>
+    <table class="spec-table">
+      <tr><th>功能</th><th>檔案路徑</th></tr>
+      <tr><td>Kafka CDC 消費</td><td><span class="ic">src/Aggregator/Infrastructure/Kafka/KafkaCdcConsumer.cs</span></td></tr>
+      <tr><td>批次處理引擎</td><td><span class="ic">src/Aggregator/Application/Services/CdcProcessorService.cs</span></td></tr>
+      <tr><td>Redis 累積 (Lua)</td><td><span class="ic">src/Aggregator/Infrastructure/Redis/RedisPlayerProgressRepository.cs</span></td></tr>
+      <tr><td>Redis 事件發布</td><td><span class="ic">src/Aggregator/Infrastructure/Redis/RedisBetEventPublisher.cs</span></td></tr>
+      <tr><td>Campaign 驗證</td><td><span class="ic">src/Aggregator/Domain/Services/CampaignValidator.cs</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Campaign 相關</div>
+    <table class="spec-table">
+      <tr><th>功能</th><th>檔案路徑</th></tr>
+      <tr><td>Bet Event 訂閱</td><td><span class="ic">src/Campaign/Infrastructure/Redis/RedisBetEventSubscriber.cs</span></td></tr>
+      <tr><td>Bet Event 處理</td><td><span class="ic">src/Campaign/Application/Services/BetEventProcessor.cs</span></td></tr>
+      <tr><td>門檻檢查</td><td><span class="ic">src/Campaign/Domain/Services/ThresholdChecker.cs</span></td></tr>
+      <tr><td>Ticket 寫入</td><td><span class="ic">src/Campaign/Infrastructure/OceanBase/OceanBaseTicketRepository.cs</span></td></tr>
+      <tr><td>Campaign Sync</td><td><span class="ic">src/Campaign/Host/CampaignSyncBackgroundService.cs</span></td></tr>
+      <tr><td>Channel Sync</td><td><span class="ic">src/Campaign/Host/ChannelSyncBackgroundService.cs</span></td></tr>
+      <tr><td>過期清理</td><td><span class="ic">src/Campaign/Host/TicketExpirationBackgroundService.cs</span></td></tr>
+      <tr><td>補漏掃描</td><td><span class="ic">src/Campaign/Host/ReconciliationScanBackgroundService.cs</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Shared & Schema</div>
+    <table class="spec-table">
+      <tr><th>功能</th><th>檔案路徑</th></tr>
+      <tr><td>Resilience</td><td><span class="ic">src/FreeRoundBonus.Shared/Infrastructure/ResiliencePolicies.cs</span></td></tr>
+      <tr><td>Redis Keys</td><td><span class="ic">src/FreeRoundBonus.Shared/Constants/RedisKeys.cs</span></td></tr>
+      <tr><td>Enums</td><td><span class="ic">src/FreeRoundBonus.Shared/Enums/</span></td></tr>
+      <tr><td>DB Schema (Ticket)</td><td><span class="ic">docs/sql/ddl-frb-ticket-oceanbase.sql</span></td></tr>
+      <tr><td>DB Schema (Threshold)</td><td><span class="ic">docs/sql/ddl-campaign-frb-level.sql</span></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>複用 vs 新增比例明細</div>
+    <div class="split-row" style="gap:16px">
+      <div style="flex:1;min-width:260px">
+        <div class="detail">
+          <div class="item" style="font-weight:700;color:var(--teal)">Aggregator (Score Calculation)</div>
+          <div class="item"><span class="dot dot-green"></span>Kafka CDC 消費 <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-green"></span>CDC Message 解析 <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-green"></span>Campaign 驗證 <span class="tag tag-reuse">複用+</span></div>
+          <div class="item"><span class="dot dot-green"></span>Redis pipeline <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-green"></span>Pub/Sub / Sync / BG Service <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-pink"></span>計分策略引擎 <span class="tag tag-new">新增</span></div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:260px">
+        <div class="detail">
+          <div class="item" style="font-weight:700;color:var(--teal)">Leaderboard Service</div>
+          <div class="item"><span class="dot dot-green"></span>Redis 連線 / Pipeline / Health <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-pink"></span>Sorted Set 排行榜 <span class="tag tag-new">新增</span></div>
+          <div class="item"><span class="dot dot-pink"></span>Tiebreaker / 名稱遮蔽 <span class="tag tag-new">新增</span></div>
+          <div class="item"><span class="dot dot-pink"></span>Leaderboard API <span class="tag tag-new">新增</span></div>
+        </div>
+        <div class="detail" style="margin-top:12px">
+          <div class="item" style="font-weight:700;color:var(--teal)">Reward Distribution</div>
+          <div class="item"><span class="dot dot-green"></span>分散式鎖 / Resilience / 過期 Job <span class="tag tag-reuse">複用</span></div>
+          <div class="item"><span class="dot dot-pink"></span>RewardCalculator / 發獎 Job <span class="tag tag-new">新增</span></div>
+          <div class="item"><span class="dot dot-pink"></span>獎勵狀態機 / Claim 機制 <span class="tag tag-new">新增</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /.main -->
+</div><!-- /.app -->
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT: Tab Navigation
+     ══════════════════════════════════════════════ -->
+<script>
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => {
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    item.classList.add('active');
+    // Update tab
+    const tabId = item.dataset.tab;
+    document.querySelectorAll('.tab-page').forEach(p => p.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    // Scroll to top
+    document.querySelector('.main').scrollTo({ top: 0, behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
