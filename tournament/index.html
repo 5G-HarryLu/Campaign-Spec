@@ -734,6 +734,18 @@ return newTotal</pre></div>
       <tr><td>Idempotency</td><td>DB unique constraint</td><td>防重複處理</td></tr>
     </table>
   </div>
+
+  <!-- ★ DESIGN DECISION: Why No Distributed Lock in Campaign ★ -->
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Why Campaign Does Not Use a Distributed Lock</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">雖然上方列出分散式鎖為可複用模式，Campaign (FRB) 服務刻意不採用，原因如下：</p>
+    <div class="detail" style="max-width:100%">
+      <div class="item"><span class="dot dot-red"></span><b>Message loss risk during rolling deploys</b> — if a pod holding the lock gets terminated, the message is lost with no retry mechanism</div>
+      <div class="item"><span class="dot dot-red"></span><b>Redis Pub/Sub is fire-and-forget</b> — messages can't be replayed, so we broadcast to all pods and rely on redundant execution instead</div>
+      <div class="item"><span class="dot dot-green"></span><b>Existing safeguards are sufficient</b> — OceanBase <span class="ic">SELECT FOR UPDATE</span>, idempotency check (<span class="ic">ExistsAsync</span>), unique index (<span class="ic">uk_campaign_operator_member</span>), and Polly retry together prevent duplicates without a distributed lock</div>
+      <div class="item"><span class="dot dot-orange"></span><b>Added complexity for little benefit</b> — lock acquisition/release, lock expiry tuning, and failure handling add operational risk; the current approach is simpler and achieves the same correctness</div>
+    </div>
+  </div>
 </div>
 
 <!-- ─────────────────────────────────────────────
