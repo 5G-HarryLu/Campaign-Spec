@@ -217,7 +217,8 @@ code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
   <div class="nav-group">
     <div class="nav-group-title">執行計畫</div>
     <div class="nav-item" data-tab="roadmap"><span class="num">8</span>開發路線圖</div>
-    <div class="nav-item" data-tab="reference"><span class="num">9</span>參考索引</div>
+    <div class="nav-item" data-tab="reward-ddl"><span class="num">9</span>獎勵資料表</div>
+    <div class="nav-item" data-tab="reference"><span class="num">10</span>參考索引</div>
   </div>
 
   <div class="sidebar-footer">
@@ -1383,10 +1384,101 @@ Response: { rank: 152, score: 450.5, top: false }</pre></div>
 </div>
 
 <!-- ─────────────────────────────────────────────
-     TAB 9: REFERENCE
+     TAB 9: REWARD DDL
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="reward-ddl">
+  <div class="sec-label">09 / Database</div>
+  <h1 class="sec-title">Tournament Prize Reward 資料表</h1>
+  <p class="sec-sub">新增 campaign_reward 表 — 通用獎勵記錄，支援 Tournament 及未來活動類型</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>為什麼需要新表？</div>
+    <div class="detail">
+      <div class="item"><span class="dot dot-pink"></span>現有 FRB 系統沒有「排名→發獎」的持久化機制</div>
+      <div class="item"><span class="dot dot-pink"></span>Tournament 結束後需記錄每位得獎玩家的排名、分數、獎金金額</div>
+      <div class="item"><span class="dot dot-pink"></span>獎勵有完整生命週期：Pending → Claimed → Completed / Expired</div>
+      <div class="item"><span class="dot dot-pink"></span>設計為通用 campaign_reward 表，campaign_type 欄位區分活動類型（4=Tournament）</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Table Schema — campaign_reward (OceanBase)</div>
+    <div class="code-block"><div class="lang">SQL — DDL</div><pre>CREATE TABLE campaign_reward (
+  id              varchar(36)    NOT NULL  COMMENT 'Reward ID',
+  campaign_id     varchar(36)    NOT NULL  COMMENT 'Campaign ID',
+  campaign_type   tinyint        NOT NULL  COMMENT 'Campaign type (e.g. 4=Tournament)',
+  agent_id        int unsigned   NOT NULL  COMMENT 'Agent ID (for settlement)',
+  agent_path      text           NOT NULL  COMMENT 'Agent hierarchy path',
+  operator_id     varchar(36)    NOT NULL  COMMENT 'Operator ID',
+  currency_sn     int unsigned   NOT NULL  COMMENT 'Prize currency',
+  member_id       varchar(36)    NOT NULL  COMMENT 'Player ID',
+  member_account  varchar(64)    NOT NULL  COMMENT 'Player account name',
+  `rank`          int            NOT NULL  COMMENT 'Final ranking',
+  score           double         NOT NULL  COMMENT 'Final score',
+  prize_cents     bigint         NOT NULL  COMMENT 'Prize amount (cents)',
+  status          tinyint        NOT NULL  DEFAULT 1
+                                           COMMENT '1=Pending 2=Claimed 3=Completed 4=Expired',
+  bet_type_mask   int unsigned   NOT NULL  DEFAULT 0
+                                           COMMENT 'Bet type flags (for settlement filtering)',
+  claimed_at      timestamp      NULL      COMMENT 'When player claimed',
+  completed_at    timestamp      NULL      COMMENT 'When funds transferred',
+  expired_at      timestamp      NULL      COMMENT 'When reward expired',
+  created_at      timestamp(3)   NOT NULL  DEFAULT CURRENT_TIMESTAMP(3)
+                                           COMMENT 'Record creation time',
+
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_campaign_reward_campaign_rank (campaign_id, `rank`),
+  KEY idx_campaign_reward_campaign_id (campaign_id),
+  KEY idx_campaign_reward_member_id  (member_id),
+  KEY idx_campaign_reward_status     (status)
+) DEFAULT CHARSET = utf8mb4 COMMENT 'Campaign prize rewards';</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>欄位說明</div>
+    <table class="spec-table">
+      <tr><th>欄位</th><th>用途</th></tr>
+      <tr><td><span class="ic">campaign_id</span></td><td>關聯到哪一場 Tournament / Campaign</td></tr>
+      <tr><td><span class="ic">campaign_type</span></td><td>活動類型，4 = Tournament；未來可擴展其他類型</td></tr>
+      <tr><td><span class="ic">agent_id</span> / <span class="ic">agent_path</span></td><td>代理商層級資訊，用於結算分潤</td></tr>
+      <tr><td><span class="ic">member_id</span> / <span class="ic">member_account</span></td><td>得獎玩家識別</td></tr>
+      <tr><td><span class="ic">rank</span> / <span class="ic">score</span></td><td>最終排名與分數（凍結排行榜時快照）</td></tr>
+      <tr><td><span class="ic">prize_cents</span></td><td>獎金金額（以 cents 儲存，避免浮點數精度問題）</td></tr>
+      <tr><td><span class="ic">status</span></td><td>獎勵狀態機：1=Pending → 2=Claimed → 3=Completed / 4=Expired</td></tr>
+      <tr><td><span class="ic">bet_type_mask</span></td><td>注單類型位元遮罩，用於結算篩選</td></tr>
+      <tr><td><span class="ic">claimed_at</span> / <span class="ic">completed_at</span> / <span class="ic">expired_at</span></td><td>各階段時間戳記，追蹤獎勵生命週期</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>索引策略</div>
+    <table class="spec-table">
+      <tr><th>索引</th><th>用途</th></tr>
+      <tr><td><span class="ic">PRIMARY KEY (id)</span></td><td>唯一獎勵記錄 ID</td></tr>
+      <tr><td><span class="ic">UNIQUE (campaign_id, rank)</span></td><td>同一活動中每個名次只有一筆獎勵 — 冪等寫入保障</td></tr>
+      <tr><td><span class="ic">INDEX (campaign_id)</span></td><td>查詢某活動的所有獎勵</td></tr>
+      <tr><td><span class="ic">INDEX (member_id)</span></td><td>查詢某玩家的歷史獎勵</td></tr>
+      <tr><td><span class="ic">INDEX (status)</span></td><td>掃描 Pending / Expired 獎勵（Background Job 用）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>設計要點</div>
+    <div class="detail">
+      <div class="item"><span class="dot dot-teal"></span><b>冪等性：</b>UNIQUE(campaign_id, rank) 確保重複發獎不會寫入多筆</div>
+      <div class="item"><span class="dot dot-teal"></span><b>通用性：</b>campaign_type 欄位讓此表可服務 Tournament 以外的未來活動</div>
+      <div class="item"><span class="dot dot-teal"></span><b>結算友善：</b>agent_id / agent_path / bet_type_mask 讓下游結算系統可直接查詢</div>
+      <div class="item"><span class="dot dot-teal"></span><b>金額精度：</b>prize_cents 使用 bigint 儲存，避免浮點數運算誤差</div>
+      <div class="item"><span class="dot dot-teal"></span><b>狀態追蹤：</b>每個階段有獨立 timestamp，方便除錯與審計</div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 10: REFERENCE
      ───────────────────────────────────────────── -->
 <div class="tab-page" id="reference">
-  <div class="sec-label">09 / Reference</div>
+  <div class="sec-label">10 / Reference</div>
   <h1 class="sec-title">關鍵 FRB 參考檔案索引</h1>
   <p class="sec-sub">快速查找需要複用或參考的原始碼</p>
 
