@@ -218,7 +218,9 @@ code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
     <div class="nav-group-title">執行計畫</div>
     <div class="nav-item" data-tab="roadmap"><span class="num">8</span>開發路線圖</div>
     <div class="nav-item" data-tab="reward-ddl"><span class="num">9</span>獎勵資料表</div>
-    <div class="nav-item" data-tab="reference"><span class="num">10</span>參考索引</div>
+    <div class="nav-item" data-tab="backoffice"><span class="num">10</span>後台配置</div>
+    <div class="nav-item" data-tab="config-ddl"><span class="num">11</span>配置資料表</div>
+    <div class="nav-item" data-tab="reference"><span class="num">12</span>參考索引</div>
   </div>
 
   <div class="sidebar-footer">
@@ -1475,10 +1477,247 @@ Response: { rank: 152, score: 450.5, top: false }</pre></div>
 </div>
 
 <!-- ─────────────────────────────────────────────
-     TAB 10: REFERENCE
+     TAB 10: BACK OFFICE CONFIG UI
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="backoffice">
+  <div class="sec-label">10 / Back Office</div>
+  <h1 class="sec-title">後台配置介面</h1>
+  <p class="sec-sub">Back Office 建立 Tournament 活動的 UI 畫面 — 欄位與資料表對照</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>基本設定 & 活動規則</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:16px">活動建立主畫面 — 含基本設定、營運商/遊戲選擇、計分門檻、算分方式、獎品配置</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px">
+      <img src="backoffice-create.png" alt="Back Office — 建立 Tournament" style="width:100%;border-radius:8px;border:1px solid var(--border)">
+    </div>
+    <table class="spec-table">
+      <tr><th>UI 欄位</th><th>資料表.欄位</th><th>說明</th></tr>
+      <tr><td>活動類型</td><td><span class="ic">campaign.type</span></td><td>4 = TNM (Tournament)</td></tr>
+      <tr><td>活動名稱 (英文/簡中)</td><td><span class="ic">campaign_lang.name</span></td><td>多語系名稱</td></tr>
+      <tr><td>活動期間</td><td><span class="ic">campaign.start_at / end_at</span></td><td>含時區 (campaign.timezone)</td></tr>
+      <tr><td>開始倒數時間</td><td><span class="ic">campaign.countdown_hourly</span></td><td>活動開始前 N 小時倒數</td></tr>
+      <tr><td>營運商</td><td><span class="ic">campaign_operator</span></td><td>一場活動可多個營運商參與</td></tr>
+      <tr><td>支援遊戲</td><td><span class="ic">campaign_game</span></td><td>一場活動可多個遊戲</td></tr>
+      <tr><td>計分門檻 (最低押注額)</td><td><span class="ic">campaign_setting.scoring_threshold_option</span></td><td>門檻選項類型</td></tr>
+      <tr><td>幣別 / 最低押注</td><td><span class="ic">campaign_threshold_currency.currency_sn / threshold</span></td><td>各幣別門檻 (cent)</td></tr>
+      <tr><td>算分方式</td><td><span class="ic">campaign_setting.scoring_rule</span></td><td>對應 4 種計分模式</td></tr>
+      <tr><td>獎品種類</td><td><span class="ic">campaign_setting.prize_type</span></td><td>現金 / Free Spins</td></tr>
+      <tr><td>派獎頻率</td><td><span class="ic">campaign_setting.payout_frequency</span></td><td>活動結束時 / 每天 / 每七天</td></tr>
+      <tr><td>領獎期限 (天)</td><td><span class="ic">campaign_setting.claim_period</span></td><td>獎品派發後 N 天內領取</td></tr>
+      <tr><td>到期處理</td><td><span class="ic">campaign_setting.expiry_action</span></td><td>自動派發 / 收回</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>獎品配置 & 計分門檻說明</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:16px">獎品配置按幣別設定名次獎金；計分門檻支援「最低押注額」與「最低旋轉次數」兩種模式</p>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px">
+      <img src="backoffice-scoring-threshold.png" alt="Back Office — 計分門檻說明" style="width:100%;border-radius:8px;border:1px solid var(--border)">
+    </div>
+    <table class="spec-table">
+      <tr><th>UI 欄位</th><th>資料表.欄位</th><th>說明</th></tr>
+      <tr><td>獎品配置 (名次/幣別/金額/數量)</td><td><span class="ic">campaign_currency_prize</span></td><td>rank + currency_sn + prize_amount + prize_quantity</td></tr>
+      <tr><td>計分門檻 — 限制最低押注額</td><td><span class="ic">campaign_threshold_currency</span></td><td>各幣別最低押注門檻 (cent)</td></tr>
+      <tr><td>計分門檻 — 限制旋轉次數</td><td><span class="ic">campaign_setting.min_rounds</span></td><td>最低遊戲場次</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>欄位與資料表關聯圖</div>
+    <div class="col" style="gap:12px">
+      <div class="row" style="gap:12px;align-items:stretch">
+        <div class="box box-red" style="min-width:160px">campaign<span class="sub">活動主檔</span></div>
+        <div class="box box-orange" style="min-width:160px">campaign_setting<span class="sub">活動設定 (TNM 專屬欄位)</span></div>
+        <div class="box box-blue" style="min-width:160px">campaign_lang<span class="sub">多語系名稱</span></div>
+      </div>
+      <div class="row" style="gap:12px;align-items:stretch">
+        <div class="box box-green" style="min-width:160px">campaign_operator<span class="sub">參與營運商</span></div>
+        <div class="box box-purple" style="min-width:160px">campaign_game<span class="sub">參與遊戲</span></div>
+      </div>
+      <div class="row" style="gap:12px;align-items:stretch">
+        <div class="box box-pink" style="min-width:160px">campaign_currency_prize<span class="sub">獎品配置 (名次/幣別/金額)</span></div>
+        <div class="box box-yellow" style="min-width:160px">campaign_threshold_currency<span class="sub">計分門檻 (各幣別)</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 11: CONFIG DDL
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="config-ddl">
+  <div class="sec-label">11 / Database</div>
+  <h1 class="sec-title">配置資料表 DDL</h1>
+  <p class="sec-sub">Back Office 活動配置相關表 — MySQL (five_game) — Tournament 欄位標記 TNM</p>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign — 活動主檔</div>
+    <div class="code-block"><div class="lang">SQL — DDL (MySQL)</div><pre>CREATE TABLE `campaign` (
+  `id`                       varchar(36)  NOT NULL DEFAULT (uuid()) COMMENT '活動內碼',
+  `code`                     varchar(15)  NOT NULL                  COMMENT '活動ID',
+  `type`                     tinyint      NOT NULL                  COMMENT '活動類型 (1:FSB 2:FRB 3:FRA 4:TNM)',
+  `status`                   tinyint      NOT NULL                  COMMENT '活動狀態',
+  `end_reason`               tinyint      NOT NULL                  COMMENT '活動結束原因 (flags)',
+  `start_at`                 timestamp    NOT NULL                  COMMENT '開始時間',
+  `end_at`                   timestamp    NOT NULL                  COMMENT '結束時間',
+  `visibility_end_at`        timestamp    NOT NULL                  COMMENT '活動可見截止時間',
+  `actual_end_at`            timestamp    NULL                      COMMENT '實際結束時間',
+  `timezone`                 time         NOT NULL                  COMMENT '活動時間時區',
+  `countdown_hourly`         smallint     NOT NULL                  COMMENT 'FSB-FRB-TNM-開始倒數時間(小時)',
+  `countdown_end_hourly`     smallint     NULL                      COMMENT 'FRB-結束倒數時間(小時)',
+  `cost_notify_proportion`   tinyint      NULL                      COMMENT 'FSB-成本通知門檻',
+  `prize_notify_proportion`  tinyint      NULL                      COMMENT 'FSB-FRB-獎品數量水位通知門檻',
+  `prize_notify_status`      tinyint      DEFAULT '0'               COMMENT 'FSB-FRB-獎品數量水位通知狀態',
+  `budget`                   json         NULL                      COMMENT '活動預算(Json)(USD)',
+  `last_status`              tinyint      NULL                      COMMENT '上次活動狀態',
+  `creator_id`               varchar(36)  NOT NULL                  COMMENT '創建者',
+  `created_at`               timestamp    NOT NULL                  COMMENT '創建時間',
+  `updater_id`               varchar(36)  NULL                      COMMENT '更新者',
+  `updated_at`               timestamp    NULL                      COMMENT '更新時間',
+  `is_archived`              bit(1)       NOT NULL DEFAULT b'0'     COMMENT '是否已封存',
+  `deleted`                  bit(1)       NOT NULL DEFAULT (0)      COMMENT '刪除標記',
+
+  PRIMARY KEY (`id`),
+  KEY `idx_campaign_deleted` (`deleted`),
+  KEY `idx_campaign_deleted_status` (`deleted`, `status`),
+  KEY `idx_campaign_deleted_start_at_end_at` (`deleted`, `start_at`, `end_at`),
+  KEY `idx_campaign_deleted_type` (`deleted`, `type`),
+  KEY `idx_campaign_deleted_code` (`deleted`, `code`)
+) COMMENT '活動主檔';</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign_setting — 活動設定</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">TNM 前綴欄位為 Tournament 專屬；FSB / FRB 前綴為其他活動類型使用</p>
+    <div class="code-block"><div class="lang">SQL — DDL (MySQL)</div><pre>CREATE TABLE `campaign_setting` (
+  `campaign_id`              varchar(36)   NOT NULL                 COMMENT '活動內碼',
+  `prize_quantity`           int           NULL                     COMMENT 'FSB-FRB-獎品數量',
+  `reward_condition`         int           NULL                     COMMENT 'FSB-FRB-獎勵條件(選項:總押注額)',
+  `threshold_currency_sn`    smallint      NULL                     COMMENT 'FSB-獎勵門檻幣別',
+  `prize_chips_option`       tinyint       NULL                     COMMENT 'FSB-FRB-獎品面額選項',
+  `prize_chips_usd`          decimal(10,2) NULL                     COMMENT 'FSB-FRB-獎品面額USD',
+  `payout_multiplier_limit`  int           NULL                     COMMENT 'FSB-派彩倍數上限',
+  `total_payout_amount_limit` bigint       NULL                     COMMENT 'FSB-總派彩金額上限(cent)',
+  `prize_expired_at`         timestamp     NULL                     COMMENT 'FRB-獎品到期日',
+  `scoring_threshold_option` tinyint       NULL                     COMMENT 'TNM-計分門檻選項',
+  `min_rounds`               int           NULL                     COMMENT 'TNM-最低遊戲場次',
+  `payout_frequency`         tinyint       NULL                     COMMENT 'TNM-派獎頻率(活動結束時、每天、每七天)',
+  `claim_period`             int           NULL                     COMMENT 'TNM-領獎期限(天)',
+  `expiry_action`            tinyint       NULL                     COMMENT 'TNM-到期處理方式(自動派發、收回)',
+  `scoring_rule`             tinyint       NULL                     COMMENT 'TNM-算分方式',
+  `prize_type`               tinyint       NULL                     COMMENT 'TNM-獎品種類',
+
+  PRIMARY KEY (`campaign_id`)
+) COMMENT '活動設定';</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign_operator / campaign_game — 參與者</div>
+    <div class="split-row" style="gap:16px">
+      <div style="flex:1;min-width:280px">
+        <div class="code-block"><div class="lang">SQL — campaign_operator</div><pre>CREATE TABLE `campaign_operator` (
+  `sn`           int unsigned NOT NULL AUTO_INCREMENT COMMENT '內碼',
+  `campaign_id`  varchar(36)  NOT NULL                COMMENT '活動內碼',
+  `operator_id`  varchar(36)  NOT NULL                COMMENT '營運商編號',
+  `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`sn`),
+  KEY `idx_campaign_operator_campaign_id` (`campaign_id`),
+  KEY `idx_campaign_operator_operator_id` (`operator_id`),
+  KEY `idx_campaign_operator_operator_campaign`
+      (`operator_id`, `campaign_id`)
+) COMMENT '活動參加的營運商';</pre></div>
+      </div>
+      <div style="flex:1;min-width:280px">
+        <div class="code-block"><div class="lang">SQL — campaign_game</div><pre>CREATE TABLE `campaign_game` (
+  `sn`           int          NOT NULL AUTO_INCREMENT COMMENT '內碼',
+  `campaign_id`  varchar(36)  NOT NULL                COMMENT '活動內碼',
+  `game_id`      varchar(12)  NOT NULL                COMMENT '遊戲編號',
+  `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`sn`),
+  KEY `idx_campaign_game_campaign_id` (`campaign_id`),
+  KEY `idx_campaign_game_game_id` (`game_id`),
+  KEY `idx_campaign_game_game_campaign`
+      (`game_id`, `campaign_id`)
+) COMMENT '活動參加的遊戲';</pre></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign_currency_prize — 獎品配置</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">Tournament 各幣別、各名次的獎金金額與數量</p>
+    <div class="code-block"><div class="lang">SQL — DDL (MySQL)</div><pre>CREATE TABLE `campaign_currency_prize` (
+  `sn`              int          NOT NULL AUTO_INCREMENT COMMENT '內碼',
+  `campaign_id`     varchar(36)  NOT NULL                COMMENT '活動內碼',
+  `currency_sn`     int          NOT NULL                COMMENT '幣別',
+  `rank`            int          NOT NULL                COMMENT 'TNM-名次',
+  `prize_quantity`  int          NOT NULL                COMMENT 'TNM-獎品數量',
+  `prize_amount`    bigint       NOT NULL                COMMENT 'TNM-獎品金額(cent)',
+  `created_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`sn`)
+) COMMENT '獎品配置';</pre></div>
+    <div class="callout">
+      <b>對照 UI：</b>獎品配置區塊 — 每個幣別 tab 下按名次設定獎金金額與數量。<br>
+      例：Rank 1 / USD / 500.00 / 數量 1 → <span class="ic">currency_sn=USD, rank=1, prize_amount=50000, prize_quantity=1</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign_threshold_currency — 計分門檻</div>
+    <p style="font-size:13px;color:var(--text3);margin-bottom:12px">各幣別的最低押注門檻 (當 scoring_threshold_option = 限制最低押注額時使用)</p>
+    <div class="code-block"><div class="lang">SQL — DDL (MySQL)</div><pre>CREATE TABLE `campaign_threshold_currency` (
+  `sn`              int          NOT NULL AUTO_INCREMENT COMMENT '內碼',
+  `campaign_id`     varchar(36)  NOT NULL                COMMENT '活動內碼',
+  `currency_sn`     int          NOT NULL                COMMENT '幣別',
+  `level`           int          NULL                    COMMENT 'FRB-獎勵等級',
+  `threshold`       int          NOT NULL                COMMENT 'FSB-FRB-TNM-獎勵門檻/計分門檻(cent)',
+  `quantity`        int          NULL                    COMMENT 'FSB-FRB-獎品數量',
+  `payout_limit`    bigint       NULL                    COMMENT 'FRB-獎品派彩上限(cent)',
+  `created_at`      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`sn`),
+  KEY `idx_campaign_threshold_currency_campaign_id` (`campaign_id`),
+  KEY `idx_campaign_threshold_currency_campaign_id_currency_sn`
+      (`campaign_id`, `currency_sn`)
+) COMMENT '活動各幣別獎勵門檻';</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>campaign_lang — 多語系名稱</div>
+    <div class="code-block"><div class="lang">SQL — DDL (MySQL)</div><pre>CREATE TABLE `campaign_lang` (
+  `sn`           int unsigned NOT NULL AUTO_INCREMENT COMMENT '內碼',
+  `campaign_id`  varchar(36)  NOT NULL                COMMENT '活動內碼',
+  `lang_id`      varchar(20)  NOT NULL                COMMENT '語系',
+  `name`         varchar(128) NOT NULL                COMMENT '語系名稱',
+  `created_at`   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+  PRIMARY KEY (`sn`),
+  KEY `idx_campaign_lang_campaign_id` (`campaign_id`)
+) COMMENT '活動名稱語系';</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>TNM 欄位值對照</div>
+    <table class="spec-table">
+      <tr><th>欄位</th><th>值</th><th>說明</th></tr>
+      <tr><td><span class="ic">campaign.type</span></td><td>4</td><td>TNM (Tournament)</td></tr>
+      <tr><td><span class="ic">scoring_threshold_option</span></td><td>1 / 2</td><td>1 = 限制最低押注額, 2 = 限制旋轉次數</td></tr>
+      <tr><td><span class="ic">scoring_rule</span></td><td>1 / 2 / 3 / 4</td><td>1 = 單筆最高倍數, 2 = 累積倍數, 3 = 總贏分, 4 = 總押注</td></tr>
+      <tr><td><span class="ic">prize_type</span></td><td>1 / 2</td><td>1 = 現金, 2 = Free Spins (未來)</td></tr>
+      <tr><td><span class="ic">payout_frequency</span></td><td>1 / 2 / 3</td><td>1 = 活動結束時, 2 = 每天, 3 = 每七天</td></tr>
+      <tr><td><span class="ic">expiry_action</span></td><td>1 / 2</td><td>1 = 自動派發, 2 = 收回</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 12: REFERENCE
      ───────────────────────────────────────────── -->
 <div class="tab-page" id="reference">
-  <div class="sec-label">10 / Reference</div>
+  <div class="sec-label">12 / Reference</div>
   <h1 class="sec-title">關鍵 FRB 參考檔案索引</h1>
   <p class="sec-sub">快速查找需要複用或參考的原始碼</p>
 
