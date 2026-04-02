@@ -557,8 +557,8 @@ code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
 │   │       ├── Redis/
 │   │       │   └── RedisLeaderboardRepo.cs         # Sorted Set 操作
 │   │       ├── OceanBase/
-│   │       │   ├── OceanBaseRewardRepo.cs           # tournament_reward
-│   │       │   └── OceanBaseSnapshotRepo.cs         # tournament_reward_snapshot
+│   │       │   ├── OceanBaseRewardRepo.cs           # campaign_reward
+│   │       │   └── OceanBaseSnapshotRepo.cs         # campaign_reward_snapshot
 │   │       └── MySQL/
 │   │           └── TournamentConfigRepo.cs          # 讀取賽事 + Prize Pool 配置
 │   │
@@ -597,7 +597,7 @@ code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
 │
 ├── docs/sql/
 │   ├── ddl-frb-ticket-oceanbase.sql            # 現有
-│   ├── ddl-tournament-reward-oceanbase.sql      # 🆕
+│   ├── ddl-campaign-reward-oceanbase.sql      # 🆕
 │   └── ddl-tournament-config-mysql.sql          # 🆕
 │
 ├── tests/
@@ -1126,7 +1126,7 @@ Response: { rank: 152, score: 450.5, top: false }</pre></div>
         <div class="detail" style="margin:0;border-color:var(--red-bd)">
           <div class="item"><span class="dot dot-orange"></span>分散式鎖：lock:tournament:end:{tid}</div>
           <div class="item"><span class="dot dot-orange"></span>ZREVRANGE leaderboard:{tid} 0 -1 WITHSCORES</div>
-          <div class="item"><span class="dot dot-purple"></span>Snapshot → OceanBase tournament_reward_snapshot</div>
+          <div class="item"><span class="dot dot-purple"></span>Snapshot → OceanBase campaign_reward_snapshot</div>
           <div class="item"><span class="dot dot-orange"></span>Tournament status → Result</div>
         </div>
       </div>
@@ -1159,7 +1159,7 @@ Response: { rank: 152, score: 450.5, top: false }</pre></div>
       <div style="background:var(--purple-bg);border:1.5px solid var(--purple-bd);border-radius:10px;padding:16px;max-width:400px;width:100%;text-align:center">
         <div style="font-weight:700;color:var(--purple);font-size:13px;margin-bottom:8px">Batch Insert → OceanBase</div>
         <div class="detail" style="margin:0;border-color:var(--purple-bd)">
-          <div class="item"><span class="dot dot-purple"></span>tournament_reward 表 (Pending 狀態)</div>
+          <div class="item"><span class="dot dot-purple"></span>campaign_reward 表 (Pending 狀態)</div>
           <div class="item"><span class="dot dot-purple"></span>Polly Retry + Circuit Breaker</div>
           <div class="item"><span class="dot dot-purple"></span>Idempotency: unique(tid, rank)</div>
         </div>
