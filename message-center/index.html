@@ -12,6 +12,8 @@
 body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-weight:300;line-height:1.6;min-height:100vh}
 .app{display:flex;min-height:100vh}
 .sidebar{width:230px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column}
+.sidebar-home{display:block;padding:10px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--text3);text-decoration:none;border-bottom:1px solid var(--border);transition:color .15s}
+.sidebar-home:hover{color:var(--teal)}
 .sidebar-header{padding:24px 18px 16px;border-bottom:1px solid var(--border)}
 .sidebar-logo{font-family:'Syne',sans-serif;font-weight:800;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);margin-bottom:3px}
 .sidebar-title{font-size:11px;color:var(--text3);line-height:1.4}
@@ -100,6 +102,7 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
 <body>
 <div class="app">
 <aside class="sidebar">
+  <a href="../" class="sidebar-home">← Home</a>
   <div class="sidebar-header">
     <div class="sidebar-logo">Msg Center</div>
     <div class="sidebar-title">Design Document<br>Architecture Summary</div>
