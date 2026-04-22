@@ -119,6 +119,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="ni" onclick="show('dbload',this)"><span class="ns">08</span>DB Loading</a>
     <a class="ni" onclick="show('decisions',this)"><span class="ns">09</span>關鍵決策</a>
     <a class="ni" onclick="show('review',this)"><span class="ns">10</span>Review &amp; 建議</a>
+    <div class="ng">上線規劃</div>
+    <a class="ni" onclick="show('sse-plan',this)"><span class="ns">11</span>SSE 上線計劃</a>
   </nav>
 </aside>
 <main class="main">
@@ -728,6 +730,268 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
       <div class="crow c3"><div class="cc">Polling</div><div class="cc">定位補充</div><div class="cc" style="color:var(--success)">初始載入 + SSE 備援 + 斷線補漏，不只是備援（同事補充）</div></div>
       <div class="crow c3"><div class="cc">分頁</div><div class="cc">GET /inbox 分頁</div><div class="cc" style="color:var(--success)">加 cursor-based 分頁（member_inbox.id），訊息量大時穩定（同事補充）</div></div>
     </div>
+  </div>
+</section>
+
+<!-- 11 SSE PLAN -->
+<section id="sse-plan" class="panel">
+  <div class="sh">
+    <div class="stag">11 / SSE Deployment Plan</div>
+    <div class="stitle">SSE 上線計劃</div>
+    <div class="sdesc">SSE 上線架構、認證方案、Cocos 整合策略、ECS 部署規劃。</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">系統全景架構</div>
+    <svg width="100%" viewBox="0 0 680 430">
+      <defs><marker id="sp" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <!-- Cocos Client -->
+      <rect x="30" y="20" width="190" height="55" rx="8" style="fill:var(--blue-dim);stroke:var(--blue)" stroke-width="0.5"/>
+      <text x="125" y="41" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--blue)">Cocos Client (H5)</text>
+      <text x="125" y="61" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#185FA5">EventSource</text>
+      <!-- PlatformApi -->
+      <rect x="460" y="20" width="190" height="55" rx="8" style="fill:var(--coral-dim);stroke:var(--coral)" stroke-width="0.5"/>
+      <text x="555" y="41" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--coral)">PlatformApi</text>
+      <text x="555" y="61" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#993C1D">簽發 SSE JWT</text>
+      <!-- Login arrows -->
+      <line x1="220" y1="38" x2="460" y2="38" stroke="var(--coral)" stroke-width="1" marker-end="url(#sp)"/>
+      <text x="340" y="30" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--coral)">1. Login</text>
+      <line x1="460" y1="58" x2="220" y2="58" stroke="var(--teal)" stroke-width="1" marker-end="url(#sp)"/>
+      <text x="340" y="72" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--teal)">2. sse_token + sse_url</text>
+      <!-- SSE direct: Cocos → CloudFront -->
+      <line x1="125" y1="75" x2="125" y2="145" stroke="var(--blue)" stroke-width="1" marker-end="url(#sp)"/>
+      <text x="145" y="108" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">3. SSE直連</text>
+      <text x="145" y="122" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--text3)">JWT in query</text>
+      <!-- CloudFront -->
+      <rect x="30" y="145" width="140" height="50" rx="8" style="fill:var(--gray-dim);stroke:var(--border2)" stroke-width="0.5"/>
+      <text x="100" y="164" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="12" style="fill:var(--text2)">CloudFront</text>
+      <text x="100" y="184" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10" style="fill:var(--text3)">SSE 行為</text>
+      <!-- ALB -->
+      <rect x="220" y="145" width="140" height="50" rx="8" style="fill:var(--gray-dim);stroke:var(--border2)" stroke-width="0.5"/>
+      <text x="290" y="164" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--text2)">ALB</text>
+      <text x="290" y="184" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10" style="fill:var(--text3)">idle timeout 3600s</text>
+      <!-- ECS API -->
+      <rect x="420" y="145" width="230" height="55" rx="8" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="535" y="166" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--teal)">ECS API</text>
+      <text x="535" y="186" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#1D9E75">2~4 pods · SSE + REST</text>
+      <!-- CloudFront → ALB → ECS API -->
+      <line x1="170" y1="170" x2="220" y2="170" stroke="var(--border2)" stroke-width="1" marker-end="url(#sp)"/>
+      <line x1="360" y1="170" x2="420" y2="170" stroke="var(--border2)" stroke-width="1" marker-end="url(#sp)"/>
+      <!-- SSE event stream return (dashed) -->
+      <path d="M 420 158 L 380 158 L 380 108 L 175 108 L 175 75" fill="none" stroke="var(--blue)" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#sp)"/>
+      <text x="298" y="100" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--blue)">4. SSE stream (event: message)</text>
+      <!-- ECS API → Redis (Sub) -->
+      <line x1="535" y1="200" x2="535" y2="260" stroke="var(--amber)" stroke-width="1" marker-end="url(#sp)"/>
+      <text x="558" y="235" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">Sub</text>
+      <!-- Redis -->
+      <rect x="420" y="260" width="230" height="50" rx="8" style="fill:var(--amber-dim);stroke:var(--amber)" stroke-width="0.5"/>
+      <text x="535" y="279" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--amber)">Redis (Pub/Sub)</text>
+      <text x="535" y="299" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="10" style="fill:#854F0B">message:inbox:{member_id}</text>
+      <!-- ECS Consumer → Redis (Pub) -->
+      <line x1="535" y1="360" x2="535" y2="310" stroke="var(--purple)" stroke-width="1" marker-end="url(#sp)"/>
+      <text x="558" y="340" font-family="'IBM Plex Mono',monospace" font-size="10" style="fill:var(--text3)">Pub</text>
+      <!-- ECS Consumer -->
+      <rect x="420" y="360" width="230" height="50" rx="8" style="fill:var(--purple-dim);stroke:var(--purple)" stroke-width="0.5"/>
+      <text x="535" y="379" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="13" style="fill:var(--purple)">ECS Consumer</text>
+      <text x="535" y="399" text-anchor="middle" dominant-baseline="central" font-family="'DM Sans',sans-serif" font-size="11" style="fill:#4B3D8F">Outbox Worker</text>
+      <!-- AWS Cloud border -->
+      <rect x="15" y="130" width="650" height="290" rx="10" fill="none" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="6 4"/>
+      <text x="640" y="145" text-anchor="end" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--text3)">AWS Cloud</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <div class="ct">SSE Domain 提供方式</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">PlatformApi 新增 endpoint，在玩家登入時返回 SSE 連線資訊：</div>
+    <div class="code"><span class="cm">// GET /api/v1/platform/config（或現有 login response 追加欄位）</span>
+{
+  <span class="str">"sse_endpoint"</span>: <span class="str">"https://msg-sse.{domain}/api/v1/inbox/stream"</span>,
+  <span class="str">"sse_enabled"</span>: <span class="kw">true</span>
+}</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">認證方案 — SSE 專用 JWT</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">PlatformApi 現有 JWT（30 秒效期、per-operator secret）不適用於 SSE 長連線。改為 PlatformApi 簽發<strong style="color:var(--text)">獨立的 SSE JWT</strong>，隨登入 response 一起返回。EventSource 不支援自訂 Header，token 放在 query param。</div>
+    <div class="code"><span class="cm">// PlatformApi 登入 response 追加</span>
+{
+  ...,
+  <span class="str">"sse_url"</span>:   <span class="str">"https://msg-sse.xxx.com/api/v1/inbox/stream"</span>,
+  <span class="str">"sse_token"</span>: <span class="str">"eyJ..."</span>  <span class="cm">← SSE 專用 JWT（HMAC-SHA256, 30 分鐘有效）</span>
+}
+
+<span class="cm">// Client 直連</span>
+<span class="kw">new</span> <span class="fn">EventSource</span>(sse_url + <span class="str">'?token='</span> + sse_token)
+
+<span class="cm">// Message Center 驗證</span>
+token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp → 取 sub 作為 member_id</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">SSE JWT Payload 格式</div>
+    <div class="code">{
+  <span class="str">"sub"</span>: <span class="str">"member-001"</span>,      <span class="cm">// member_id → 訂閱 Redis channel</span>
+  <span class="str">"oid"</span>: <span class="str">"operator-001"</span>,   <span class="cm">// operator_id → 多租戶隔離</span>
+  <span class="str">"exp"</span>: <span class="num">1745339400</span>,       <span class="cm">// 30 分鐘有效期</span>
+  <span class="str">"aud"</span>: <span class="str">"message-center"</span>  <span class="cm">// 防止其他服務 JWT 誤用</span>
+}</div>
+    <div class="cmp" style="margin-top:12px">
+      <div class="crow c3 ch"><div class="cc">欄位</div><div class="cc">用途</div><div class="cc">為什麼需要</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">sub</div><div class="cc">member_id</div><div class="cc">訂閱 Redis channel <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">message:inbox:{sub}</code>，防止 client 偽造</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">oid</div><div class="cc">operator_id</div><div class="cc">多租戶隔離，同一 member_id 在不同 operator 下是不同玩家</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">exp</div><div class="cc">過期時間</div><div class="cc">30 分鐘。Token 在 URL 會出現在 access log，短效期限制洩漏風險</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">aud</div><div class="cc">受眾</div><div class="cc">固定 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--teal)">"message-center"</code>，防止其他服務 JWT 被拿來打 SSE</div></div>
+    </div>
+    <div class="alert ai" style="margin-top:10px">簽發與驗證：PlatformApi 和 Message Center 共用環境變數 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">SSE_JWT_SECRET</code>，不碰 operator DB。</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Token 過期處理（斷線重連）</div>
+    <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap;margin-bottom:14px">
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--teal-dim);color:var(--teal);border:1px solid #1a4a38">~25 min</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--amber-dim);color:var(--amber);border:1px solid #4a3010">event: token_expiring</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--red-dim);color:var(--red);border:1px solid #4a1414">30 min → Server 關閉連線</div>
+      <div style="color:var(--text3);padding:0 8px">→</div>
+      <div style="padding:6px 14px;border-radius:20px;font-family:'IBM Plex Mono',monospace;font-size:11px;background:var(--blue-dim);color:var(--blue);border:1px solid #142040">取新 token → 重連</div>
+    </div>
+    <div class="code"><span class="cm">// Client onerror 觸發後</span>
+<span class="num">1.</span> 向 PlatformApi 取新 sse_token
+<span class="num">2.</span> <span class="kw">new</span> <span class="fn">EventSource</span>(sse_url + <span class="str">'?token='</span> + newToken)  <span class="cm">← 重連 < 1 秒</span>
+<span class="num">3.</span> 呼叫 <span class="str">/inbox</span> API 補漏斷線期間的訊息</div>
+    <div class="alert aa" style="margin-top:10px">失敗降級：重試 5 次（指數退避）→ 降級為 polling（每 60 秒 /inbox/count）→ 遊戲不受影響</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Cocos Client — 連線時機</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">基於 Cocos Creator 3.7.2 專案架構（Games-S5G-H5-99947），SSE 在 <strong style="color:var(--text)">LoginRecall.handleMessage() 完成後</strong>建立。</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div class="fnode"><div class="fl"><span class="tag tg">1</span> ActivateScene.onLoad()</div><div class="fd">讀取 window['gameConfig']，解析 token、socketUrl</div></div>
+      <div class="fa">載入階段</div>
+      <div class="fnode"><div class="fl"><span class="tag tg">2</span> LoadingScene.onLoad()</div><div class="fd">載入資源、初始化 UI、SocketManager 連線 WebSocket</div></div>
+      <div class="fa">連線階段</div>
+      <div class="fnode"><div class="fl"><span class="tag tg">3</span> WebSocket → LoginRecall</div><div class="fd">取得 memberID、operatorID、token</div></div>
+      <div class="fa">SSE 啟動</div>
+      <div class="fnode" style="border-color:var(--teal)"><div class="fl"><span class="tag tt">4</span> <strong style="color:var(--teal)">MessageCenterManager.connectSSE()</strong></div><div class="fd">具備 memberID + SSE token + 資源已載完 → 建立 SSE 連線</div></div>
+      <div class="fa">遊戲進行</div>
+      <div class="fnode"><div class="fl"><span class="tag tg">5</span> 玩家 spin 遊戲中</div><div class="fd">維持 SSE 連線，即時接收訊息通知</div></div>
+      <div class="fa">離開</div>
+      <div class="fnode"><div class="fl"><span class="tag tr">6</span> 關閉遊戲 / 離開頁面</div><div class="fd">斷開 SSE 連線</div></div>
+    </div>
+    <div class="alert ai" style="margin-top:12px">SSE config 透過 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">window['gameConfig']</code> 或 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">window['psapi']</code> 注入，與 socketUrl 方式一致，不需額外打 API。</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">SSE 失敗絕不影響遊戲</div>
+    <div class="cmp">
+      <div class="crow c2 ch"><div class="cc">場景</div><div class="cc">處理方式</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">SSE 連不上</div><div class="cc">指數退避重試 5 次 → 降級為 polling</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">SSE 中途斷線</div><div class="cc">自動重連 + 呼叫 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">/inbox?cursor=lastId</code> 補漏</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">JWT 過期</div><div class="cc">onerror 觸發 → 先 refresh token → 再重連</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">Redis 掛了</div><div class="cc">SSE 連線存活但收不到訊息 → client 不受影響，server 恢復後自動恢復</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--danger)">MC 全掛</div><div class="cc">client 收到 onerror → 靜默降級，不顯示錯誤，遊戲正常運行</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Client 參考實作 — MessageCenterManager</div>
+    <div class="code"><span class="cm">// MessageCenterManager.ts — Singleton，與 SocketManager 同級</span>
+<span class="cm">// 放在 assets/base/script/message-center/</span>
+
+<span class="kw">export class</span> <span class="fn">MessageCenterManager</span> {
+    <span class="kw">private static</span> _instance: MessageCenterManager;
+    <span class="kw">private</span> es: EventSource | <span class="kw">null</span> = <span class="kw">null</span>;
+    <span class="kw">private</span> retryCount = <span class="num">0</span>;
+    <span class="kw">private</span> maxRetry = <span class="num">5</span>;
+    <span class="kw">private</span> baseDelay = <span class="num">3000</span>;
+
+    <span class="fn">connectSSE</span>() {
+        <span class="kw">const</span> config = window[<span class="str">'gameConfig'</span>];
+        <span class="kw">if</span> (!config?.sseUrl || !config?.sseToken) <span class="kw">return</span>;  <span class="cm">// SSE 未啟用</span>
+
+        <span class="kw">const</span> url = <span class="str">`${config.sseUrl}?token=${config.sseToken}`</span>;
+        <span class="kw">this</span>.es = <span class="kw">new</span> <span class="fn">EventSource</span>(url);
+
+        <span class="kw">this</span>.es.addEventListener(<span class="str">'message'</span>, (e) => {
+            <span class="kw">this</span>.retryCount = <span class="num">0</span>;
+            BaseEvent.inboxNewMessage.emit(JSON.parse(e.data));
+        });
+
+        <span class="kw">this</span>.es.onerror = () => {
+            <span class="kw">this</span>.es?.close();
+            <span class="kw">this</span>.scheduleReconnect();
+        };
+    }
+
+    <span class="kw">private</span> <span class="fn">scheduleReconnect</span>() {
+        <span class="kw">if</span> (<span class="kw">this</span>.retryCount >= <span class="kw">this</span>.maxRetry) {
+            <span class="kw">this</span>.startPolling();  <span class="cm">// 降級為 polling（每 60 秒 /inbox/count）</span>
+            <span class="kw">return</span>;
+        }
+        <span class="kw">const</span> delay = <span class="kw">this</span>.baseDelay * Math.pow(<span class="num">2</span>, <span class="kw">this</span>.retryCount++);
+        setTimeout(() => <span class="kw">this</span>.refreshTokenThenConnect(), delay);
+    }
+}</div>
+    <div class="alert ai" style="margin-top:10px">需在 BaseEvent.ts 新增 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">static inboxNewMessage = new XEvent1&lt;any&gt;()</code>，並在 LoginRecall.handleMessage() 最後呼叫 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">MessageCenterManager.getInstance().connectSSE()</code></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Server 端改造清單</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">優先級</div><div class="cc">項目</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--red)">P0</div><div class="cc" style="color:var(--text)">JWT Middleware</div><div class="cc">驗 token、提取 member_id、拒絕未認證請求</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--red)">P0</div><div class="cc" style="color:var(--text)">Heartbeat</div><div class="cc">每 30 秒送 SSE comment，防 CloudFront 斷線</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--red)">P0</div><div class="cc" style="color:var(--text)">CORS 限定</div><div class="cc">從 AllowAnyOrigin() 改為 game domain whitelist</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">P1</div><div class="cc" style="color:var(--text)">連線數追蹤</div><div class="cc">Interlocked counter + CloudWatch metric</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">P1</div><div class="cc" style="color:var(--text)">Health check</div><div class="cc">/health/ready 檢查 Redis 連線</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">P1</div><div class="cc" style="color:var(--text)">每 member 限 1 條</div><div class="cc">新連線踢舊連線，H5 同時只有一個分頁</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">P2</div><div class="cc" style="color:var(--text)">Reconnect 補漏</div><div class="cc">支援 Last-Event-ID 或 since 參數</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">P2</div><div class="cc" style="color:var(--text)">Graceful shutdown</div><div class="cc">SIGTERM → 通知 client 重連</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">連線數追蹤 + 每 member 限制</div>
+    <div class="g2">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:8px">SseConnectionTracker（Singleton）</div>
+        <div class="code" style="font-size:11px"><span class="kw">public class</span> <span class="fn">SseConnectionTracker</span>
+{
+    <span class="kw">private int</span> _active;
+    <span class="kw">public int</span> Active => _active;
+
+    <span class="kw">public</span> IDisposable <span class="fn">Track</span>() {
+        Interlocked.Increment(<span class="kw">ref</span> _active);
+        <span class="kw">return new</span> <span class="fn">Scope</span>(<span class="kw">this</span>);
+    }
+    <span class="cm">// Dispose → Decrement</span>
+}</div>
+      </div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:8px">每 member 連線限制（1 條）</div>
+        <div class="code" style="font-size:11px"><span class="cm">// ConcurrentDictionary
+// member_id → 舊連線 CTS</span>
+
+新連線進來：
+  <span class="num">1.</span> 查 dictionary → 有舊連線
+  <span class="num">2.</span> 送 <span class="str">event: replaced</span>
+  <span class="num">3.</span> Cancel 舊 CTS
+  <span class="num">4.</span> 註冊新連線
+
+<span class="cm">// H5 同一時間只有一個分頁
+// 1 條 SSE 足夠</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">待確認的決策點</div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#1</span>JWT signing key 共享方式<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">環境變數 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">SSE_JWT_SECRET</code>，PlatformApi 和 MC 都讀取。待確認 key 管理方式（AWS Secrets Manager?）</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#2</span>PlatformApi 登入 response 追加欄位<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">PlatformApi 從 session 取 member_id + operator_id 簽發 SSE JWT，需要 PlatformApi 開發配合。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#3</span>SSE game domain whitelist<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">CORS 需要具體 game domain URL，待提供 production game URL。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#4</span>CloudFront SSE distribution<span class="pill pd" style="margin-left:auto">Resolved</span></div><div class="qa-a">infra 負責處理。</div></div>
+    <div class="qa-wrap"><div class="qq"><span class="qn">#5</span>Token 過期處理方案<span class="pill pd" style="margin-left:auto">Resolved</span></div><div class="qa-a">採用方案 A：斷線重連（最簡單）。</div></div>
   </div>
 </section>
 
