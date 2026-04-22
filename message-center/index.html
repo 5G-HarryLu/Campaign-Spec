@@ -940,6 +940,98 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   </div>
 
   <div class="card">
+    <div class="ct">PlatformApi 端 — gameConfig 注入</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:12px">玩家在平台網站點「進入遊戲」→ PlatformApi 驗證 session → 簽發 SSE JWT → 注入到遊戲 HTML：</div>
+    <div class="code">window[<span class="str">'gameConfig'</span>] = {
+  gameID:    <span class="str">"S5G-H5-99947"</span>,
+  socketUrl: <span class="str">"wss://gs-dev.5gg.win/slot"</span>,
+  token:     <span class="str">"現有的 game server token"</span>,
+  account:   <span class="str">"ray_ji"</span>,
+  password:  <span class="str">"1234"</span>,
+  sseUrl:    <span class="str">"https://msg-sse.xxx.com/api/v1/inbox/stream"</span>,  <span class="cm">// 新增</span>
+  sseToken:  <span class="str">"eyJ..."</span>                                        <span class="cm">// 新增</span>
+};</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Cocos 端 — 使用者互動流程</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div class="fnode"><div class="fl"><span class="tag tt">SSE</span> 收到新訊息 → BaseEvent.inboxNewMessage.emit(data)</div><div class="fd">即時推送，UI 更新紅點數字</div></div>
+      <div class="fa">使用者操作</div>
+      <div class="fnode"><div class="fl"><span class="tag tb">GET</span> /inbox?token=xxx</div><div class="fd">玩家點「信箱」按鈕 → 拉訊息列表（cursor-based 分頁）</div></div>
+      <div class="fa">互動</div>
+      <div class="fnode"><div class="fl"><span class="tag tp">PUT</span> /inbox/{id}/read?token=xxx</div><div class="fd">玩家點開某一則訊息 → 標記已讀</div></div>
+      <div class="fa">互動</div>
+      <div class="fnode"><div class="fl"><span class="tag tr">DEL</span> /inbox/{id}?token=xxx</div><div class="fd">玩家刪除訊息 → 封存</div></div>
+      <div class="fa">紅點</div>
+      <div class="fnode"><div class="fl"><span class="tag tb">GET</span> /inbox/count?token=xxx</div><div class="fd">取得未讀數 → badge 顯示</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">三方串接全貌</div>
+    <svg width="100%" viewBox="0 0 680 460">
+      <defs><marker id="sq" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+      <!-- Column headers -->
+      <rect x="25" y="8" width="140" height="32" rx="6" style="fill:var(--coral-dim);stroke:var(--coral)" stroke-width="0.5"/>
+      <text x="95" y="28" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="12" style="fill:var(--coral)">PlatformApi</text>
+      <rect x="265" y="8" width="140" height="32" rx="6" style="fill:var(--blue-dim);stroke:var(--blue)" stroke-width="0.5"/>
+      <text x="335" y="28" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="12" style="fill:var(--blue)">Cocos Client</text>
+      <rect x="500" y="8" width="160" height="32" rx="6" style="fill:var(--teal-dim);stroke:var(--teal)" stroke-width="0.5"/>
+      <text x="580" y="28" text-anchor="middle" dominant-baseline="central" font-family="'Syne',sans-serif" font-weight="600" font-size="12" style="fill:var(--teal)">MC API</text>
+      <!-- Lifelines -->
+      <line x1="95" y1="40" x2="95" y2="450" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="335" y1="40" x2="335" y2="450" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4 3"/>
+      <line x1="580" y1="40" x2="580" y2="450" stroke="var(--border2)" stroke-width="1" stroke-dasharray="4 3"/>
+      <!-- 1. gameConfig injection -->
+      <line x1="95" y1="70" x2="335" y2="70" stroke="var(--coral)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="215" y="62" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--coral)">gameConfig 含 sseUrl + sseToken</text>
+      <!-- 2. SSE connection -->
+      <line x1="335" y1="105" x2="580" y2="105" stroke="var(--blue)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="97" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--blue)">EventSource (SSE 連線)</text>
+      <!-- 3. SSE event back -->
+      <line x1="580" y1="135" x2="335" y2="135" stroke="var(--teal)" stroke-width="1" stroke-dasharray="5 3" marker-end="url(#sq)"/>
+      <text x="457" y="127" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--teal)">event: message (即時推送)</text>
+      <!-- UI update note -->
+      <rect x="280" y="148" width="110" height="22" rx="4" style="fill:var(--blue-dim);stroke:var(--blue)" stroke-width="0.3"/>
+      <text x="335" y="162" text-anchor="middle" dominant-baseline="central" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--blue)">UI 更新紅點</text>
+      <!-- Divider: REST -->
+      <line x1="25" y1="185" x2="660" y2="185" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2 2"/>
+      <text x="670" y="183" text-anchor="end" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--text3)">REST</text>
+      <!-- REST interactions -->
+      <line x1="335" y1="210" x2="580" y2="210" stroke="var(--purple)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="202" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--purple)">GET /inbox (拉列表)</text>
+      <line x1="335" y1="240" x2="580" y2="240" stroke="var(--purple)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="232" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--purple)">PUT /inbox/{id}/read (標已讀)</text>
+      <line x1="335" y1="270" x2="580" y2="270" stroke="var(--purple)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="262" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--purple)">DELETE /inbox/{id} (刪除)</text>
+      <line x1="335" y1="300" x2="580" y2="300" stroke="var(--purple)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="292" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--purple)">GET /inbox/count (紅點)</text>
+      <!-- Divider: Token refresh -->
+      <line x1="25" y1="335" x2="660" y2="335" stroke="var(--amber)" stroke-width="0.5" stroke-dasharray="2 2"/>
+      <text x="670" y="333" text-anchor="end" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--amber)">Renew</text>
+      <!-- Token refresh -->
+      <line x1="335" y1="365" x2="95" y2="365" stroke="var(--amber)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="215" y="357" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--amber)">取新 sse_token</text>
+      <line x1="95" y1="395" x2="335" y2="395" stroke="var(--amber)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="215" y="387" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--amber)">新的 sseToken</text>
+      <!-- Reconnect -->
+      <line x1="335" y1="430" x2="580" y2="430" stroke="var(--blue)" stroke-width="1" marker-end="url(#sq)"/>
+      <text x="457" y="422" text-anchor="middle" font-family="'IBM Plex Mono',monospace" font-size="9" style="fill:var(--blue)">用新 token 重連 SSE</text>
+    </svg>
+  </div>
+
+  <div class="card">
+    <div class="ct">職責分工</div>
+    <div class="g2" style="grid-template-columns:1fr 1fr 1fr 1fr;gap:10px">
+      <div class="rc"><div class="rct" style="color:var(--coral)">PlatformApi</div><div class="rcd">簽發 SSE JWT<br>注入 gameConfig<br>不參與訊息流</div></div>
+      <div class="rc"><div class="rct" style="color:var(--blue)">SSE</div><div class="rcd">即時推送新訊息<br>server → client<br>單向、唯讀</div></div>
+      <div class="rc"><div class="rct" style="color:var(--purple)">REST API</div><div class="rcd">使用者操作<br>拉列表、標已讀<br>刪除</div></div>
+      <div class="rc"><div class="rct" style="color:var(--amber)">Token Refresh</div><div class="rcd">快過期時回<br>PlatformApi<br>拿新 token</div></div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="ct">Server 端改造清單</div>
     <div class="cmp">
       <div class="crow c3 ch"><div class="cc">優先級</div><div class="cc">項目</div><div class="cc">說明</div></div>
