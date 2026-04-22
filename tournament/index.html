@@ -853,7 +853,7 @@ return newTotal</pre></div>
       <tr><td><span class="ic">HINCRBY total_bet</span> 單一累積</td><td class="hi">4 種計分公式切換</td></tr>
       <tr><td>只看 bet_amount</td><td class="hi">需要 bet_amount <b>+ win_amount</b></td></tr>
       <tr><td>無 max 比較邏輯</td><td class="hi">MaxMultiplier 需讀取比較後決定是否更新</td></tr>
-      <tr><td>無四捨五入</td><td class="hi">小數 > 0.5 進位，≤ 0.5 捨去</td></tr>
+      <tr><td>無四捨五入</td><td class="hi">四捨五入到小數點第二位</td></tr>
     </table>
   </div>
 
@@ -865,15 +865,18 @@ return newTotal</pre></div>
     <div class="row" style="gap:12px;margin-top:16px;align-items:stretch">
       <div style="flex:1;min-width:200px;background:var(--pink-bg);border:1px solid var(--pink-bd);border-radius:10px;padding:16px">
         <div style="font-weight:700;color:var(--pink);font-size:13px;margin-bottom:8px">Mode 1: Max Single Multiplier</div>
-        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score = Win / Original Bet
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score = Round(Win / Original Bet, 2)
+四捨五入到小數點第二位
 僅記錄最高單筆倍數
+刷新條件：新倍率(四捨五入後)
+         &gt; 目前記錄才刷新
 同分 → 先達成者排名較高</pre></div>
       </div>
       <div style="flex:1;min-width:200px;background:var(--purple-bg);border:1px solid var(--purple-bd);border-radius:10px;padding:16px">
         <div style="font-weight:700;color:var(--purple);font-size:13px;margin-bottom:8px">Mode 2: Accumulated Multiplier</div>
-        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Win / Original Bet
-僅當 multiplier > 1
-四捨五入處理</pre></div>
+        <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Round(Win / Original Bet, 2)
+先四捨五入到小數點第二位
+再加總至當前總分</pre></div>
       </div>
       <div style="flex:1;min-width:200px;background:var(--blue-bg);border:1px solid var(--blue-bd);border-radius:10px;padding:16px">
         <div style="font-weight:700;color:var(--blue);font-size:13px;margin-bottom:8px">Mode 3: Total Win</div>
@@ -885,6 +888,16 @@ return newTotal</pre></div>
         <div class="code-block" style="margin:8px 0;border:none;padding:10px"><pre>Score += Total Bet</pre></div>
       </div>
     </div>
+
+    <div class="callout" style="border-color:var(--purple-bd);background:var(--purple-bg);margin-top:16px">
+      <b>四捨五入規則（Mode 1 &amp; Mode 2）</b><br>
+      &bull; 倍率一律<b>四捨五入到小數點第二位</b>後再使用<br>
+      &bull; <b>Mode 1（最高倍數）</b>：新倍率四捨五入後 &gt; 目前記錄才刷新<br>
+      &bull; <b>Mode 2（累積倍數）</b>：先四捨五入，再加總至當前總分
+    </div>
+
+    <div class="code-block" style="margin-top:12px"><div class="lang">Mode 2 累積倍數 — 範例</div><pre>第 1 把  raw = 12.3333x  →  Round2 = 12.33  →  Score = 12.33
+第 2 把  raw = 37.556x   →  Round2 = 37.56  →  Score = 12.33 + 37.56 = 49.89</pre></div>
   </div>
 
   <div class="card">
@@ -916,7 +929,8 @@ public class ScoreCalculatorFactory
     <div class="card-title"><span class="bar"></span>新增 Lua Scripts</div>
     <div class="split-row" style="gap:16px">
       <div style="flex:1;min-width:280px">
-        <div class="code-block"><div class="lang">LUA — MaxMultiplier (原子比較更新)</div><pre>local currentMax = tonumber(
+        <div class="code-block"><div class="lang">LUA — MaxMultiplier (原子比較更新)</div><pre>-- ARGV[1]: newMultiplier (已四捨五入到小數點第二位)
+local currentMax = tonumber(
   redis.call('HGET', KEYS[1], 'score') or '0')
 local newMultiplier = tonumber(ARGV[1])
 if newMultiplier > currentMax then
@@ -929,7 +943,9 @@ end
 return 0  -- not updated</pre></div>
       </div>
       <div style="flex:1;min-width:280px">
-        <div class="code-block"><div class="lang">LUA — Accumulated / TotalWin / Turnover</div><pre>local newScore = redis.call(
+        <div class="code-block"><div class="lang">LUA — Accumulated / TotalWin / Turnover</div><pre>-- Accumulated: ARGV[1] 為已四捨五入到小數點
+-- 第二位的倍率 (e.g. 12.33, 37.56)，直接累加
+local newScore = redis.call(
   'HINCRBYFLOAT', KEYS[1], 'score', ARGV[1])
 redis.call('HSET', KEYS[1],
   'updated_at', ARGV[2])
