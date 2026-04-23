@@ -1178,7 +1178,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <div class="card">
     <div class="ct">3. PUT /api/v1/inbox/{id}/read — 標記已讀</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">自動判斷訊息來源：<strong style="color:var(--text)">member 訊息</strong>更新 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">member_inbox.status</code>；<strong style="color:var(--text)">operator 訊息</strong>寫入 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">operator_inbox_read</code>（只存讀過的人，沒讀的不佔資料）。</div>
-    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/680700000000000000000001/read?member_id=demo-member-001</span>
+    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/68089a2bd277e3155ad29cf8/read?member_id=demo-member-001</span>
 
 <span class="cm">// Response 200</span>
 { <span class="str">"success"</span>: <span class="kw">true</span> }
@@ -1199,7 +1199,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <div class="card">
     <div class="ct">5. DELETE /api/v1/inbox/{id} — 封存（軟刪除）</div>
     <div class="alert aa" style="margin-bottom:10px">僅限 member 訊息。Operator 訊息不可刪除（全域公告需保留）。</div>
-    <div class="code"><span class="kw">DELETE</span> <span class="str">/api/v1/inbox/680700000000000000000001?member_id=demo-member-001</span>
+    <div class="code"><span class="kw">DELETE</span> <span class="str">/api/v1/inbox/68089a2bd277e3155ad29cf8?member_id=demo-member-001</span>
 
 <span class="cm">// Response 200</span>
 { <span class="str">"success"</span>: <span class="kw">true</span> }
