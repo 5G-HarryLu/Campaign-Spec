@@ -124,6 +124,8 @@ body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;fon
     <a class="ni" onclick="show('review',this)"><span class="ns">10</span>Review &amp; 建議</a>
     <div class="ng">上線規劃</div>
     <a class="ni" onclick="show('sse-plan',this)"><span class="ns">11</span>SSE 上線計劃</a>
+    <div class="ng">API 參考</div>
+    <a class="ni" onclick="show('api-spec',this)"><span class="ns">12</span>API Spec</a>
   </nav>
 </aside>
 <main class="main">
@@ -1087,6 +1089,253 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
     <div class="qa-wrap"><div class="qq"><span class="qn">#3</span>SSE game domain whitelist<span class="pill po" style="margin-left:auto">Open</span></div><div class="qa-a">CORS 需要具體 game domain URL，待提供 production game URL。</div></div>
     <div class="qa-wrap"><div class="qq"><span class="qn">#4</span>CloudFront SSE distribution<span class="pill pd" style="margin-left:auto">Resolved</span></div><div class="qa-a">infra 負責處理。</div></div>
     <div class="qa-wrap"><div class="qq"><span class="qn">#5</span>Token 過期處理方案<span class="pill pd" style="margin-left:auto">Resolved</span></div><div class="qa-a">採用方案 A：斷線重連（最簡單）。</div></div>
+  </div>
+</section>
+
+<!-- 12 API SPEC -->
+<section id="api-spec" class="panel">
+  <div class="sh">
+    <div class="stag">12 / API Reference</div>
+    <div class="stitle">API Spec</div>
+    <div class="sdesc">Message Center 對外 API 規格：Inbox CRUD、SSE 即時推送、Health checks、Emulator dev API。</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">Base URL + Endpoint 清單</div>
+    <div class="code"><span class="cm"># Docker 本地</span>
+<span class="str">http://localhost:5100</span>       <span class="cm"># API</span>
+<span class="str">http://localhost:5200</span>       <span class="cm"># Emulator (dev only)</span>
+
+<span class="cm"># Production</span>
+<span class="str">https://msg-center.{domain}</span></div>
+    <div class="cmp" style="margin-top:12px">
+      <div class="crow c3 ch"><div class="cc">Method</div><div class="cc">Path</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox</code></div><div class="cc">訊息列表（member + operator 合併）</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/count</code></div><div class="cc">未讀數（紅點）</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">PUT</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/{id}/read</code></div><div class="cc">標記已讀</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">PUT</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/read-all</code></div><div class="cc">全部標記已讀</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--red)">DEL</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/{id}</code></div><div class="cc">封存（軟刪除）</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/stream</code></div><div class="cc">SSE 即時推送</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/live</code></div><div class="cc">Liveness probe</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/ready</code></div><div class="cc">Readiness probe</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">POST</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/emulator/publish</code></div><div class="cc">模擬發送訊息（dev only）</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">1. GET /api/v1/inbox — 訊息列表</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">合併 member_inbox（個人訊息）+ operator_inbox（全域訊息），按時間倒序排列，cursor-based 分頁。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:12px 0 6px">Query Parameters</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">參數</div><div class="cc">類型 / 必填</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">member_id</div><div class="cc">string / 是</div><div class="cc">會員 ID</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">operator_id</div><div class="cc">string / 是</div><div class="cc">營運商 ID</div></div>
+      <div class="crow c3"><div class="cc">status</div><div class="cc">int / 否</div><div class="cc">0=未讀, 1=已讀, 2=封存（預設排除 status=2）</div></div>
+      <div class="crow c3"><div class="cc">cursor</div><div class="cc">string / 否</div><div class="cc">上一頁最後一筆的 ID（ObjectId）</div></div>
+      <div class="crow c3"><div class="cc">limit</div><div class="cc">int / 否</div><div class="cc">每頁筆數（預設 20，最大 100）</div></div>
+      <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=活動, 2=推播</div></div>
+      <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">1=FRA, 2=FRB, 3=錦標賽</div></div>
+      <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
+    </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
+    <div class="code"><span class="cm">{</span>
+  <span class="str">"data"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"680700000000000000000010"</span>,
+      <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
+      <span class="str">"member_id"</span>: <span class="str">""</span>,              <span class="cm">// 全域訊息時為空</span>
+      <span class="str">"game_id"</span>: <span class="kw">null</span>,
+      <span class="str">"message_type"</span>: <span class="num">1</span>,            <span class="cm">// 1=活動, 2=推播</span>
+      <span class="str">"campaign_type"</span>: <span class="num">3</span>,           <span class="cm">// 1=FRA, 2=FRB, 3=錦標賽</span>
+      <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止</span>
+      <span class="str">"body"</span>: <span class="str">"{...JSON string...}"</span>,  <span class="cm">// 需再 JSON.parse</span>
+      <span class="str">"status"</span>: <span class="num">0</span>,                  <span class="cm">// 0=未讀, 1=已讀, 2=封存</span>
+      <span class="str">"source_ref"</span>: <span class="kw">null</span>,
+      <span class="str">"expired_at"</span>: <span class="kw">null</span>,
+      <span class="str">"created_at"</span>: <span class="str">"2026-04-23T02:54:27.787Z"</span>,
+      <span class="str">"read_at"</span>: <span class="kw">null</span>,
+      <span class="str">"source"</span>: <span class="str">"operator"</span>          <span class="cm">// "member" = 個人, "operator" = 全域</span>
+    }
+  ],
+  <span class="str">"next_cursor"</span>: <span class="str">"680700000000000000000001"</span>,
+  <span class="str">"has_more"</span>: <span class="kw">false</span>
+<span class="cm">}</span></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">翻頁範例</div>
+    <div class="code"><span class="cm"># 第一頁</span>
+<span class="kw">GET</span> <span class="str">/api/v1/inbox?member_id=m1&operator_id=op1&limit=20</span>
+
+<span class="cm"># 第二頁（帶上次的 next_cursor）</span>
+<span class="kw">GET</span> <span class="str">/api/v1/inbox?member_id=m1&operator_id=op1&limit=20&cursor=680700000000000000000001</span></div>
+  </div>
+
+  <div class="card">
+    <div class="ct">2. GET /api/v1/inbox/count — 未讀數（紅點）</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">合併 member_inbox + operator_inbox 的未讀數。</div>
+    <div class="code"><span class="kw">GET</span> <span class="str">/api/v1/inbox/count?member_id=demo-member-001&operator_id=op-001</span>
+
+<span class="cm">// Response 200</span>
+{ <span class="str">"count"</span>: <span class="num">5</span> }</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">3. PUT /api/v1/inbox/{id}/read — 標記已讀</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">自動判斷訊息來源：<strong style="color:var(--text)">member 訊息</strong>更新 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">member_inbox.status</code>；<strong style="color:var(--text)">operator 訊息</strong>寫入 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">operator_inbox_read</code>（只存讀過的人，沒讀的不佔資料）。</div>
+    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/680700000000000000000001/read?member_id=demo-member-001</span>
+
+<span class="cm">// Response 200</span>
+{ <span class="str">"success"</span>: <span class="kw">true</span> }
+
+<span class="cm">// Response 404 — 訊息不存在或已讀</span>
+{ <span class="str">"error"</span>: <span class="str">"Message not found or already read"</span> }</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">4. PUT /api/v1/inbox/read-all — 全部標記已讀</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">僅標記 member_inbox 的未讀訊息，不處理 operator 訊息。</div>
+    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/read-all?member_id=demo-member-001</span>
+
+<span class="cm">// Response 200</span>
+{ <span class="str">"success"</span>: <span class="kw">true</span>, <span class="str">"updated_count"</span>: <span class="num">3</span> }</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">5. DELETE /api/v1/inbox/{id} — 封存（軟刪除）</div>
+    <div class="alert aa" style="margin-bottom:10px">僅限 member 訊息。Operator 訊息不可刪除（全域公告需保留）。</div>
+    <div class="code"><span class="kw">DELETE</span> <span class="str">/api/v1/inbox/680700000000000000000001?member_id=demo-member-001</span>
+
+<span class="cm">// Response 200</span>
+{ <span class="str">"success"</span>: <span class="kw">true</span> }
+
+<span class="cm">// Response 400 — 嘗試刪除 operator 訊息</span>
+{ <span class="str">"error"</span>: <span class="str">"Cannot delete operator messages"</span> }
+
+<span class="cm">// Response 404</span>
+{ <span class="str">"error"</span>: <span class="str">"Message not found"</span> }</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">6. GET /api/v1/inbox/stream — SSE 即時推送</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">Server-Sent Events 長連線。訂閱<strong style="color:var(--text)">兩個</strong> Redis channel：<code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">message:inbox:{memberId}</code>（個人）+ <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">message:operator:{operatorId}</code>（全域）。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:10px 0 6px">Response Headers</div>
+    <div class="code">Content-Type: <span class="str">text/event-stream</span>
+Cache-Control: <span class="str">no-cache</span>
+Connection:    <span class="str">keep-alive</span></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">SSE 事件格式</div>
+    <div class="code"><span class="cm">: connected</span>                          <span class="cm">← 連線建立確認（SSE comment，不觸發 onmessage）</span>
+
+<span class="cm">: heartbeat</span>                          <span class="cm">← 每 30 秒（SSE comment，不觸發 onmessage）</span>
+
+event: <span class="str">message</span>                       <span class="cm">← 新訊息（觸發 onmessage）</span>
+data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class="str">"operator_id"</span>:<span class="str">"op-001"</span>,<span class="str">"member_id"</span>:<span class="str">"..."</span>,<span class="str">"body"</span>:<span class="str">"{...}"</span>,...}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Client 端範例</div>
+    <div class="code"><span class="kw">const</span> es = <span class="kw">new</span> <span class="fn">EventSource</span>(
+  <span class="str">'/api/v1/inbox/stream?member_id=m1&operator_id=op1'</span>
+);
+
+es.addEventListener(<span class="str">'message'</span>, (e) => {
+    <span class="kw">const</span> data = <span class="fn">JSON</span>.parse(e.data);
+    <span class="fn">console</span>.log(<span class="str">'New message:'</span>, data.id, data.source);
+    <span class="cm">// 更新 UI（紅點、通知彈窗）</span>
+});
+
+es.onerror = () => {
+    es.close();
+    <span class="cm">// 重連或降級為 polling</span>
+};</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">行為</div>
+    <div class="cmp">
+      <div class="crow c2"><div class="cc">連線數</div><div class="cc">每個 member 最多 1 條 SSE（新連線踢舊連線）</div></div>
+      <div class="crow c2"><div class="cc">Heartbeat</div><div class="cc">每 30 秒送一次（防 CloudFront / ALB 斷線）</div></div>
+      <div class="crow c2"><div class="cc">斷線</div><div class="cc">Client 斷線後 server 自動 unsubscribe Redis channel</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">7. Health Checks</div>
+    <div class="g2">
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px">GET /health/live</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:8px">Liveness probe — 基本存活檢查。</div>
+        <div class="code" style="font-size:11px">{ <span class="str">"status"</span>: <span class="str">"alive"</span>, <span class="str">"timestamp"</span>: <span class="str">"..."</span> }</div>
+      </div>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin-bottom:6px">GET /health/ready</div>
+        <div style="font-size:11.5px;color:var(--text2);line-height:1.6;margin-bottom:8px">Readiness probe — 檢查 Redis 連線，掛了回 503。</div>
+        <div class="code" style="font-size:11px">{ <span class="str">"status"</span>: <span class="str">"ready"</span>, <span class="str">"timestamp"</span>: <span class="str">"..."</span> }</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">8. Emulator API — POST /api/v1/emulator/publish</div>
+    <div class="alert ai" style="margin-bottom:10px">僅 dev 環境：Base URL <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">http://localhost:5200</code>。模擬 producer 寫入 outbox_msg。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:10px 0 6px">個人訊息（含 member_id）</div>
+    <div class="code">{
+  <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
+  <span class="str">"member_id"</span>: <span class="str">"demo-member-001"</span>,
+  <span class="str">"game_id"</span>: <span class="str">"S5G-H5-99947"</span>,
+  <span class="str">"message_type"</span>: <span class="num">1</span>,
+  <span class="str">"campaign_type"</span>: <span class="num">3</span>,
+  <span class="str">"event_type"</span>: <span class="num">1</span>,
+  <span class="str">"payload"</span>: {
+    <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
+    <span class="str">"campaign_name"</span>: <span class="str">"Spring Tournament"</span>,
+    <span class="str">"ranking"</span>: <span class="num">3</span>,
+    <span class="str">"expiry_action"</span>: <span class="str">"auto_credit"</span>,
+    <span class="str">"claim_expired_at"</span>: <span class="str">"2026-05-01T00:00:00Z"</span>,
+    <span class="str">"currency_code"</span>: <span class="str">"TWD"</span>,
+    <span class="str">"prize"</span>: <span class="num">1000</span>,
+    <span class="str">"is_prize_claimed"</span>: <span class="kw">false</span>
+  }
+}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">全域訊息（無 member_id）</div>
+    <div class="code">{
+  <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
+  <span class="str">"message_type"</span>: <span class="num">1</span>,
+  <span class="str">"campaign_type"</span>: <span class="num">3</span>,
+  <span class="str">"event_type"</span>: <span class="num">2</span>,
+  <span class="str">"payload"</span>: {
+    <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
+    <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span>
+  }
+}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
+    <div class="code">{
+  <span class="str">"outbox_id"</span>: <span class="num">305537175934468096</span>,
+  <span class="str">"topic"</span>: <span class="str">"msg-center-events"</span>,
+  <span class="str">"partition_key"</span>: <span class="str">"member:demo-member-001"</span>,  <span class="cm">// 或 "operator:op-001"</span>
+  <span class="str">"target_type"</span>: <span class="str">"member"</span>                      <span class="cm">// 或 "operator"</span>
+}</div>
+  </div>
+
+  <div class="card">
+    <div class="ct">列舉值</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">欄位</div><div class="cc">值</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">status</div><div class="cc">0</div><div class="cc">未讀</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">1</div><div class="cc">已讀</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">封存（軟刪除）</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">message_type</div><div class="cc">1</div><div class="cc">活動</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">推播</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">campaign_type</div><div class="cc">1</div><div class="cc">FRA</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">FRB</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">錦標賽</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">event_type</div><div class="cc">1</div><div class="cc">提領獎勵</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">活動暫停</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">活動終止</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--coral)">source</div><div class="cc">member</div><div class="cc">個人訊息（來自 member_inbox）</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">operator</div><div class="cc">全域訊息（來自 operator_inbox）</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">共通錯誤格式</div>
+    <div class="code"><span class="cm">// 錯誤 response</span>
+{ <span class="str">"error"</span>: <span class="str">"member_id is required"</span> }
+{ <span class="str">"error"</span>: <span class="str">"operator_id is required"</span> }
+
+<span class="cm">// 成功 response（無回傳資料時）</span>
+{ <span class="str">"success"</span>: <span class="kw">true</span> }</div>
   </div>
 </section>
 
