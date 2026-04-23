@@ -1133,20 +1133,18 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <div class="crow c3"><div class="cc">status</div><div class="cc">int / 否</div><div class="cc">0=未讀, 1=已讀, 2=封存（預設排除 status=2）</div></div>
       <div class="crow c3"><div class="cc">cursor</div><div class="cc">string / 否</div><div class="cc">上一頁最後一筆的 ID（ObjectId）</div></div>
       <div class="crow c3"><div class="cc">limit</div><div class="cc">int / 否</div><div class="cc">每頁筆數（預設 20，最大 100）</div></div>
-      <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=活動, 2=推播</div></div>
-      <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">1=FRA, 2=FRB, 3=錦標賽</div></div>
+      <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">1=推播, 2=FRA, 3=FRB, 4=錦標賽</div></div>
       <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
     </div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
     <div class="code"><span class="cm">{</span>
   <span class="str">"data"</span>: [
     {
-      <span class="str">"id"</span>: <span class="str">"680700000000000000000010"</span>,
+      <span class="str">"id"</span>: <span class="str">"68089a34d277e3155ad29d01"</span>,
       <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
       <span class="str">"member_id"</span>: <span class="str">""</span>,              <span class="cm">// 全域訊息時為空</span>
       <span class="str">"game_id"</span>: <span class="kw">null</span>,
-      <span class="str">"message_type"</span>: <span class="num">1</span>,            <span class="cm">// 1=活動, 2=推播</span>
-      <span class="str">"campaign_type"</span>: <span class="num">3</span>,           <span class="cm">// 1=FRA, 2=FRB, 3=錦標賽</span>
+      <span class="str">"campaign_type"</span>: <span class="num">4</span>,           <span class="cm">// 1=推播, 2=FRA, 3=FRB, 4=錦標賽</span>
       <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止</span>
       <span class="str">"body"</span>: <span class="str">"{...JSON string...}"</span>,  <span class="cm">// 需再 JSON.parse</span>
       <span class="str">"status"</span>: <span class="num">0</span>,                  <span class="cm">// 0=未讀, 1=已讀, 2=封存</span>
@@ -1157,7 +1155,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <span class="str">"source"</span>: <span class="str">"operator"</span>          <span class="cm">// "member" = 個人, "operator" = 全域</span>
     }
   ],
-  <span class="str">"next_cursor"</span>: <span class="str">"680700000000000000000001"</span>,
+  <span class="str">"next_cursor"</span>: <span class="str">"68089a2bd277e3155ad29cf8"</span>,
   <span class="str">"has_more"</span>: <span class="kw">false</span>
 <span class="cm">}</span></div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">翻頁範例</div>
@@ -1165,7 +1163,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
 <span class="kw">GET</span> <span class="str">/api/v1/inbox?member_id=m1&operator_id=op1&limit=20</span>
 
 <span class="cm"># 第二頁（帶上次的 next_cursor）</span>
-<span class="kw">GET</span> <span class="str">/api/v1/inbox?member_id=m1&operator_id=op1&limit=20&cursor=680700000000000000000001</span></div>
+<span class="kw">GET</span> <span class="str">/api/v1/inbox?member_id=m1&operator_id=op1&limit=20&cursor=68089a2bd277e3155ad29cf8</span></div>
   </div>
 
   <div class="card">
@@ -1274,8 +1272,7 @@ es.onerror = () => {
   <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
   <span class="str">"member_id"</span>: <span class="str">"demo-member-001"</span>,
   <span class="str">"game_id"</span>: <span class="str">"S5G-H5-99947"</span>,
-  <span class="str">"message_type"</span>: <span class="num">1</span>,
-  <span class="str">"campaign_type"</span>: <span class="num">3</span>,
+  <span class="str">"campaign_type"</span>: <span class="num">4</span>,
   <span class="str">"event_type"</span>: <span class="num">1</span>,
   <span class="str">"payload"</span>: {
     <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
@@ -1291,8 +1288,7 @@ es.onerror = () => {
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">全域訊息（無 member_id）</div>
     <div class="code">{
   <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
-  <span class="str">"message_type"</span>: <span class="num">1</span>,
-  <span class="str">"campaign_type"</span>: <span class="num">3</span>,
+  <span class="str">"campaign_type"</span>: <span class="num">4</span>,
   <span class="str">"event_type"</span>: <span class="num">2</span>,
   <span class="str">"payload"</span>: {
     <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
@@ -1315,11 +1311,10 @@ es.onerror = () => {
       <div class="crow c3"><div class="cc" style="color:var(--teal)">status</div><div class="cc">0</div><div class="cc">未讀</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">1</div><div class="cc">已讀</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">封存（軟刪除）</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--purple)">message_type</div><div class="cc">1</div><div class="cc">活動</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">推播</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--amber)">campaign_type</div><div class="cc">1</div><div class="cc">FRA</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">FRB</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">錦標賽</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">campaign_type</div><div class="cc">1</div><div class="cc">推播</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">FRA</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">FRB</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">4</div><div class="cc">錦標賽</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">event_type</div><div class="cc">1</div><div class="cc">提領獎勵</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">活動暫停</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">活動終止</div></div>
