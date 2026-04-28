@@ -1097,7 +1097,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <div class="sh">
     <div class="stag">12 / API Reference</div>
     <div class="stitle">API Spec</div>
-    <div class="sdesc">Message Center 對外 API 規格：Inbox CRUD、SSE 即時推送、Health checks、Emulator dev API。</div>
+    <div class="sdesc">Message Center 對外 API 規格：Inbox CRUD、SSE 即時推送（JWT 認證）、Health checks。</div>
   </div>
 
   <div class="card">
@@ -1106,8 +1106,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
 <span class="str">https://mc-dev.5gg.win</span>      <span class="cm"># API</span>
 
 <span class="cm"># Docker 本地</span>
-<span class="str">http://localhost:5100</span>       <span class="cm"># API</span>
-<span class="str">http://localhost:5200</span>       <span class="cm"># Emulator (dev only)</span></div>
+<span class="str">http://localhost:5100</span>       <span class="cm"># API</span></div>
     <div class="cmp" style="margin-top:12px">
       <div class="crow c3 ch"><div class="cc">Method</div><div class="cc">Path</div><div class="cc">說明</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/get_list</code></div><div class="cc">訊息列表（member + operator 合併）</div></div>
@@ -1118,7 +1117,6 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/stream</code></div><div class="cc">SSE 即時推送</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/live</code></div><div class="cc">Liveness probe</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/ready</code></div><div class="cc">Readiness probe</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--purple)">POST</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/emulator/publish</code></div><div class="cc">模擬發送訊息（dev only）</div></div>
     </div>
   </div>
 
@@ -1217,33 +1215,31 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <div class="card">
     <div class="ct">6. GET /api/v1/inbox/stream — SSE 即時推送</div>
     <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">Server-Sent Events 長連線。訂閱<strong style="color:var(--text)">兩個</strong> Redis channel：<code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">message:inbox:{memberId}</code>（個人）+ <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">message:operator:{operatorId}</code>（全域）。</div>
-    <div class="alert ai">SSE 使用 <strong>JWT 認證</strong>。Token 由 PlatformApi 簽發（RSA-SHA256），<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">member_id</code> 和 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">operator_id</code> 從 JWT claims 提取，不需要額外帶 query param。<strong style="color:var(--text)">Token 放在 query param</strong> 是因為瀏覽器 EventSource API 不支援自訂 Header。</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">JWT Payload（PlatformApi 簽發）</div>
+    <div class="alert ai">SSE 使用 <strong>JWT 認證</strong>。Token 由 PlatformApi 簽發（RSA-SHA256），<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">member_id</code> 和 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">operator_id</code> 從 JWT claims 提取。<strong style="color:var(--text)">Token 放在 query param</strong> 是因為瀏覽器 EventSource API 不支援自訂 Header。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">取得方式</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:8px">PlatformApi <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">POST /auth/login</code> 的 response 包含 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">jwt_token</code> + <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">sse_url</code>：</div>
     <div class="code">{
-  <span class="str">"sub"</span>: <span class="str">"5500a745-e05d-41a1-b6d9-8d9ebfc188da"</span>,   <span class="cm">// member_id</span>
-  <span class="str">"oid"</span>: <span class="str">"5635bae4baf1ccbd1fbf5a65a51582e1"</span>,        <span class="cm">// operator_id</span>
-  <span class="str">"exp"</span>: <span class="num">1745820232</span>,                                 <span class="cm">// 過期時間（60 分鐘）</span>
-  <span class="str">"iss"</span>: <span class="str">"platform-api"</span>,
-  <span class="str">"aud"</span>: <span class="str">"message-center"</span>
+  <span class="str">"jwt_token"</span>: <span class="str">"eyJhbGciOiJSUzI1NiI..."</span>,
+  <span class="str">"sse_url"</span>:   <span class="str">"https://mc-dev.5gg.win"</span>
 }</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Query Parameters</div>
-    <div class="cmp">
-      <div class="crow c3 ch"><div class="cc">參數</div><div class="cc">類型 / 必填</div><div class="cc">說明</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--teal)">token</div><div class="cc">string / 是（正式）</div><div class="cc">PlatformApi 簽發的 JWT</div></div>
-      <div class="crow c3"><div class="cc">member_id</div><div class="cc">string / 否（dev fallback）</div><div class="cc">無 token 時使用，正式環境將移除</div></div>
-      <div class="crow c3"><div class="cc">operator_id</div><div class="cc">string / 否（dev fallback）</div><div class="cc">無 token 時使用，正式環境將移除</div></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">JWT Claims</div>
+    <div class="code">{
+  <span class="str">"id"</span>:    <span class="str">"fb5b079b-dc11-4b8d-884e-244ad1cf553f"</span>,   <span class="cm">// member_id</span>
+  <span class="str">"op_id"</span>: <span class="str">"b027217cd08fb1f5da443dce986f1760"</span>,        <span class="cm">// operator_id</span>
+  <span class="str">"name"</span>:  <span class="str">"harry_lu2"</span>,                                <span class="cm">// 玩家名</span>
+  <span class="str">"exp"</span>:   <span class="num">1777371739</span>                                 <span class="cm">// 過期時間（60 分鐘）</span>
+}</div>
+    <div class="cmp" style="margin-top:10px">
+      <div class="crow c2 ch"><div class="cc">Claim</div><div class="cc">用途</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--teal)">id</div><div class="cc">member_id → 訂閱 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">message:inbox:{id}</code> channel</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">op_id</div><div class="cc">operator_id → 訂閱 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">message:operator:{op_id}</code> channel</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">exp</div><div class="cc">過期時間（60 分鐘）</div></div>
     </div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">連線方式</div>
-    <div class="code"><span class="cm">// 正式（JWT）</span>
-<span class="kw">const</span> token = gameConfig.sseToken;  <span class="cm">// "eyJhbGciOiJSUzI1NiI..."</span>
-<span class="kw">const</span> es = <span class="kw">new</span> <span class="fn">EventSource</span>(
-  <span class="str">`https://mc-dev.5gg.win/api/v1/inbox/stream?token=${token}`</span>
-);
+    <div class="code"><span class="cm">// 從 PlatformApi login response 取得</span>
+<span class="kw">const</span> { jwt_token, sse_url } = loginResponse.result;
 
-<span class="cm">// Dev 測試（無 JWT，fallback）</span>
-<span class="kw">const</span> es = <span class="kw">new</span> <span class="fn">EventSource</span>(
-  <span class="str">`https://mc-dev.5gg.win/api/v1/inbox/stream?member_id=${memberId}&operator_id=${operatorId}`</span>
-);</div>
+<span class="kw">const</span> es = <span class="kw">new</span> <span class="fn">EventSource</span>(<span class="str">`${sse_url}/api/v1/inbox/stream?token=${jwt_token}`</span>);</div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response Headers</div>
     <div class="code">Content-Type: <span class="str">text/event-stream</span>
 Cache-Control: <span class="str">no-cache</span>
@@ -1258,7 +1254,7 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">行為</div>
     <div class="cmp">
       <div class="crow c2"><div class="cc">JWT 驗證</div><div class="cc">RSA-SHA256，PlatformApi 簽發，MC 用 public key 驗證</div></div>
-      <div class="crow c2"><div class="cc">Claims 提取</div><div class="cc">member_id / operator_id 從 JWT 的 sub / oid 提取</div></div>
+      <div class="crow c2"><div class="cc">Claims 提取</div><div class="cc">member_id / operator_id 從 JWT 的 id / op_id 提取</div></div>
       <div class="crow c2"><div class="cc">連線數</div><div class="cc">每個 member 最多 1 條 SSE（新連線踢舊連線）</div></div>
       <div class="crow c2"><div class="cc">Heartbeat</div><div class="cc">每 30 秒送一次（防 CloudFront / ALB 斷線）</div></div>
       <div class="crow c2"><div class="cc">斷線</div><div class="cc">Client 斷線後 server 自動 unsubscribe Redis channel</div></div>
@@ -1287,19 +1283,17 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
   </div>
 
   <div class="card">
-    <div class="ct">Client 端完整範例（含 JWT + 重連 + 降級）</div>
+    <div class="ct">Client 端範例</div>
     <div class="code"><span class="kw">class</span> <span class="fn">InboxSSE</span> {
-    <span class="fn">constructor</span>(baseUrl, token) {
-        <span class="kw">this</span>.baseUrl    = baseUrl;
-        <span class="kw">this</span>.token      = token;
+    <span class="fn">constructor</span>(sseUrl, jwtToken) {
+        <span class="kw">this</span>.url        = <span class="str">`${sseUrl}/api/v1/inbox/stream?token=${jwtToken}`</span>;
         <span class="kw">this</span>.retryCount = <span class="num">0</span>;
         <span class="kw">this</span>.maxRetry   = <span class="num">5</span>;
         <span class="kw">this</span>.es = <span class="kw">null</span>;
     }
 
     <span class="fn">connect</span>() {
-        <span class="kw">const</span> url = <span class="str">`${this.baseUrl}/api/v1/inbox/stream?token=${this.token}`</span>;
-        <span class="kw">this</span>.es = <span class="kw">new</span> <span class="fn">EventSource</span>(url);
+        <span class="kw">this</span>.es = <span class="kw">new</span> <span class="fn">EventSource</span>(<span class="kw">this</span>.url);
 
         <span class="kw">this</span>.es.addEventListener(<span class="str">'message'</span>, (e) => {
             <span class="kw">this</span>.retryCount = <span class="num">0</span>;
@@ -1316,27 +1310,16 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
 
     <span class="fn">reconnect</span>() {
         <span class="kw">if</span> (<span class="kw">this</span>.retryCount >= <span class="kw">this</span>.maxRetry) {
-            <span class="fn">console</span>.warn(<span class="str">'[SSE] 降級為 polling'</span>);
-            <span class="kw">this</span>.<span class="fn">startPolling</span>();
+            <span class="kw">this</span>.<span class="fn">startPolling</span>();  <span class="cm">// 降級為 polling</span>
             <span class="kw">return</span>;
         }
-        <span class="kw">const</span> delay = <span class="num">3000</span> * Math.pow(<span class="num">2</span>, <span class="kw">this</span>.retryCount);  <span class="cm">// 3s, 6s, 12s, 24s, 48s</span>
+        <span class="kw">const</span> delay = <span class="num">3000</span> * Math.pow(<span class="num">2</span>, <span class="kw">this</span>.retryCount);
         <span class="kw">this</span>.retryCount++;
-        setTimeout(() => {
-            <span class="cm">// Token 可能過期，先 refresh 再重連</span>
-            <span class="kw">this</span>.<span class="fn">refreshTokenThenConnect</span>();
-        }, delay);
-    }
-
-    <span class="fn">refreshTokenThenConnect</span>() {
-        <span class="cm">// 向 PlatformApi 取新 token</span>
-        <span class="cm">// this.token = newToken;</span>
-        <span class="kw">this</span>.<span class="fn">connect</span>();
+        setTimeout(() => <span class="kw">this</span>.<span class="fn">connect</span>(), delay);
     }
 
     <span class="fn">startPolling</span>() {
-        <span class="cm">// SSE 完全不可用時，每 60 秒打 unread_count 更新紅點</span>
-        setInterval(<span class="kw">async</span> () => { <span class="cm">/* polling 實作 */</span> }, <span class="num">60000</span>);
+        <span class="cm">// 每 60 秒打 /unread_count 更新紅點</span>
     }
 
     <span class="fn">disconnect</span>() {
@@ -1344,18 +1327,12 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
         <span class="kw">this</span>.es = <span class="kw">null</span>;
     }
 
-    <span class="fn">onMessage</span>(data) { <span class="cm">/* override: 更新 UI */</span> }
+    <span class="fn">onMessage</span>(data) { <span class="cm">/* 更新紅點 UI */</span> }
 }
 
 <span class="cm">// 使用</span>
-<span class="kw">const</span> sse = <span class="kw">new</span> <span class="fn">InboxSSE</span>(<span class="str">'https://mc-dev.5gg.win'</span>, platformApiToken);
-sse.onMessage = (data) => {
-    <span class="fn">console</span>.log(<span class="str">'新訊息:'</span>, data);
-    <span class="cm">// data.message_type  → 1=活動, 2=推播</span>
-    <span class="cm">// data.campaign_type → 2=FRB, 3=FRA, 4=錦標賽</span>
-    <span class="cm">// data.event_type    → 1=提領獎勵, 2=暫停, 3=終止</span>
-    <span class="cm">// JSON.parse(data.body) → 業務資料</span>
-};
+<span class="kw">const</span> sse = <span class="kw">new</span> <span class="fn">InboxSSE</span>(loginResp.sse_url, loginResp.jwt_token);
+sse.onMessage = (data) => <span class="fn">console</span>.log(<span class="str">'新訊息:'</span>, data);
 sse.<span class="fn">connect</span>();</div>
   </div>
 
@@ -1373,48 +1350,6 @@ sse.<span class="fn">connect</span>();</div>
         <div class="code" style="font-size:11px">{ <span class="str">"status"</span>: <span class="str">"ready"</span>, <span class="str">"timestamp"</span>: <span class="str">"..."</span> }</div>
       </div>
     </div>
-  </div>
-
-  <div class="card">
-    <div class="ct">8. Emulator API — POST /api/v1/emulator/publish</div>
-    <div class="alert ai" style="margin-bottom:10px">僅 dev 環境：Base URL <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">http://localhost:5200</code>。模擬 producer 寫入 outbox_msg。</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:10px 0 6px">個人訊息（含 member_id）</div>
-    <div class="code">{
-  <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
-  <span class="str">"member_id"</span>: <span class="str">"demo-member-001"</span>,
-  <span class="str">"game_id"</span>: <span class="str">"S5G-H5-99947"</span>,
-  <span class="str">"message_type"</span>: <span class="num">1</span>,
-  <span class="str">"campaign_type"</span>: <span class="num">4</span>,
-  <span class="str">"event_type"</span>: <span class="num">1</span>,
-  <span class="str">"payload"</span>: {
-    <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
-    <span class="str">"campaign_name"</span>: <span class="str">"Spring Tournament"</span>,
-    <span class="str">"ranking"</span>: <span class="num">3</span>,
-    <span class="str">"expiry_action"</span>: <span class="str">"auto_credit"</span>,
-    <span class="str">"claim_expired_at"</span>: <span class="str">"2026-05-01T00:00:00Z"</span>,
-    <span class="str">"currency_code"</span>: <span class="str">"TWD"</span>,
-    <span class="str">"prize"</span>: <span class="num">1000</span>,
-    <span class="str">"is_prize_claimed"</span>: <span class="kw">false</span>
-  }
-}</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">全域訊息（無 member_id）</div>
-    <div class="code">{
-  <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
-  <span class="str">"message_type"</span>: <span class="num">1</span>,
-  <span class="str">"campaign_type"</span>: <span class="num">4</span>,
-  <span class="str">"event_type"</span>: <span class="num">2</span>,
-  <span class="str">"payload"</span>: {
-    <span class="str">"campaign_id"</span>: <span class="str">"camp-001"</span>,
-    <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span>
-  }
-}</div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
-    <div class="code">{
-  <span class="str">"outbox_id"</span>: <span class="num">305537175934468096</span>,
-  <span class="str">"topic"</span>: <span class="str">"msg-center-events"</span>,
-  <span class="str">"partition_key"</span>: <span class="str">"member:demo-member-001"</span>,  <span class="cm">// 或 "operator:op-001"</span>
-  <span class="str">"target_type"</span>: <span class="str">"member"</span>                      <span class="cm">// 或 "operator"</span>
-}</div>
   </div>
 
   <div class="card">
