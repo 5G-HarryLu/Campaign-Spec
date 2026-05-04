@@ -1130,7 +1130,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <div class="crow c3"><div class="cc" style="color:var(--teal)">operator_id</div><div class="cc">string / 是</div><div class="cc">營運商 ID</div></div>
       <div class="crow c3"><div class="cc">page</div><div class="cc">int / 否</div><div class="cc">頁碼（預設 1）</div></div>
       <div class="crow c3"><div class="cc">page_size</div><div class="cc">int / 否</div><div class="cc">每頁筆數（預設 20，最大 100）</div></div>
-      <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=活動, 2=推播</div></div>
+      <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=推播, 2=活動</div></div>
       <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">2=FRB, 3=FRA, 4=錦標賽</div></div>
       <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
     </div>
@@ -1142,16 +1142,16 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
       <span class="str">"member_id"</span>: <span class="str">""</span>,              <span class="cm">// 全域訊息時為空</span>
       <span class="str">"game_id"</span>: <span class="kw">null</span>,
-      <span class="str">"message_type"</span>: <span class="num">1</span>,           <span class="cm">// 1=活動, 2=推播</span>
+      <span class="str">"message_type"</span>: <span class="num">1</span>,           <span class="cm">// 1=推播, 2=活動</span>
       <span class="str">"campaign_type"</span>: <span class="num">4</span>,          <span class="cm">// 2=FRB, 3=FRA, 4=錦標賽</span>
-      <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止</span>
-      <span class="str">"payload"</span>: <span class="str">"{...JSON string...}"</span>,  <span class="cm">// 需再 JSON.parse</span>
+      <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止, 4=即將開始, 5=開始</span>
+      <span class="str">"payload"</span>: { <span class="str">"campaign_id"</span>: <span class="str">"camp-004"</span>, <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span> },  <span class="cm">// 巢狀 JSON 物件</span>
       <span class="str">"status"</span>: <span class="num">0</span>,                  <span class="cm">// 0=未讀, 1=已讀, 2=封存</span>
       <span class="str">"source_ref"</span>: <span class="kw">null</span>,
       <span class="str">"expired_at"</span>: <span class="kw">null</span>,
       <span class="str">"created_at"</span>: <span class="str">"2026-04-23T02:54:27.787Z"</span>,
       <span class="str">"read_at"</span>: <span class="kw">null</span>,
-      <span class="str">"source"</span>: <span class="str">"operator"</span>          <span class="cm">// "member" = 個人, "operator" = 全域</span>
+      <span class="str">"source"</span>: <span class="num">2</span>                       <span class="cm">// 1=member（個人）, 2=operator（全域）</span>
     }
   ],
   <span class="str">"current_page"</span>: <span class="num">1</span>,
@@ -1178,8 +1178,14 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
 
   <div class="card">
     <div class="ct">3. PUT /api/v1/inbox/{id}/read — 標記已讀</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">自動判斷訊息來源：<strong style="color:var(--text)">member 訊息</strong>更新 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">member_inbox.status</code>；<strong style="color:var(--text)">operator 訊息</strong>寫入 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">operator_inbox_read</code>（只存讀過的人，沒讀的不佔資料）。</div>
-    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/68089a2bd277e3155ad29cf8/read?member_id=demo-member-001</span>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">透過 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--amber)">source</code> 參數直接路由：<strong style="color:var(--text)">1=member_inbox</strong>，<strong style="color:var(--text)">2=operator_inbox_read</strong>（只存讀過的人，沒讀的不佔資料）。</div>
+    <div class="cmp" style="margin-bottom:10px">
+      <div class="crow c3 ch"><div class="cc">參數</div><div class="cc">類型 / 必填</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">member_id</div><div class="cc">string / 是</div><div class="cc">會員 ID</div></div>
+      <div class="crow c3"><div class="cc">source</div><div class="cc">int / 否</div><div class="cc">1=member（預設）, 2=operator</div></div>
+    </div>
+    <div class="code"><span class="kw">PUT</span> <span class="str">/api/v1/inbox/68089a2bd277e3155ad29cf8/read?member_id=demo-member-001&source=1</span>
+<span class="kw">PUT</span> <span class="str">/api/v1/inbox/69e98a34d277e3155ad29d01/read?member_id=demo-member-001&source=2</span>
 
 <span class="cm">// Response 200</span>
 { <span class="str">"success"</span>: <span class="kw">true</span> }
@@ -1244,13 +1250,16 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
     <div class="code">Content-Type: <span class="str">text/event-stream</span>
 Cache-Control: <span class="str">no-cache</span>
 Connection:    <span class="str">keep-alive</span></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">SSE 事件格式</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">SSE 事件格式（只推通知信號）</div>
     <div class="code"><span class="cm">: connected</span>                          <span class="cm">← 連線建立確認（SSE comment，不觸發 onmessage）</span>
-
 <span class="cm">: heartbeat</span>                          <span class="cm">← 每 30 秒（SSE comment，不觸發 onmessage）</span>
 
-event: <span class="str">message</span>                       <span class="cm">← 新訊息（觸發 onmessage）</span>
-data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class="str">"operator_id"</span>:<span class="str">"op-001"</span>,<span class="str">"member_id"</span>:<span class="str">"..."</span>,<span class="str">"message_type"</span>:<span class="num">1</span>,<span class="str">"campaign_type"</span>:<span class="num">4</span>,<span class="str">"body"</span>:<span class="str">"{...}"</span>,...}</div>
+event: <span class="str">message</span>                       <span class="cm">← 個人訊息通知</span>
+data: {<span class="str">"source"</span>:<span class="num">1</span>,<span class="str">"message_id"</span>:<span class="str">"69e98a2bd277e3155ad29cf8"</span>}
+
+event: <span class="str">message</span>                       <span class="cm">← 全域訊息通知</span>
+data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class="str">"message_id"</span>:<span class="str">"69e98a34d277e3155ad29d01"</span>}</div>
+    <div class="alert ai" style="margin-top:10px">SSE <strong style="color:var(--text)">只推送通知信號</strong>（source + message_id），不包含完整訊息內容。Cocos client 收到後將 source + message_id 傳給 PlatformApi 查詢完整資料。</div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">行為</div>
     <div class="cmp">
       <div class="crow c2"><div class="cc">JWT 驗證</div><div class="cc">RSA-SHA256，PlatformApi 簽發，MC 用 public key 驗證</div></div>
@@ -1297,8 +1306,8 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
 
         <span class="kw">this</span>.es.addEventListener(<span class="str">'message'</span>, (e) => {
             <span class="kw">this</span>.retryCount = <span class="num">0</span>;
-            <span class="kw">const</span> data = <span class="fn">JSON</span>.parse(e.data);
-            <span class="kw">this</span>.<span class="fn">onMessage</span>(data);
+            <span class="kw">const</span> { source, message_id } = <span class="fn">JSON</span>.parse(e.data);
+            <span class="kw">this</span>.<span class="fn">onMessage</span>(source, message_id);
         });
 
         <span class="kw">this</span>.es.onerror = () => {
@@ -1327,12 +1336,15 @@ data: {<span class="str">"id"</span>:<span class="str">"..."</span>,<span class=
         <span class="kw">this</span>.es = <span class="kw">null</span>;
     }
 
-    <span class="fn">onMessage</span>(data) { <span class="cm">/* 更新紅點 UI */</span> }
+    <span class="fn">onMessage</span>(source, messageId) { <span class="cm">/* 更新紅點 UI */</span> }
 }
 
 <span class="cm">// 使用</span>
 <span class="kw">const</span> sse = <span class="kw">new</span> <span class="fn">InboxSSE</span>(loginResp.sse_url, loginResp.jwt_token);
-sse.onMessage = (data) => <span class="fn">console</span>.log(<span class="str">'新訊息:'</span>, data);
+sse.onMessage = (source, messageId) => {
+    <span class="fn">console</span>.log(<span class="str">'新訊息:'</span>, source === <span class="num">1</span> ? <span class="str">'member'</span> : <span class="str">'operator'</span>, messageId);
+    <span class="cm">// 紅點 +1，傳給 PlatformApi 查詢完整資料</span>
+};
 sse.<span class="fn">connect</span>();</div>
   </div>
 
@@ -1359,16 +1371,18 @@ sse.<span class="fn">connect</span>();</div>
       <div class="crow c3"><div class="cc" style="color:var(--teal)">status</div><div class="cc">0</div><div class="cc">未讀</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">1</div><div class="cc">已讀</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">封存（軟刪除）</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--purple)">message_type</div><div class="cc">1</div><div class="cc">活動 (Campaign)</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">推播 (Push)</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--amber)">campaign_type</div><div class="cc">2</div><div class="cc">FRB (FreeRoundBonus)</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">FRA (FreeRoundAPI)</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">message_type</div><div class="cc">1</div><div class="cc">推播 (Push)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">活動 (Campaign)</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--amber)">campaign_type</div><div class="cc">2</div><div class="cc">FRB (Free Round Bonus)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">FRA (Free Round Award)</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">4</div><div class="cc">錦標賽 (Tournament)</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--blue)">event_type</div><div class="cc">1</div><div class="cc">提領獎勵</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">活動暫停</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">活動終止</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--coral)">source</div><div class="cc">member</div><div class="cc">個人訊息（來自 member_inbox）</div></div>
-      <div class="crow c3"><div class="cc"></div><div class="cc">operator</div><div class="cc">全域訊息（來自 operator_inbox）</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">event_type</div><div class="cc">1</div><div class="cc">提領獎勵 (PrizeSettled)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">活動暫停 (Suspended)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">3</div><div class="cc">活動終止 (Terminated)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">4</div><div class="cc">活動即將開始 (ComingSoon)</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">5</div><div class="cc">活動開始 (Running)</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--coral)">source</div><div class="cc">1</div><div class="cc">個人訊息（來自 member_inbox）</div></div>
+      <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">全域訊息（來自 operator_inbox）</div></div>
     </div>
   </div>
 
