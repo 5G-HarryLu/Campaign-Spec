@@ -226,6 +226,11 @@ code,pre{font-family:'SF Mono','Fira Code','Cascadia Code',monospace}
     <div class="nav-item" data-tab="reference"><span class="num">12</span>參考索引</div>
   </div>
 
+  <div class="nav-group">
+    <div class="nav-group-title">API 規格</div>
+    <div class="nav-item" data-tab="api-spec"><span class="num">13</span>API Spec</div>
+  </div>
+
   <div class="sidebar-footer">
     CampaignServer Team<br>
     Updated: 2026-03-25
@@ -1809,6 +1814,259 @@ Response: { rank: 152, score: 450.5, top: false }</pre></div>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ─────────────────────────────────────────────
+     TAB 13: API SPEC
+     ───────────────────────────────────────────── -->
+<div class="tab-page" id="api-spec">
+  <div class="sec-label">13 / API Spec</div>
+  <h1 class="sec-title">Tournament API Spec</h1>
+  <p class="sec-sub">服務名稱：<code style="font-family:'SF Mono',monospace;font-size:13px;color:var(--orange)">Tournament</code>（src/Tournament，ASP.NET Core Web API）<br>路由前綴：<code style="font-family:'SF Mono',monospace;font-size:13px;color:var(--teal)">/api/tournament</code>　·　Base URL：<code style="font-family:'SF Mono',monospace;font-size:13px">http://{host}:5286</code>　·　JSON：<code style="font-family:'SF Mono',monospace;font-size:13px;color:var(--green)">snake_case</code></p>
+
+  <div class="callout">
+    <b>關鍵設計</b> — 所有玩家相關端點皆以 <code style="font-family:'SF Mono',monospace;font-size:12px;color:var(--orange)">periodId</code>（<code style="font-family:'SF Mono',monospace;font-size:12px">campaign_period.id</code>，UUID）為主索引，<b>非 campaign_id</b>。一個 campaign 可包含多個 period（daily / weekly / single），每個 period 有自己的 leaderboard 與 reward 週期。
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>端點總覽</div>
+    <table class="spec-table">
+      <tr><th>Method</th><th>Path</th><th>說明</th></tr>
+      <tr><td><b style="color:var(--blue)">GET</b></td><td><code style="font-family:'SF Mono',monospace;font-size:12px;color:var(--teal)">/api/tournament/{periodId}/leaderboard</code></td><td>取得分頁 leaderboard</td></tr>
+      <tr><td><b style="color:var(--blue)">GET</b></td><td><code style="font-family:'SF Mono',monospace;font-size:12px;color:var(--teal)">/api/tournament/{periodId}/player/{operatorId}/{memberId}</code></td><td>查詢單一玩家排名</td></tr>
+      <tr><td><b style="color:var(--purple)">POST</b></td><td><code style="font-family:'SF Mono',monospace;font-size:12px;color:var(--teal)">/api/tournament/{periodId}/reward/claim</code></td><td>玩家領取獎勵</td></tr>
+      <tr><td><b style="color:var(--blue)">GET</b></td><td><code style="font-family:'SF Mono',monospace;font-size:12px;color:var(--teal)">/health</code></td><td>健康檢查</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>1. GET /api/tournament/{periodId}/leaderboard — 分頁 Leaderboard</div>
+    <p style="font-size:12.5px;color:var(--text2);margin-bottom:10px">Tiebreaker 規則：同分時，較早達成者排前面（<code style="font-family:'SF Mono',monospace;font-size:11px">updated_at</code> 較早 → 排名較高）。Tiebreaker 已透過 <code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">TiebreakerEncoder</code> 編碼進 sorted set 的 score，<code style="font-family:'SF Mono',monospace;font-size:11px">ZREVRANGE</code> 排序即正確。</p>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Query Parameters</div>
+    <table class="spec-table">
+      <tr><th>參數</th><th>位置</th><th>必填</th><th>預設 / 限制</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">periodId</code></td><td>path</td><td>✅</td><td>UUID</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">campaign_period.id</code></td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">page</code></td><td>query</td><td>❌</td><td>1（&lt; 1 夾為 1）</td><td>頁碼（1-based）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">page_size</code></td><td>query</td><td>❌</td><td>20，&gt; 100 夾為 100</td><td>每頁筆數</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">view_member_id</code></td><td>query</td><td>❌</td><td>—</td><td>觀看者自己的 member_id；該列 player 不做遮罩，其他列仍遮罩</td></tr>
+    </table>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 200</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{
+  "ranks": [
+    { "rank": 1, "player": "a***ng", "score": 10 },
+    { "rank": 2, "player": "b***en", "score": 8 },
+    { "rank": 3, "player": "c***li", "score": 5 },
+    { "rank": 4, "player": "d***ao", "score": 5 }
+  ],
+  "current_page": 1,
+  "page_size": 20,
+  "page_count": 1,
+  "total_count": 4
+}</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">欄位定義</div>
+    <table class="spec-table">
+      <tr><th>欄位</th><th>類型</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">ranks</code></td><td>array</td><td>本頁 leaderboard 條目（依 rank 升序）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">ranks[].rank</code></td><td>int</td><td>1-based 全域排名（已加上分頁 offset）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">ranks[].player</code></td><td>string</td><td>遮罩後的 member_account：<code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">first_char + "***" + last_2_chars</code>（例：<code style="font-family:'SF Mono',monospace;font-size:11px">test_player_001</code> → <code style="font-family:'SF Mono',monospace;font-size:11px">t***01</code>）。view_member_id 對到的列回傳原始 account</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">ranks[].score</code></td><td>double</td><td>已解碼分數（<code style="font-family:'SF Mono',monospace;font-size:11px">TiebreakerEncoder.Decode</code>）。multiplier 為整數，win/turnover 為兩位小數金額</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">page_count</code></td><td>int</td><td>總頁數 = ceil(total_count / page_size)</td></tr>
+    </table>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">空 Leaderboard（period 無設定或無玩家上榜）</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "ranks": [], "current_page": 1, "page_size": 20, "page_count": 0, "total_count": 0 }</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>2. GET /api/tournament/{periodId}/player/{operatorId}/{memberId} — 查詢玩家排名</div>
+    <p style="font-size:12.5px;color:var(--text2);margin-bottom:10px">Rank 為已解 tiebreaker 後的 1-based 名次。</p>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Path Parameters</div>
+    <table class="spec-table">
+      <tr><th>參數</th><th>必填</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">periodId</code></td><td>✅</td><td>campaign_period.id</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">operatorId</code></td><td>✅</td><td>Operator ID</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">memberId</code></td><td>✅</td><td>玩家 member ID</td></tr>
+    </table>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 200</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "rank": 3, "score": 5 }</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 404 — 玩家未上榜</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "error": "Player not found on leaderboard" }</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>3. POST /api/tournament/{periodId}/reward/claim — 玩家領取獎勵</div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">領取流程</div>
+    <table class="spec-table">
+      <tr><th>#</th><th>步驟</th></tr>
+      <tr><td>1</td><td>驗證：reward 存在、<code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">status = Pending</code>、未過 claim 期限</td></tr>
+      <tr><td>2</td><td>狀態轉換：<code style="font-family:'SF Mono',monospace;font-size:11px">Pending → Claimed</code></td></tr>
+      <tr><td>3</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">IWalletService</code> 執行轉帳。<b>TRANSFER</b> 錢包在轉帳同時做 <code style="font-family:'SF Mono',monospace;font-size:11px">Claimed → Completed</code>（atomic）；<b>SEAMLESS</b> 為 sequential</td></tr>
+      <tr><td>4</td><td>轉帳失敗 → reward 停留在 Claimed 等重試（HTTP 仍回 409）</td></tr>
+    </table>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Request Body</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{
+  "operator_id": "f2720d1a94c3870856a3c43057960348",
+  "member_id": "player-A"
+}</pre></div>
+    <p style="font-size:11.5px;color:var(--text3);margin-top:6px">兩欄位都必填，空字串或 whitespace 會被 reject。</p>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 200 — 領取成功且轉帳完成</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{
+  "period_id":   "a84c6124-0d61-4ebb-a6a5-6206bc0dccf2",
+  "operator_id": "f2720d1a94c3870856a3c43057960348",
+  "member_id":   "player-A",
+  "prize_cents": 10000,
+  "currency_sn": 147,
+  "status":      "Completed"
+}</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 400 — 參數缺失</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "error": "operatorId and memberId are required" }</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 404 — 該玩家無 reward 紀錄</div>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "error": "Reward not found" }</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">Response 409 — 狀態衝突</div>
+    <table class="spec-table">
+      <tr><th>情境</th><th>error 訊息</th></tr>
+      <tr><td>已被領取（已 Completed）</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">Reward is already in Completed status</code></td></tr>
+      <tr><td>已過期</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">Reward is already in Expired status</code></td></tr>
+      <tr><td>重複請求（前一次已 Claimed）</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">Reward is already in Claimed status</code></td></tr>
+      <tr><td>轉帳失敗（已切到 Claimed，背景重試中）</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">Fund transfer failed, reward is Claimed and will be retried</code></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>4. GET /health — 健康檢查</div>
+    <p style="font-size:12.5px;color:var(--text2);margin-bottom:10px">無 routing prefix。</p>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "status": "healthy" }</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>資料模型 — LeaderboardEntry</div>
+    <table class="spec-table">
+      <tr><th>欄位</th><th>類型</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">rank</code></td><td>int</td><td>1-based 排名</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">player</code></td><td>string</td><td>遮罩後的 member_account（除非 viewer 自己看自己）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">score</code></td><td>double</td><td>解碼後分數</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>資料模型 — PlayerReward（OceanBase campaign_reward 表，內部用）</div>
+    <table class="spec-table">
+      <tr><th>欄位</th><th>類型</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">operator_id</code></td><td>string</td><td>Operator ID</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">member_id</code></td><td>string</td><td>Member ID</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">account</code></td><td>string</td><td>member_account（CDC 帶來，作為遮罩前原值）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">rank</code></td><td>int</td><td>結算當下名次</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">score</code></td><td>double</td><td>結算當下分數</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">prize_cents</code></td><td>long</td><td>獎金（cents）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">currency_sn</code></td><td>int</td><td>幣別代號</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">agent_id / agent_path</code></td><td>uint / string</td><td>玩家所屬代理</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">campaign_type</code></td><td>byte</td><td>Campaign 分類</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">status</code></td><td>RewardStatus</td><td>狀態（見下）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px">campaign_period_id</code></td><td>string</td><td>對應 campaign_period.id</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Enum — RewardStatus（byte）</div>
+    <table class="spec-table">
+      <tr><th>名稱</th><th>值</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--yellow)">Pending</code></td><td>1</td><td>已結算，等待領取</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">Claimed</code></td><td>2</td><td>玩家觸發領取，等待錢包轉帳完成</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--green)">Completed</code></td><td>3</td><td>已轉入錢包</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--red)">Expired</code></td><td>4</td><td>超過領取期限未領</td></tr>
+    </table>
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">狀態流</div>
+    <div class="code-block"><pre>Pending (1) ──claim──▶ Claimed (2) ──wallet ok──▶ Completed (3)
+Pending (1) ──expire──▶ Expired (4)</pre></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Enum — ScoringRule（byte，記在 campaign_setting.scoring_rule）</div>
+    <table class="spec-table">
+      <tr><th>名稱</th><th>值</th><th>計分公式（每筆 bet）</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--blue)">MaxMultiplier</code></td><td>1</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">max(win / actual_bet)</code></td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--blue)">AccumulatedMultiplier</code></td><td>2</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">sum(floor(win / actual_bet))</code>，僅累加 &gt; 1 的倍率</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--blue)">TotalWin</code></td><td>3</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">sum(win / 100)</code>，僅 win &gt; 0</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--blue)">Turnover</code></td><td>4</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">sum(bet / 100)</code>，僅 bet &gt; 0</td></tr>
+    </table>
+    <p style="font-size:11.5px;color:var(--text3);margin-top:8px">同一 operator、同一 tournament，僅允許一條 scoring rule。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>Enum — RewardClaimMode / WalletType</div>
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:6px 0 6px">RewardClaimMode（byte）</div>
+    <table class="spec-table">
+      <tr><th>名稱</th><th>值</th><th>說明</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--green)">Auto</code></td><td>1</td><td>結算後自動派彩，玩家無需呼叫 claim</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">Manual</code></td><td>2</td><td>玩家需主動呼叫 POST /reward/claim</td></tr>
+    </table>
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">WalletType（影響 IWalletService 派彩路徑）</div>
+    <table class="spec-table">
+      <tr><th>類型</th><th>派彩路徑</th></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--teal)">TRANSFER</code></td><td>直接更新 OceanBase <code style="font-family:'SF Mono',monospace;font-size:11px">member_wallet</code>（atomic 與 reward status）</td></tr>
+      <tr><td><code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--purple)">SEAMLESS</code></td><td>透過 operator HTTP API（依 IntegrationModel 派發 helper）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>通用約定</div>
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:6px 0 6px">命名規則</div>
+    <table class="spec-table">
+      <tr><th>位置</th><th>規則</th></tr>
+      <tr><td>HTTP path</td><td>camelCase 占位符（<code style="font-family:'SF Mono',monospace;font-size:11px">{periodId}</code>、<code style="font-family:'SF Mono',monospace;font-size:11px">{operatorId}</code>、<code style="font-family:'SF Mono',monospace;font-size:11px">{memberId}</code>）</td></tr>
+      <tr><td>Query string</td><td>snake_case（<code style="font-family:'SF Mono',monospace;font-size:11px">page_size</code>、<code style="font-family:'SF Mono',monospace;font-size:11px">view_member_id</code>）</td></tr>
+      <tr><td>JSON request/response</td><td>snake_case（全域 <code style="font-family:'SF Mono',monospace;font-size:11px">JsonNamingPolicy.SnakeCaseLower</code>）</td></tr>
+    </table>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">錯誤格式</div>
+    <p style="font-size:12.5px;color:var(--text2);margin-bottom:6px">所有非 200 狀態回應的 body 統一為：</p>
+    <div class="code-block"><div class="lang">JSON</div><pre>{ "error": "&lt;message&gt;" }</pre></div>
+
+    <div style="font-weight:700;font-size:12px;color:var(--text2);margin:14px 0 6px">HTTP 狀態碼摘要</div>
+    <table class="spec-table">
+      <tr><th>Code</th><th>用途</th></tr>
+      <tr><td><b style="color:var(--green)">200</b></td><td>成功（含空 leaderboard）</td></tr>
+      <tr><td><b style="color:var(--orange)">400</b></td><td>請求參數缺失或無效</td></tr>
+      <tr><td><b style="color:var(--orange)">404</b></td><td>period / 玩家 / reward 不存在</td></tr>
+      <tr><td><b style="color:var(--red)">409</b></td><td>reward 狀態衝突（已領、已過期、重複請求、轉帳暫時失敗）</td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>名詞釋義</div>
+    <table class="spec-table">
+      <tr><th>名詞</th><th>說明</th></tr>
+      <tr><td><b>periodId</b></td><td><code style="font-family:'SF Mono',monospace;font-size:11px">campaign_period.id</code>，UUID 格式。所有 API 入口皆使用 periodId 而非 campaign_id</td></tr>
+      <tr><td><b>member_account</b></td><td>來自 CDC bet event 的玩家帳號字串，是 leaderboard 顯示與遮罩的來源</td></tr>
+      <tr><td><b>遮罩規則</b></td><td><code style="font-family:'SF Mono',monospace;font-size:11px">first_char + "***" + last_2_chars</code>（由 <code style="font-family:'SF Mono',monospace;font-size:11px">NameMaskingService</code> 實作）</td></tr>
+      <tr><td><b>Tiebreaker</b></td><td>同分時 <code style="font-family:'SF Mono',monospace;font-size:11px">updated_at</code> 較早者排前。已編碼進 Redis sorted set score，無需 client 端再排序</td></tr>
+      <tr><td><b>Leaderboard Member 格式</b></td><td>Redis sorted set 的 member 為 <code style="font-family:'SF Mono',monospace;font-size:11px;color:var(--orange)">{operatorId}:{memberId}:{account}</code></td></tr>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="bar"></span>來源參考</div>
+    <table class="spec-table">
+      <tr><th>類型</th><th>路徑</th></tr>
+      <tr><td>Controllers</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament/Api/Controllers/{LeaderboardController,RewardController}.cs</code></td></tr>
+      <tr><td>Services</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament/Leaderboard/LeaderboardQueryService.cs</code><br><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament/Reward/RewardClaimService.cs</code></td></tr>
+      <tr><td>DTO</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament.Shared/Models/{LeaderboardResponse,PlayerReward,PlayerProgressMeta}.cs</code></td></tr>
+      <tr><td>Enum</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament.Shared/Enums/{RewardStatus,ScoringRule,RewardClaimMode}.cs</code></td></tr>
+      <tr><td>JSON 命名規則</td><td><code style="font-family:'SF Mono',monospace;font-size:11px">src/Tournament/Program.cs</code>（<code style="font-family:'SF Mono',monospace;font-size:11px">JsonNamingPolicy.SnakeCaseLower</code>）</td></tr>
+    </table>
   </div>
 </div>
 
