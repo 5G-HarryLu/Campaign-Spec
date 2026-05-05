@@ -972,63 +972,6 @@ data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread
   </div>
 
   <div class="card">
-    <div class="ct">Client 端範例（SSE + polling 共用 handler）</div>
-    <div class="code"><span class="kw">class</span> <span class="fn">InboxSSE</span> {
-    <span class="fn">constructor</span>(sseUrl, jwtToken) {
-        <span class="kw">this</span>.url        = <span class="str">`${sseUrl}/api/v1/inbox/stream?token=${jwtToken}`</span>;
-        <span class="kw">this</span>.retryCount = <span class="num">0</span>;
-        <span class="kw">this</span>.maxRetry   = <span class="num">5</span>;
-        <span class="kw">this</span>.es = <span class="kw">null</span>;
-    }
-
-    <span class="fn">connect</span>() {
-        <span class="kw">this</span>.es = <span class="kw">new</span> <span class="fn">EventSource</span>(<span class="kw">this</span>.url);
-
-        <span class="kw">this</span>.es.addEventListener(<span class="str">'message'</span>, (e) => {
-            <span class="kw">this</span>.retryCount = <span class="num">0</span>;
-            <span class="kw">this</span>.<span class="fn">handlePayload</span>(<span class="fn">JSON</span>.parse(e.data));
-        });
-
-        <span class="kw">this</span>.es.onerror = () => {
-            <span class="kw">this</span>.es.close();
-            <span class="kw">this</span>.es = <span class="kw">null</span>;
-            <span class="kw">this</span>.<span class="fn">reconnect</span>();
-        };
-    }
-
-    <span class="fn">reconnect</span>() {
-        <span class="kw">if</span> (<span class="kw">this</span>.retryCount >= <span class="kw">this</span>.maxRetry) {
-            <span class="kw">this</span>.<span class="fn">startPolling</span>();  <span class="cm">// 降級為 polling /unread_count</span>
-            <span class="kw">return</span>;
-        }
-        <span class="kw">const</span> delay = <span class="num">3000</span> * Math.pow(<span class="num">2</span>, <span class="kw">this</span>.retryCount);
-        <span class="kw">this</span>.retryCount++;
-        setTimeout(() => <span class="kw">this</span>.<span class="fn">connect</span>(), delay);
-    }
-
-    <span class="fn">startPolling</span>() {
-        setInterval(<span class="kw">async</span> () => {
-            <span class="kw">const</span> r = <span class="kw">await</span> fetch(<span class="str">'/api/v1/inbox/unread_count?...'</span>);
-            <span class="kw">this</span>.<span class="fn">handlePayload</span>(<span class="kw">await</span> r.json());  <span class="cm">// 同一個 handler!</span>
-        }, <span class="num">60000</span>);
-    }
-
-    <span class="fn">handlePayload</span>(p) {
-        <span class="kw">if</span> (p.latest) <span class="kw">this</span>.<span class="fn">showPopup</span>(p.latest);             <span class="cm">// 彈窗</span>
-        <span class="kw">this</span>.<span class="fn">updateBadge</span>(p.promotion, p.inbox);             <span class="cm">// 紅點</span>
-        <span class="kw">if</span> (p.message_id) <span class="kw">this</span>.<span class="fn">markInboxDirty</span>(p.message_id);
-    }
-
-    <span class="fn">disconnect</span>() {
-        <span class="kw">this</span>.es?.close();
-        <span class="kw">this</span>.es = <span class="kw">null</span>;
-    }
-}
-sse.<span class="fn">connect</span>();</div>
-    <div class="alert as" style="margin-top:10px">關鍵：<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">handlePayload</code> 一個 handler 同時處理 SSE 推送跟 polling 結果，因為 server 端 shape 統一了。</div>
-  </div>
-
-  <div class="card">
     <div class="ct">7. Health Checks</div>
     <div class="g2">
       <div>
