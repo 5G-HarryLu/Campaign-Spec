@@ -1115,6 +1115,7 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <div class="crow c3"><div class="cc" style="color:var(--amber)">PUT</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/read-all</code></div><div class="cc">全部標記已讀</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--red)">DEL</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/{id}</code></div><div class="cc">封存（軟刪除）</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/inbox/stream</code></div><div class="cc">SSE 即時推送</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/api/v1/dev/sse/mock-stream</code></div><div class="cc">Mock SSE（dev only）</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/live</code></div><div class="cc">Liveness probe</div></div>
       <div class="crow c3"><div class="cc" style="color:var(--blue)">GET</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--teal)">/health/ready</code></div><div class="cc">Readiness probe</div></div>
     </div>
@@ -1133,6 +1134,9 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=推播, 2=活動</div></div>
       <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">2=FRB, 3=FRA, 4=錦標賽</div></div>
       <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
+      <div class="crow c3"><div class="cc">event_type</div><div class="cc">string / 否</div><div class="cc">逗號分隔（如 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">1,2,3</code>），多選；省略=不過濾</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">is_inbox</div><div class="cc">bool / 否</div><div class="cc">過濾「該進收件匣」的訊息。Cocos 信件列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">?is_inbox=true</code></div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--purple)">is_popup</div><div class="cc">bool / 否</div><div class="cc">過濾「該彈窗」的訊息。彈窗列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">?is_popup=true</code></div></div>
     </div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
     <div class="code"><span class="cm">{</span>
@@ -1142,10 +1146,12 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
       <span class="str">"operator_id"</span>: <span class="str">"op-001"</span>,
       <span class="str">"member_id"</span>: <span class="str">""</span>,              <span class="cm">// 全域訊息時為空</span>
       <span class="str">"game_id"</span>: <span class="kw">null</span>,
-      <span class="str">"message_type"</span>: <span class="num">1</span>,           <span class="cm">// 1=推播, 2=活動</span>
+      <span class="str">"message_type"</span>: <span class="num">2</span>,           <span class="cm">// 1=推播, 2=活動</span>
       <span class="str">"campaign_type"</span>: <span class="num">4</span>,          <span class="cm">// 2=FRB, 3=FRA, 4=錦標賽</span>
       <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止, 4=即將開始, 5=開始</span>
-      <span class="str">"payload"</span>: { <span class="str">"campaign_id"</span>: <span class="str">"camp-004"</span>, <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span> },  <span class="cm">// 巢狀 JSON 物件</span>
+      <span class="str">"is_inbox"</span>: <span class="kw">true</span>,             <span class="cm">// 是否進信件列表</span>
+      <span class="str">"is_popup"</span>: <span class="kw">false</span>,            <span class="cm">// 是否該彈窗</span>
+      <span class="str">"payload"</span>: { <span class="str">"campaign_id"</span>: <span class="str">"camp-004"</span>, <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span> },
       <span class="str">"status"</span>: <span class="num">0</span>,                  <span class="cm">// 0=未讀, 1=已讀, 2=封存</span>
       <span class="str">"source_ref"</span>: <span class="kw">null</span>,
       <span class="str">"expired_at"</span>: <span class="kw">null</span>,
@@ -1165,15 +1171,53 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
 
 <span class="cm"># 第二頁</span>
 <span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&page=2&page_size=20</span></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">過濾範例（信件列表 / 彈窗候選）</div>
+    <div class="code"><span class="cm"># 推薦：用 is_inbox flag（規則由 server 維護）</span>
+<span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&is_inbox=true</span>
+
+<span class="cm"># 等價：用 event_type 列表（client 自己組規則）</span>
+<span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&event_type=1,2,3</span></div>
+    <div class="alert ai" style="margin-top:10px"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_inbox=true</code> 的筆數對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.inbox</code>；<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_popup=true</code> 對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.promotion</code>。</div>
   </div>
 
   <div class="card">
-    <div class="ct">2. GET /api/v1/inbox/unread_count — 未讀數（紅點）</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">合併 member_inbox + operator_inbox 的未讀數。</div>
-    <div class="code"><span class="kw">GET</span> <span class="str">/api/v1/inbox/unread_count?member_id=demo-member-001&operator_id=op-001</span>
-
-<span class="cm">// Response 200</span>
-{ <span class="str">"count"</span>: <span class="num">5</span> }</div>
+    <div class="ct">2. GET /api/v1/inbox/unread_count — 未讀數 + 最新狀態快照</div>
+    <div class="alert ai" style="margin-bottom:10px">回傳的 shape <strong style="color:var(--text)">跟 SSE 推送的 enriched payload 一致</strong> — client 在 SSE 沒連線時可以 polling 此端點當替代資料源，handler 共用同一段邏輯。</div>
+    <div class="code"><span class="kw">GET</span> <span class="str">/api/v1/inbox/unread_count?member_id=demo-member-001&operator_id=op-001</span></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:12px 0 6px">Response 200（有未讀）</div>
+    <div class="code">{
+  <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
+  <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
+  <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
+  <span class="str">"promotion"</span>:         <span class="num">2</span>,
+  <span class="str">"inbox"</span>:             <span class="num">5</span>,
+  <span class="str">"latest"</span>: {
+    <span class="str">"message_id"</span>:   <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
+    <span class="str">"game_id"</span>:      <span class="str">"S5G-H5-99947"</span>,
+    <span class="str">"message_type"</span>: <span class="num">2</span>,
+    <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
+    <span class="str">"campaign_type"</span>: <span class="num">4</span>,
+    <span class="str">"event_type"</span>:   <span class="num">1</span>,
+    <span class="str">"source"</span>:       <span class="num">1</span>
+  }
+}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:12px 0 6px">Response 200（沒任何未讀）</div>
+    <div class="code">{
+  <span class="str">"message_id"</span>:         <span class="kw">null</span>,
+  <span class="str">"campaign_id"</span>:        <span class="kw">null</span>,
+  <span class="str">"campaign_period_id"</span>: <span class="kw">null</span>,
+  <span class="str">"promotion"</span>:         <span class="num">0</span>,
+  <span class="str">"inbox"</span>:             <span class="num">0</span>,
+  <span class="str">"latest"</span>:            <span class="kw">null</span>
+}</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:12px 0 6px">欄位語意</div>
+    <div class="cmp">
+      <div class="crow c2 ch"><div class="cc">欄位</div><div class="cc">說明</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--teal)">message_id / campaign_id / campaign_period_id</div><div class="cc">最新一筆未讀訊息（不限 event_type），給 Inbox / Promo UI 更新用</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">promotion</div><div class="cc">event_type ∈ {4, 5} 未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">inbox</div><div class="cc">event_type ∈ {1, 2, 3} 未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">latest</div><div class="cc">最新一筆「該彈窗」的未讀（event_type ∈ {1, 4, 5}），沒就 null</div></div>
+    </div>
   </div>
 
   <div class="card">
@@ -1250,16 +1294,30 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
     <div class="code">Content-Type: <span class="str">text/event-stream</span>
 Cache-Control: <span class="str">no-cache</span>
 Connection:    <span class="str">keep-alive</span></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">SSE 事件格式（只推通知信號）</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">SSE 事件格式（推 enriched payload）</div>
     <div class="code"><span class="cm">: connected</span>                          <span class="cm">← 連線建立確認（SSE comment，不觸發 onmessage）</span>
 <span class="cm">: heartbeat</span>                          <span class="cm">← 每 30 秒（SSE comment，不觸發 onmessage）</span>
 
-event: <span class="str">message</span>                       <span class="cm">← 個人訊息通知</span>
-data: {<span class="str">"source"</span>:<span class="num">1</span>,<span class="str">"message_id"</span>:<span class="str">"69e98a2bd277e3155ad29cf8"</span>}
-
-event: <span class="str">message</span>                       <span class="cm">← 全域訊息通知</span>
-data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class="str">"message_id"</span>:<span class="str">"69e98a34d277e3155ad29d01"</span>}</div>
-    <div class="alert ai" style="margin-top:10px">SSE <strong style="color:var(--text)">只推送通知信號</strong>（source + message_id），不包含完整訊息內容。Cocos client 收到後將 source + message_id 傳給 PlatformApi 查詢完整資料。</div>
+event: <span class="str">message</span>
+data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread_count 完全一致</span></div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:12px 0 6px">Payload shape（跟 /unread_count 完全一致）</div>
+    <div class="code">{
+  <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
+  <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
+  <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
+  <span class="str">"promotion"</span>:         <span class="num">2</span>,
+  <span class="str">"inbox"</span>:             <span class="num">5</span>,
+  <span class="str">"latest"</span>: {
+    <span class="str">"message_id"</span>:   <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
+    <span class="str">"game_id"</span>:      <span class="str">"S5G-H5-99947"</span>,
+    <span class="str">"message_type"</span>: <span class="num">2</span>,
+    <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
+    <span class="str">"campaign_type"</span>: <span class="num">4</span>,
+    <span class="str">"event_type"</span>:   <span class="num">1</span>,
+    <span class="str">"source"</span>:       <span class="num">1</span>
+  }
+}</div>
+    <div class="alert as" style="margin-top:10px">不彈窗時 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">latest</code> 為 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">null</code>，沒任何未讀時所有外層欄位 + latest 都為 null / 0。Server 端會在每次推送時 query DB 組好完整 payload，<strong style="color:var(--text)">client 不用再 callback API</strong>。SSE 沒連線時 polling <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">/unread_count</code> 是無痛替代。</div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">行為</div>
     <div class="cmp">
       <div class="crow c2"><div class="cc">JWT 驗證</div><div class="cc">RSA-SHA256，PlatformApi 簽發，MC 用 public key 驗證</div></div>
@@ -1292,7 +1350,7 @@ data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class=
   </div>
 
   <div class="card">
-    <div class="ct">Client 端範例</div>
+    <div class="ct">Client 端範例（SSE + polling 共用 handler）</div>
     <div class="code"><span class="kw">class</span> <span class="fn">InboxSSE</span> {
     <span class="fn">constructor</span>(sseUrl, jwtToken) {
         <span class="kw">this</span>.url        = <span class="str">`${sseUrl}/api/v1/inbox/stream?token=${jwtToken}`</span>;
@@ -1306,8 +1364,7 @@ data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class=
 
         <span class="kw">this</span>.es.addEventListener(<span class="str">'message'</span>, (e) => {
             <span class="kw">this</span>.retryCount = <span class="num">0</span>;
-            <span class="kw">const</span> { source, message_id } = <span class="fn">JSON</span>.parse(e.data);
-            <span class="kw">this</span>.<span class="fn">onMessage</span>(source, message_id);
+            <span class="kw">this</span>.<span class="fn">handlePayload</span>(<span class="fn">JSON</span>.parse(e.data));
         });
 
         <span class="kw">this</span>.es.onerror = () => {
@@ -1319,7 +1376,7 @@ data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class=
 
     <span class="fn">reconnect</span>() {
         <span class="kw">if</span> (<span class="kw">this</span>.retryCount >= <span class="kw">this</span>.maxRetry) {
-            <span class="kw">this</span>.<span class="fn">startPolling</span>();  <span class="cm">// 降級為 polling</span>
+            <span class="kw">this</span>.<span class="fn">startPolling</span>();  <span class="cm">// 降級為 polling /unread_count</span>
             <span class="kw">return</span>;
         }
         <span class="kw">const</span> delay = <span class="num">3000</span> * Math.pow(<span class="num">2</span>, <span class="kw">this</span>.retryCount);
@@ -1328,24 +1385,25 @@ data: {<span class="str">"source"</span>:<span class="num">2</span>,<span class=
     }
 
     <span class="fn">startPolling</span>() {
-        <span class="cm">// 每 60 秒打 /unread_count 更新紅點</span>
+        setInterval(<span class="kw">async</span> () => {
+            <span class="kw">const</span> r = <span class="kw">await</span> fetch(<span class="str">'/api/v1/inbox/unread_count?...'</span>);
+            <span class="kw">this</span>.<span class="fn">handlePayload</span>(<span class="kw">await</span> r.json());  <span class="cm">// 同一個 handler!</span>
+        }, <span class="num">60000</span>);
+    }
+
+    <span class="fn">handlePayload</span>(p) {
+        <span class="kw">if</span> (p.latest) <span class="kw">this</span>.<span class="fn">showPopup</span>(p.latest);             <span class="cm">// 彈窗</span>
+        <span class="kw">this</span>.<span class="fn">updateBadge</span>(p.promotion, p.inbox);             <span class="cm">// 紅點</span>
+        <span class="kw">if</span> (p.message_id) <span class="kw">this</span>.<span class="fn">markInboxDirty</span>(p.message_id);
     }
 
     <span class="fn">disconnect</span>() {
         <span class="kw">this</span>.es?.close();
         <span class="kw">this</span>.es = <span class="kw">null</span>;
     }
-
-    <span class="fn">onMessage</span>(source, messageId) { <span class="cm">/* 更新紅點 UI */</span> }
 }
-
-<span class="cm">// 使用</span>
-<span class="kw">const</span> sse = <span class="kw">new</span> <span class="fn">InboxSSE</span>(loginResp.sse_url, loginResp.jwt_token);
-sse.onMessage = (source, messageId) => {
-    <span class="fn">console</span>.log(<span class="str">'新訊息:'</span>, source === <span class="num">1</span> ? <span class="str">'member'</span> : <span class="str">'operator'</span>, messageId);
-    <span class="cm">// 紅點 +1，傳給 PlatformApi 查詢完整資料</span>
-};
 sse.<span class="fn">connect</span>();</div>
+    <div class="alert as" style="margin-top:10px">關鍵：<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">handlePayload</code> 一個 handler 同時處理 SSE 推送跟 polling 結果，因為 server 端 shape 統一了。</div>
   </div>
 
   <div class="card">
@@ -1362,6 +1420,25 @@ sse.<span class="fn">connect</span>();</div>
         <div class="code" style="font-size:11px">{ <span class="str">"status"</span>: <span class="str">"ready"</span>, <span class="str">"timestamp"</span>: <span class="str">"..."</span> }</div>
       </div>
     </div>
+  </div>
+
+  <div class="card">
+    <div class="ct">8. GET /api/v1/dev/sse/mock-stream — Mock SSE（dev only）</div>
+    <div class="alert aa" style="margin-bottom:10px">獨立的測試用 SSE endpoint，client <strong style="color:var(--text)">切換 URL 就能用同一個 handler 跑測試</strong> — payload shape 跟正式 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">/inbox/stream</code> 完全一致。Production 環境直接回 404。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:10px 0 6px">Query Parameters</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">參數</div><div class="cc">類型 / 必填</div><div class="cc">說明</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">member_id</div><div class="cc">string / 是</div><div class="cc">任意字串，純粹給 log 標記</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--teal)">operator_id</div><div class="cc">string / 是</div><div class="cc">同上</div></div>
+      <div class="crow c3"><div class="cc">interval</div><div class="cc">int / 否</div><div class="cc">每筆間隔秒數（預設 5，範圍 1–30）</div></div>
+    </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">行為</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">連上後送 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">: connected</code>，每 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">interval</code> 秒輪流推 5 種場景（ComingSoon → Running → PrizeSettled → Suspended → Terminated），循環直到 client 斷線。前 3 種有 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">latest</code>（彈窗），後 2 種 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">latest=null</code>（不彈）。</div>
+    <div class="code"><span class="cm">// 測試</span>
+<span class="kw">new</span> <span class="fn">EventSource</span>(<span class="str">'/api/v1/dev/sse/mock-stream?member_id=demo&operator_id=op-001&interval=5'</span>);
+
+<span class="cm">// 正式</span>
+<span class="kw">new</span> <span class="fn">EventSource</span>(<span class="str">'/api/v1/inbox/stream?token=&lt;jwt&gt;'</span>);</div>
   </div>
 
   <div class="card">
@@ -1384,6 +1461,17 @@ sse.<span class="fn">connect</span>();</div>
       <div class="crow c3"><div class="cc" style="color:var(--coral)">source</div><div class="cc">1</div><div class="cc">個人訊息（來自 member_inbox）</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">全域訊息（來自 operator_inbox）</div></div>
     </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:18px 0 6px">路由旗標規則（Consumer 寫入時自動填）</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">每筆訊息根據 event_type 決定要不要進信件列表（<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">is_inbox</code>）跟要不要彈窗（<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">is_popup</code>）：</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">event_type</div><div class="cc">is_inbox</div><div class="cc">is_popup</div></div>
+      <div class="crow c3"><div class="cc">1 PrizeSettled</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--success)">✅</div></div>
+      <div class="crow c3"><div class="cc">2 Suspended</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--text3)">❌</div></div>
+      <div class="crow c3"><div class="cc">3 Terminated</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--text3)">❌</div></div>
+      <div class="crow c3"><div class="cc">4 ComingSoon</div><div class="cc" style="color:var(--text3)">❌</div><div class="cc" style="color:var(--success)">✅</div></div>
+      <div class="crow c3"><div class="cc">5 Running</div><div class="cc" style="color:var(--text3)">❌</div><div class="cc" style="color:var(--success)">✅</div></div>
+    </div>
+    <div class="alert ai" style="margin-top:10px">Cocos 拿信件列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_inbox=true</code>，拿彈窗候選用 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_popup=true</code>。Server 維護規則，client 不用記 event_type 對應關係。</div>
   </div>
 
   <div class="card">
