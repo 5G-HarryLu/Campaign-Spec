@@ -779,8 +779,6 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
       <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">2=FRB, 3=FRA, 4=錦標賽</div></div>
       <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
       <div class="crow c3"><div class="cc">event_type</div><div class="cc">string / 否</div><div class="cc">逗號分隔（如 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">1,2,3</code>），多選；省略=不過濾</div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--purple)">is_inbox</div><div class="cc">bool / 否</div><div class="cc">過濾「該進收件匣」的訊息。Cocos 信件列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">?is_inbox=true</code></div></div>
-      <div class="crow c3"><div class="cc" style="color:var(--purple)">is_popup</div><div class="cc">bool / 否</div><div class="cc">過濾「該彈窗」的訊息。彈窗列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">?is_popup=true</code></div></div>
     </div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
     <div class="code"><span class="cm">{</span>
@@ -793,8 +791,6 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
       <span class="str">"message_type"</span>: <span class="num">2</span>,           <span class="cm">// 1=推播, 2=活動</span>
       <span class="str">"campaign_type"</span>: <span class="num">4</span>,          <span class="cm">// 2=FRB, 3=FRA, 4=錦標賽</span>
       <span class="str">"event_type"</span>: <span class="num">2</span>,              <span class="cm">// 1=提領, 2=暫停, 3=終止, 4=即將開始, 5=開始</span>
-      <span class="str">"is_inbox"</span>: <span class="kw">true</span>,             <span class="cm">// 是否進信件列表</span>
-      <span class="str">"is_popup"</span>: <span class="kw">false</span>,            <span class="cm">// 是否該彈窗</span>
       <span class="str">"payload"</span>: { <span class="str">"campaign_id"</span>: <span class="str">"camp-004"</span>, <span class="str">"campaign_name"</span>: <span class="str">"Summer Tournament"</span> },
       <span class="str">"status"</span>: <span class="num">0</span>,                  <span class="cm">// 0=未讀, 1=已讀, 2=封存</span>
       <span class="str">"source_ref"</span>: <span class="kw">null</span>,
@@ -815,13 +811,9 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
 
 <span class="cm"># 第二頁</span>
 <span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&page=2&page_size=20</span></div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">過濾範例（信件列表 / 彈窗候選）</div>
-    <div class="code"><span class="cm"># 推薦：用 is_inbox flag（規則由 server 維護）</span>
-<span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&is_inbox=true</span>
-
-<span class="cm"># 等價：用 event_type 列表（client 自己組規則）</span>
-<span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&event_type=1,2,3</span></div>
-    <div class="alert ai" style="margin-top:10px"><code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_inbox=true</code> 的筆數對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.inbox</code>；<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_popup=true</code> 對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.promotion</code>。</div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">過濾範例（信件列表只要 event_type 1,2,3）</div>
+    <div class="code"><span class="kw">GET</span> <span class="str">/api/v1/inbox/get_list?member_id=m1&operator_id=op1&event_type=1,2,3</span></div>
+    <div class="alert ai" style="margin-top:10px">此筆數對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.inbox</code>；同理 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">event_type=4,5</code> 對應 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">unread_count.promotion</code>。</div>
   </div>
 
   <div class="card">
@@ -833,8 +825,6 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
   <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
   <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
   <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
-  <span class="str">"is_inbox"</span>:          <span class="kw">true</span>,
-  <span class="str">"is_popup"</span>:          <span class="kw">true</span>,
   <span class="str">"promotion"</span>:         <span class="num">2</span>,
   <span class="str">"inbox"</span>:             <span class="num">5</span>,
   <span class="str">"latest"</span>: {
@@ -844,8 +834,6 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
     <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
     <span class="str">"campaign_type"</span>: <span class="num">4</span>,
     <span class="str">"event_type"</span>:   <span class="num">1</span>,
-    <span class="str">"is_inbox"</span>:     <span class="kw">true</span>,
-    <span class="str">"is_popup"</span>:     <span class="kw">true</span>,
     <span class="str">"source"</span>:       <span class="num">1</span>
   }
 }</div>
@@ -854,8 +842,6 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
   <span class="str">"message_id"</span>:         <span class="kw">null</span>,
   <span class="str">"campaign_id"</span>:        <span class="kw">null</span>,
   <span class="str">"campaign_period_id"</span>: <span class="kw">null</span>,
-  <span class="str">"is_inbox"</span>:          <span class="kw">null</span>,
-  <span class="str">"is_popup"</span>:          <span class="kw">null</span>,
   <span class="str">"promotion"</span>:         <span class="num">0</span>,
   <span class="str">"inbox"</span>:             <span class="num">0</span>,
   <span class="str">"latest"</span>:            <span class="kw">null</span>
@@ -864,10 +850,9 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
     <div class="cmp">
       <div class="crow c2 ch"><div class="cc">欄位</div><div class="cc">說明</div></div>
       <div class="crow c2"><div class="cc" style="color:var(--teal)">message_id / campaign_id / campaign_period_id</div><div class="cc">最新一筆未讀訊息（不限 event_type），給 Inbox / Promo UI 更新用</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--blue)">is_inbox / is_popup</div><div class="cc">該筆訊息的路由 flag（最新未讀的）。沒未讀時為 null</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--purple)">promotion</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_popup=true</code> 的未讀數（badge）</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--purple)">inbox</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_inbox=true</code> 的未讀數（badge）</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--amber)">latest</div><div class="cc">最新一筆 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_popup=true</code> 的未讀，沒就 null。<code style="font-family:'IBM Plex Mono',monospace;font-size:10px">latest.is_popup</code> 永遠為 true（為 client handler 一致性保留），<code style="font-family:'IBM Plex Mono',monospace;font-size:10px">latest.is_inbox</code> 視 event_type 而定</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">promotion</div><div class="cc">event_type ∈ {4, 5} 未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">inbox</div><div class="cc">event_type ∈ {1, 2, 3} 未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">latest</div><div class="cc">最新一筆「該彈窗」的未讀（event_type ∈ {1, 4, 5}），沒就 null</div></div>
     </div>
   </div>
 
@@ -956,8 +941,6 @@ data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread
   <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
   <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
   <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
-  <span class="str">"is_inbox"</span>:          <span class="kw">true</span>,
-  <span class="str">"is_popup"</span>:          <span class="kw">true</span>,
   <span class="str">"promotion"</span>:         <span class="num">2</span>,
   <span class="str">"inbox"</span>:             <span class="num">5</span>,
   <span class="str">"latest"</span>: {
@@ -967,8 +950,6 @@ data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread
     <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
     <span class="str">"campaign_type"</span>: <span class="num">4</span>,
     <span class="str">"event_type"</span>:   <span class="num">1</span>,
-    <span class="str">"is_inbox"</span>:     <span class="kw">true</span>,
-    <span class="str">"is_popup"</span>:     <span class="kw">true</span>,
     <span class="str">"source"</span>:       <span class="num">1</span>
   }
 }</div>
@@ -1102,17 +1083,6 @@ sse.<span class="fn">connect</span>();</div>
       <div class="crow c3"><div class="cc" style="color:var(--coral)">source</div><div class="cc">1</div><div class="cc">個人訊息（來自 member_inbox）</div></div>
       <div class="crow c3"><div class="cc"></div><div class="cc">2</div><div class="cc">全域訊息（來自 operator_inbox）</div></div>
     </div>
-    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:18px 0 6px">路由旗標規則（Consumer 寫入時自動填）</div>
-    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">每筆訊息根據 event_type 決定要不要進信件列表（<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">is_inbox</code>）跟要不要彈窗（<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">is_popup</code>）：</div>
-    <div class="cmp">
-      <div class="crow c3 ch"><div class="cc">event_type</div><div class="cc">is_inbox</div><div class="cc">is_popup</div></div>
-      <div class="crow c3"><div class="cc">1 PrizeSettled</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--success)">✅</div></div>
-      <div class="crow c3"><div class="cc">2 Suspended</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--text3)">❌</div></div>
-      <div class="crow c3"><div class="cc">3 Terminated</div><div class="cc" style="color:var(--success)">✅</div><div class="cc" style="color:var(--text3)">❌</div></div>
-      <div class="crow c3"><div class="cc">4 ComingSoon</div><div class="cc" style="color:var(--text3)">❌</div><div class="cc" style="color:var(--success)">✅</div></div>
-      <div class="crow c3"><div class="cc">5 Running</div><div class="cc" style="color:var(--text3)">❌</div><div class="cc" style="color:var(--success)">✅</div></div>
-    </div>
-    <div class="alert ai" style="margin-top:10px">Cocos 拿信件列表用 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_inbox=true</code>，拿彈窗候選用 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">?is_popup=true</code>。Server 維護規則，client 不用記 event_type 對應關係。</div>
   </div>
 
 
