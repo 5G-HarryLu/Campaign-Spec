@@ -1189,6 +1189,8 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
   <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
   <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
+  <span class="str">"is_inbox"</span>:          <span class="kw">true</span>,
+  <span class="str">"is_popup"</span>:          <span class="kw">true</span>,
   <span class="str">"promotion"</span>:         <span class="num">2</span>,
   <span class="str">"inbox"</span>:             <span class="num">5</span>,
   <span class="str">"latest"</span>: {
@@ -1198,6 +1200,8 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
     <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
     <span class="str">"campaign_type"</span>: <span class="num">4</span>,
     <span class="str">"event_type"</span>:   <span class="num">1</span>,
+    <span class="str">"is_inbox"</span>:     <span class="kw">true</span>,
+    <span class="str">"is_popup"</span>:     <span class="kw">true</span>,
     <span class="str">"source"</span>:       <span class="num">1</span>
   }
 }</div>
@@ -1206,6 +1210,8 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
   <span class="str">"message_id"</span>:         <span class="kw">null</span>,
   <span class="str">"campaign_id"</span>:        <span class="kw">null</span>,
   <span class="str">"campaign_period_id"</span>: <span class="kw">null</span>,
+  <span class="str">"is_inbox"</span>:          <span class="kw">null</span>,
+  <span class="str">"is_popup"</span>:          <span class="kw">null</span>,
   <span class="str">"promotion"</span>:         <span class="num">0</span>,
   <span class="str">"inbox"</span>:             <span class="num">0</span>,
   <span class="str">"latest"</span>:            <span class="kw">null</span>
@@ -1214,9 +1220,10 @@ token → 驗 signature (<span class="fn">SSE_JWT_SECRET</span>) → 驗 exp →
     <div class="cmp">
       <div class="crow c2 ch"><div class="cc">欄位</div><div class="cc">說明</div></div>
       <div class="crow c2"><div class="cc" style="color:var(--teal)">message_id / campaign_id / campaign_period_id</div><div class="cc">最新一筆未讀訊息（不限 event_type），給 Inbox / Promo UI 更新用</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--purple)">promotion</div><div class="cc">event_type ∈ {4, 5} 未讀數（badge）</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--purple)">inbox</div><div class="cc">event_type ∈ {1, 2, 3} 未讀數（badge）</div></div>
-      <div class="crow c2"><div class="cc" style="color:var(--amber)">latest</div><div class="cc">最新一筆「該彈窗」的未讀（event_type ∈ {1, 4, 5}），沒就 null</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--blue)">is_inbox / is_popup</div><div class="cc">該筆訊息的路由 flag（最新未讀的）。沒未讀時為 null</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">promotion</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_popup=true</code> 的未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--purple)">inbox</div><div class="cc"><code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_inbox=true</code> 的未讀數（badge）</div></div>
+      <div class="crow c2"><div class="cc" style="color:var(--amber)">latest</div><div class="cc">最新一筆 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">is_popup=true</code> 的未讀，沒就 null。<code style="font-family:'IBM Plex Mono',monospace;font-size:10px">latest.is_popup</code> 永遠為 true（為 client handler 一致性保留），<code style="font-family:'IBM Plex Mono',monospace;font-size:10px">latest.is_inbox</code> 視 event_type 而定</div></div>
     </div>
   </div>
 
@@ -1305,6 +1312,8 @@ data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread
   <span class="str">"message_id"</span>:         <span class="str">"65f8a2b3c4d5e6f7a8b9c0d1"</span>,
   <span class="str">"campaign_id"</span>:        <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
   <span class="str">"campaign_period_id"</span>: <span class="str">"e28675ea-ad49-402a-957f-91203d11441f"</span>,
+  <span class="str">"is_inbox"</span>:          <span class="kw">true</span>,
+  <span class="str">"is_popup"</span>:          <span class="kw">true</span>,
   <span class="str">"promotion"</span>:         <span class="num">2</span>,
   <span class="str">"inbox"</span>:             <span class="num">5</span>,
   <span class="str">"latest"</span>: {
@@ -1314,6 +1323,8 @@ data: {...enriched payload...}      <span class="cm">← 推送內容跟 /unread
     <span class="str">"campaign_id"</span>:  <span class="str">"01KQE47Q9H56D6XV75X1XVXQRV"</span>,
     <span class="str">"campaign_type"</span>: <span class="num">4</span>,
     <span class="str">"event_type"</span>:   <span class="num">1</span>,
+    <span class="str">"is_inbox"</span>:     <span class="kw">true</span>,
+    <span class="str">"is_popup"</span>:     <span class="kw">true</span>,
     <span class="str">"source"</span>:       <span class="num">1</span>
   }
 }</div>
