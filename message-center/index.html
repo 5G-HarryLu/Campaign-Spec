@@ -777,9 +777,21 @@ nginx.ingress.kubernetes.io/session-cookie-expires: <span class="str">"3600"</sp
       <div class="crow c3"><div class="cc">page_size</div><div class="cc">int / 否</div><div class="cc">每頁筆數（預設 20，最大 100）</div></div>
       <div class="crow c3"><div class="cc">message_type</div><div class="cc">int / 否</div><div class="cc">1=推播, 2=活動</div></div>
       <div class="crow c3"><div class="cc">campaign_type</div><div class="cc">int / 否</div><div class="cc">2=FRB, 3=FRA, 4=錦標賽</div></div>
-      <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">依遊戲篩選</div></div>
+      <div class="crow c3"><div class="cc">game_id</div><div class="cc">string / 否</div><div class="cc">僅篩選 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">operator_inbox</code>（全域訊息）為當前遊戲，<code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">member_inbox</code>（個人訊息）不受影響。詳見下方說明</div></div>
       <div class="crow c3"><div class="cc">event_type</div><div class="cc">string / 否</div><div class="cc">逗號分隔（如 <code style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--amber)">1,2,3</code>），多選；省略=不過濾</div></div>
     </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">game_id 行為</div>
+    <div class="cmp">
+      <div class="crow c3 ch"><div class="cc">是否帶 game_id</div><div class="cc">member_inbox</div><div class="cc">operator_inbox</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--success)">帶</div><div class="cc">全部回傳（不過濾）</div><div class="cc">只回該 game_id 的那一筆</div></div>
+      <div class="crow c3"><div class="cc" style="color:var(--text3)">不帶</div><div class="cc">全部回傳</div><div class="cc" style="color:var(--amber)">同活動下每個遊戲的訊息都會回（會重複）</div></div>
+    </div>
+    <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">為什麼兩張表行為不同</div>
+    <div style="font-size:12px;color:var(--text2);line-height:1.7;margin-bottom:10px">
+      • <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">operator_inbox</code>（全域訊息）會依活動開放的遊戲，<strong style="color:var(--text)">每個 game_id 各產生一筆</strong> → 不過濾會拿到重複資訊。<br>
+      • <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">member_inbox</code>（個人訊息）目前不分遊戲，<code style="font-family:'IBM Plex Mono',monospace;font-size:11px">game_id</code> 欄位皆為 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">NULL</code> → 若一起用 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">game_id =</code> 過濾會把所有個人訊息都濾掉。
+    </div>
+    <div class="alert as">建議：Cocos 進入遊戲時帶當前 <code style="font-family:'IBM Plex Mono',monospace;font-size:11px">game_id</code>，即可同時拿到個人訊息（全部）+ 該遊戲的全域訊息（去重）。</div>
     <div style="font-family:'Syne',sans-serif;font-weight:600;font-size:12px;color:var(--text);margin:14px 0 6px">Response 200</div>
     <div class="code"><span class="cm">{</span>
   <span class="str">"data"</span>: [
