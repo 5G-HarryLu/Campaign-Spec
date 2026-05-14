@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<title>FRB msg-center 整合需求與改動分析</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1419;
+    --bg-elev: #1a1f29;
+    --bg-tab: #232a36;
+    --border: #2d3340;
+    --text: #d5dae3;
+    --text-dim: #9aa3b2;
+    --accent: #4ea1ff;
+    --accent-dim: #2a5a8e;
+    --success: #4ec9b0;
+    --warn: #d7ba7d;
+    --danger: #f48771;
+    --code-bg: #161a22;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang TC",
+                 "Microsoft JhengHei", sans-serif;
+    font-size: 14px;
+    line-height: 1.65;
+  }
+  header {
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+  }
+  header h1 {
+    margin: 0; font-size: 18px; font-weight: 600;
+  }
+  header .meta {
+    margin-top: 6px; font-size: 12px; color: var(--text-dim);
+  }
+  .tabs {
+    display: flex;
+    background: var(--bg-elev);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    padding: 14px 18px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: color .15s, border-color .15s;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .tab-btn .num {
+    display: inline-block;
+    width: 20px; height: 20px;
+    line-height: 20px;
+    border-radius: 50%;
+    background: var(--bg-tab);
+    color: var(--text-dim);
+    font-size: 11px;
+    text-align: center;
+    margin-right: 6px;
+  }
+  .tab-btn.active .num {
+    background: var(--accent);
+    color: #fff;
+  }
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 32px 80px;
+  }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  h2 {
+    font-size: 18px;
+    margin-top: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    font-size: 14px;
+    margin-top: 28px;
+    color: var(--accent);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 18px;
+    font-size: 13px;
+  }
+  th, td {
+    text-align: left;
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  th {
+    background: var(--bg-elev);
+    color: var(--text-dim);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  tr:hover td { background: rgba(78, 161, 255, 0.04); }
+  code, pre {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12.5px;
+  }
+  code {
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #c8d3df;
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    font-size: 11px;
+    border-radius: 10px;
+    margin-left: 6px;
+    vertical-align: 1px;
+  }
+  .badge.confirmed { background: rgba(78, 201, 176, 0.15); color: var(--success); }
+  .badge.pending { background: rgba(215, 186, 125, 0.15); color: var(--warn); }
+  .badge.danger { background: rgba(244, 135, 113, 0.15); color: var(--danger); }
+  .badge.new { background: rgba(78, 161, 255, 0.15); color: var(--accent); }
+  .callout {
+    background: var(--bg-elev);
+    border-left: 3px solid var(--accent);
+    padding: 12px 16px;
+    margin: 16px 0;
+    border-radius: 0 4px 4px 0;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.danger { border-left-color: var(--danger); }
+  .callout .title {
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: var(--accent);
+  }
+  .callout.warn .title { color: var(--warn); }
+  .callout.danger .title { color: var(--danger); }
+  .mermaid {
+    background: var(--bg-elev);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 20px;
+    margin: 16px 0;
+    text-align: center;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+  @media (max-width: 800px) {
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  .file-ref {
+    color: var(--accent);
+    font-family: "SF Mono", monospace;
+    font-size: 12px;
+  }
+  .impact-level {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: 1px;
+  }
+  .impact-level.high { background: var(--danger); }
+  .impact-level.mid { background: var(--warn); }
+  .impact-level.low { background: var(--success); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>FRB msg-center 整合需求與改動分析</h1>
+  <div class="meta">
+    需求者：Keen ・ 來源：Notion FRB-msg-center-ticket-bet ・ 文件日期：2026-05-13
+  </div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-tab="overview"><span class="num">1</span>需求概述</button>
+  <button class="tab-btn" data-tab="decisions"><span class="num">2</span>已確認決定</button>
+  <button class="tab-btn" data-tab="pending"><span class="num">3</span>待確認問題</button>
+  <button class="tab-btn" data-tab="flow"><span class="num">4</span>流程變更（Sequence Diagram）</button>
+  <button class="tab-btn" data-tab="channel"><span class="num">5</span>訊息管道架構</button>
+  <button class="tab-btn" data-tab="impact"><span class="num">6</span>Codebase 影響清單</button>
+  <button class="tab-btn" data-tab="plan"><span class="num">7</span>實作建議 / Milestone</button>
+</nav>
+
+<main>
+
+<!-- ============ Tab 1: 需求概述 ============ -->
+<section class="panel active" id="overview">
+  <h2>1. 需求概述</h2>
+
+  <p>Keen 提出兩條改動：</p>
+  <ul>
+    <li><b>訊息系統整合</b>：FRB 通知整合進 msg-center（對齊 Tournament 既有作法），重新切分 popup / inbox。</li>
+    <li><b>FRB 贈送的 bet 改為 by-level 設定</b>。</li>
+  </ul>
+
+  <h3>1.1 訊息呈現分類（Keen 原文）</h3>
+  <p>純需求視角；技術觸發點與 FRB 動作見 <a href="#" onclick="goTab('channel');return false;" style="color:var(--accent)">Tab 5.2</a>。</p>
+  <table>
+    <thead><tr><th>事件</th><th>呈現方式</th></tr></thead>
+    <tbody>
+      <tr><td>Coming Soon（活動即將開始）</td><td>popup</td></tr>
+      <tr><td>Welcome（活動開始）</td><td>popup</td></tr>
+      <tr><td>Suspend（活動暫停）</td><td>inbox</td></tr>
+      <tr><td>Terminate（活動終止）</td><td>inbox</td></tr>
+      <tr><td>Winning（提領獎勵）</td><td><b>popup + inbox 雙管齊下</b>（inbox 端含 claim 按鈕）</td></tr>
+      <tr><td>Payout（獎勵結算）</td><td>popup（msg-center 職責、FRB 不在乎語意）</td></tr>
+      <tr><td>End Early（活動提早結束）</td><td>inbox</td></tr>
+      <tr><td>End（活動自然結束）</td><td>都不要</td></tr>
+    </tbody>
+  </table>
+
+  <h3>1.2 取消的機制</h3>
+  <ul>
+    <li>Reminder 機制取消</li>
+    <li>自動轉跳遊戲機制取消（理由：獎勵可在 inbox 領取，不再需要強制導流）</li>
+    <li>End reminder（活動結束倒數）取消，後台對應欄位也要拔除</li>
+  </ul>
+
+  <h3>1.3 FRB bet 設定改動</h3>
+  <p>目前 bet 是按 <code>(campaign, operator, game)</code> 在 <code>GameChipsConfig</code> 設定；改為可依 <b>level</b> 設定。具體 key 結構與 schema 位置仍待補。</p>
+
+  <div class="callout warn">
+    <div class="title">隱含的流程改動（從 Keen 對 Payout 的補充推導）</div>
+    FRB 從<b>「達門檻自動發票券」</b>變為<b>「達門檻通知 → 玩家在 inbox 點 claim → 票券才實際啟用」</b>的 Tournament-style 流程。<br>
+    這是本次改動裡<b>影響最大</b>的部分，不只是訊息層的調整。
+  </div>
+
+  <h3>1.4 Winning UI 細節（取自 Figma）</h3>
+  <p>除了上面的訊息分類，Figma 也定義了 winning 的實際互動：</p>
+  <ul>
+    <li><b>Winning popup</b> 上有兩個按鈕：
+      <ul>
+        <li><b>PLAY NOW</b>：直接 claim + 跳轉到綁定的遊戲（一鍵動作）</li>
+        <li><b>PLAY LATER</b>：不立即 claim，訊息保留到 inbox</li>
+      </ul>
+    </li>
+    <li><b>inbox 列表</b>每筆 FRB 訊息顯示：campaign name、$<i>bet</i> × <i>剩餘次數</i>、過期時間、PLAY NOW 按鈕</li>
+    <li><b>展開狀態</b>顯示：祝賀文案、綁定 game name、過期時間、UNCLAIMED PRIZE 警語</li>
+  </ul>
+
+  <h3>1.5 票券在 inbox 端的生命週期狀態</h3>
+  <table>
+    <thead><tr><th>狀態</th><th>顯示</th><th>對應 FRB ticket 狀態</th></tr></thead>
+    <tbody>
+      <tr><td>未領取</td><td>PLAY NOW 按鈕（黃色高亮）</td><td>PendingClaim（新狀態）</td></tr>
+      <tr><td>已 claim、未開始</td><td>PLAY NOW 按鈕</td><td>Pending（已 claim、可使用）</td></tr>
+      <tr><td>部分使用</td><td>$<i>bet</i> × <i>剩餘</i> (USED: <i>n</i>) + PLAY NOW</td><td>InUse（可再次進入）</td></tr>
+      <tr><td>使用完畢</td><td>USED 按鈕 disabled</td><td>Completed / EarlyCompleted</td></tr>
+      <tr><td>過期</td><td>項目按鈕隱藏</td><td>Expired</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout danger">
+    <div class="title">由 Figma 衍生的新核心問題</div>
+    inbox 上「USED: n / 過期隱藏按鈕」等動態狀態，msg-center 怎麼拿？
+    這題是 <b>Q10</b>，方案比較與推薦見 <a href="#" onclick="goTab('channel');return false;" style="color:var(--accent)">Tab 5.4</a>，問題本身整理在 <a href="#" onclick="goTab('pending');return false;" style="color:var(--accent)">Tab 3.2</a>。
+  </div>
+</section>
+
+<!-- ============ Tab 2: 已確認決定 ============ -->
+<section class="panel" id="decisions">
+  <h2>2. 已確認決定 <span class="badge confirmed">9 項</span></h2>
+
+  <table>
+    <thead><tr><th>#</th><th>議題</th><th>決定</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>D1</td>
+        <td>popup 走哪條管道？</td>
+        <td><b>訊息管道全走 outbox → msg-center</b>，由 msg-center fan-out 成 popup + inbox。FRB 服務只寫 outbox。</td>
+      </tr>
+      <tr>
+        <td>D2</td>
+        <td>outbox topic 共用 / 另開？</td>
+        <td>共用 Tournament 現有的 outbox topic（<code>TournamentOutboxOptions.Topic</code>）</td>
+      </tr>
+      <tr>
+        <td>D3</td>
+        <td>Coming Soon 提前時間？</td>
+        <td>後台有設定欄位（不是寫死的）</td>
+      </tr>
+      <tr>
+        <td>D4</td>
+        <td>Welcome 觸發時機？</td>
+        <td>msg-center 職責，FRB 不在乎</td>
+      </tr>
+      <tr>
+        <td>D5</td>
+        <td>FRB 流程模式？</td>
+        <td><b>改為 Tournament-style claim 模式</b>：達門檻 → 通知 → 玩家在 inbox 按 claim → 票券才可使用</td>
+      </tr>
+      <tr>
+        <td>D6</td>
+        <td>Suspend / Terminate / End Early 觸發？</td>
+        <td>純後台手動操作</td>
+      </tr>
+      <tr>
+        <td>D7</td>
+        <td>End reminder 後台欄位下線？</td>
+        <td>先不動 schema，記得待之後再處理</td>
+      </tr>
+      <tr>
+        <td>D8</td>
+        <td>Reminder / 自動轉跳機制下線？</td>
+        <td>FRB 不用處理，前端 / 後台自行拔除</td>
+      </tr>
+      <tr>
+        <td>D9</td>
+        <td>GameServer / GameClient 端改動？</td>
+        <td>FRB 不在乎</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="title">關鍵推論</div>
+    D1 + D5 合起來代表：既有的 <code>RedisNotificationPublisher</code> 與 <code>frb:ticket:pending</code> Pub/Sub 整條路徑在新流程下可以下線。
+    FRB 內部只剩「<b>累積投注</b> → <b>達門檻建立 pending-claim ticket</b> → <b>寫 outbox</b>」與「<b>接收 claim callback</b> → <b>啟用 ticket</b>」兩段。
+  </div>
+</section>
+
+<!-- ============ Tab 3: 待確認問題 ============ -->
+<section class="panel" id="pending">
+  <h2>3. 待確認問題 <span class="badge pending">4 題</span></h2>
+
+  <h3>3.1 FRB bet by level（Q7–Q9）</h3>
+  <p>使用者已表示稍後補上：</p>
+
+  <table>
+    <thead><tr><th>#</th><th>問題</th><th>選項 / 思考點</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Q7</td>
+        <td>bet by level 的設定 key</td>
+        <td>
+          <code>(campaign, level)</code>＝同 campaign 內每個 level 一個 bet<br>
+          vs<br>
+          <code>(campaign, level, game_id)</code>＝再細分到每個遊戲<br>
+          後者資料量 = 前者 × 遊戲數
+        </td>
+      </tr>
+      <tr>
+        <td>Q8</td>
+        <td>跨遊戲行為</td>
+        <td>同 level 不同遊戲共用一個 bet，還是各自設定？</td>
+      </tr>
+      <tr>
+        <td>Q9</td>
+        <td>bet 欄位 schema 落點</td>
+        <td>
+          選項 A：加在現有 <code>campaign_threshold_currency</code> 表（最直接，與 level 同表）<br>
+          選項 B：另開 <code>campaign_frb_level_bet</code> 表（與 game_id 維度結合彈性高）
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <div class="title">為何 Q7–Q9 不擋整體規劃</div>
+    這三題只影響 <b>ThresholdConfig / TicketBuilder</b> 取 bet 的邏輯，不影響流程主軸（claim 模式、訊息管道）。
+    可以先把 Tab 4 / 5 / 6 / 7 的架構推進，bet by level 等細節明確再補一個小 PR。
+  </div>
+
+  <h3>3.2 票券即時狀態同步（Q10，源自 Figma）</h3>
+  <p>
+    <b>Q10：msg-center 怎麼取得票券即時狀態（used_rounds、剩餘次數、過期狀態）？</b><br>
+    inbox 要顯示「USED: n」「使用完畢 disabled」「過期隱藏按鈕」等狀態，單次 Winning event 不夠。三個候選方案的機制／優缺點對照表見
+    <a href="#" onclick="goTab('channel');return false;" style="color:var(--accent)">Tab 5.4</a>。
+  </p>
+  <div class="callout danger">
+    <div class="title">Q10 是 M3.5 的 blocker</div>
+    沒這題答案，<a href="#" onclick="goTab('plan');return false;" style="color:var(--accent)">M3.5</a> 沒有具體形態（不知道要新增 read API 還是在狀態機加 outbox publish 副作用）。
+    建議在 M3.5 動工前跟 msg-center team 確認；M1 / M2 不受阻擋。
+  </div>
+</section>
+
+<!-- ============ Tab 4: 流程變更 ============ -->
+<section class="panel" id="flow">
+  <h2>4. 流程變更（Sequence Diagram）</h2>
+
+  <h3>4.1 現行流程：即時發券（Before）</h3>
+  <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant P as Player
+  participant GC as GameClient
+  participant GS as GameServer
+  participant Agg as Aggregator
+  participant FRB as Campaign (FRB)
+  participant R as Redis
+  participant OB as OceanBase
+
+  P->>GC: 下注
+  GC->>GS: bet
+  GS->>Agg: bet event (Kafka CDC)
+  Agg->>R: publish frb:bet:{campaign}
+  R-->>FRB: subscribe frb:bet:*
+  FRB->>FRB: BetEventProcessor 累積 → 達門檻
+  FRB->>OB: 建立 Ticket (status=Pending)
+  FRB->>R: publish frb:ticket:pending (Pub/Sub)
+  R-->>GS: subscribe frb:ticket:pending
+  GS->>GC: 推播票券到帳
+  P->>GC: 進入遊戲、開始免費局
+  GC->>GS: 使用票券
+  GS->>R: 更新 ticket 狀態 Pending → InUse → Completed
+  </div>
+
+  <h3>4.2 新流程：Claim-based（After）</h3>
+  <p>達門檻後，玩家有三個 claim 入口：popup 的 PLAY NOW、popup 的 PLAY LATER（延遲到 inbox）、inbox 的 PLAY NOW。FRB 端的 claim API 都是同一個。</p>
+  <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant P as Player
+  participant GC as GameClient
+  participant GS as GameServer
+  participant FRB as Campaign (FRB)
+  participant MC as msg-center
+  participant OB as OceanBase
+
+  Note over FRB,OB: ── 達門檻、發通知 ──
+  FRB->>FRB: BetEventProcessor 累積 → 達門檻
+  FRB->>OB: 建立 Ticket (status=PendingClaim)
+  FRB->>MC: outbox: Winning event (含 ticket_id / game_id / bet / reward_count / expires_at)
+  MC->>P: popup (PLAY NOW + PLAY LATER) ＋ inbox 列表項
+
+  Note over P,FRB: ── 玩家行為分支 ──
+  alt 路徑 A：popup 按 PLAY NOW
+    P->>MC: PLAY NOW
+    MC->>FRB: POST /api/frb/{ticketId}/claim
+    FRB->>OB: PendingClaim → Claiming → Pending
+    FRB-->>MC: ClaimResult.Success
+    MC->>GC: 跳轉至綁定的 game_name
+  else 路徑 B：popup 按 PLAY LATER
+    P->>MC: PLAY LATER
+    Note right of MC: ticket 仍是 PendingClaim<br>訊息保留在 inbox
+    P->>MC: (稍後) 開啟 inbox、點 PLAY NOW
+    MC->>FRB: POST /api/frb/{ticketId}/claim
+    FRB->>OB: PendingClaim → Claiming → Pending
+    FRB-->>MC: ClaimResult.Success
+    MC->>GC: 跳轉至綁定的 game_name
+  else 路徑 C：玩家不操作直到過期
+    Note over FRB: TicketExpirationBackgroundService 偵測<br>PendingClaim → Expired
+    Note right of MC: inbox 隱藏 PLAY NOW 按鈕<br>(透過 Q10 的查詢機制)
+  end
+
+  Note over P,OB: ── 進入遊戲、使用票券（既有流程）──
+  GC->>GS: 使用票券
+  GS->>OB: Pending → InUse → Completed / EarlyCompleted
+  opt 部分使用後玩家離開遊戲
+    Note over MC: inbox 顯示 USED: n 並保留 PLAY NOW
+    P->>MC: 開啟 inbox、再次點 PLAY NOW
+    MC->>GC: 跳轉至 game_name (不再 claim, ticket 已是 InUse)
+  end
+  </div>
+
+  <h3>4.3 各 lifecycle 事件的觸發點（New）</h3>
+  <div class="mermaid">
+sequenceDiagram
+  autonumber
+  participant Admin as Backstage Admin
+  participant FRB as Campaign (FRB)
+  participant CSync as CampaignSyncBackgroundService
+  participant MC as msg-center
+  participant P as Player
+
+  Note over CSync,FRB: 排程 / 同步觸發
+  CSync->>FRB: 偵測活動進入 X 分鐘前 (後台設定)
+  FRB->>MC: outbox: ComingSoon event
+  CSync->>FRB: 偵測活動開始
+  FRB->>MC: outbox: Welcome event
+  CSync->>FRB: 偵測活動自然結束
+  Note right of FRB: End 事件不發 (Keen: 都不要)
+
+  Note over Admin,FRB: 後台操作觸發
+  Admin->>FRB: 暫停活動
+  FRB->>MC: outbox: Suspend event
+  Admin->>FRB: 終止活動
+  FRB->>MC: outbox: Terminate event
+  Admin->>FRB: 提早結束活動
+  FRB->>MC: outbox: EndEarly event
+
+  Note over FRB,MC: 達門檻觸發
+  FRB->>FRB: 玩家累積投注達門檻
+  FRB->>MC: outbox: Winning event
+  Note right of MC: msg-center 自行決定 Payout 時機與呈現
+  MC->>P: popup + inbox 雙管推送
+  </div>
+
+</section>
+
+<!-- ============ Tab 5: 訊息管道架構 ============ -->
+<section class="panel" id="channel">
+  <h2>5. 訊息管道架構</h2>
+
+  <h3>5.1 Before / After 管道對照</h3>
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-top:0;">Before：Redis Pub/Sub 直推</h3>
+      <pre>FRB
+ └─ RedisNotificationPublisher
+     ├─ Redis Hash (frb:ticket:{id})
+     └─ Pub/Sub: frb:ticket:pending
+              ↓
+          GameServer → GameClient (popup)</pre>
+    </div>
+    <div>
+      <h3 style="margin-top:0;">After：Outbox + msg-center fan-out</h3>
+      <pre>FRB
+ └─ FrbOutboxPublisher [新增]
+     └─ DAL SystemService.InsertOutboxMessage
+              ↓
+        Tournament topic (共用)
+              ↓
+          msg-center
+            ├─ popup channel
+            └─ inbox</pre>
+    </div>
+  </div>
+  <table>
+    <thead><tr><th>面向</th><th>Before</th><th>After</th></tr></thead>
+    <tbody>
+      <tr><td>事件種類</td><td>只有 winning 一種</td><td>7 種 lifecycle 事件</td></tr>
+      <tr><td>inbox 紀錄</td><td>無</td><td>msg-center 提供</td></tr>
+      <tr><td>下游消費者</td><td>GameServer（直接）</td><td>msg-center（FRB 不再直面 GameServer）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.2 事件 → 管道對應</h3>
+  <table>
+    <thead><tr><th>事件</th><th>觸發點</th><th>msg-center 對應呈現</th><th>FRB 動作</th></tr></thead>
+    <tbody>
+      <tr><td>ComingSoon</td><td>排程：活動開始前 N 分鐘（N 由後台設定）</td><td>popup</td><td>寫 outbox</td></tr>
+      <tr><td>Welcome</td><td>排程：活動開始</td><td>popup</td><td>寫 outbox</td></tr>
+      <tr><td>Suspend</td><td>後台手動操作</td><td>inbox</td><td>寫 outbox</td></tr>
+      <tr><td>Terminate</td><td>後台手動操作</td><td>inbox</td><td>寫 outbox</td></tr>
+      <tr><td>Winning</td><td>達門檻、建立 pending-claim ticket</td><td><b>popup + inbox（含 claim 按鈕）</b></td><td>寫 outbox + 建立 Ticket</td></tr>
+      <tr><td>Payout</td><td>由 msg-center 決定</td><td>popup</td><td>FRB <b>不直接觸發</b>（Keen: 不在乎語意）</td></tr>
+      <tr><td>EndEarly</td><td>後台手動操作</td><td>inbox</td><td>寫 outbox</td></tr>
+      <tr><td>End</td><td>—</td><td>—</td><td>無</td></tr>
+    </tbody>
+  </table>
+
+  <h3>5.3 Outbox payload 範例</h3>
+  <p>沿用 Tournament <code>TournamentOutboxPublisher</code> 的格式骨架。Winning 事件需提供 inbox 顯示所需的完整資訊（取自 Figma）：</p>
+  <pre>{
+  "type": "FrbWinning",
+  "event_type": &lt;InboxEventType.FrbWinning, 新增&gt;,
+  "message_type": &lt;InboxMessageType.Campaign&gt;,
+  "campaign_type": &lt;CampaignType.FreeRoundBonus&gt;,
+
+  // 路由與識別
+  "campaign_id": "...",
+  "campaign_name": "FREE SPIN BONUS - Lunar Promo",
+  "operator_id": "...",
+  "member_id": "...",
+  "ticket_id": "...",
+  "level": 3,
+
+  // inbox 顯示需要的資料（取自 Figma）
+  "game_id": "PG_BUFFALO",
+  "game_name": "Buffalo Spirit",
+  "bet_cents": 500,              // $5.00 顯示在 inbox 上
+  "reward_count": 15,             // 免費局次數 = 15
+  "max_payout_cents": 50000,
+  "expires_at": "2026-05-30T23:59:59Z"  // EXPIRED DATE 顯示用
+}</pre>
+
+  <p>需要在 <code>InboxEventType</code>（FreeRoundBonus.Shared.Enums）新增 FRB 對應的事件值。idempotency key 建議格式：<code>frb-{eventType}-{ticketId}</code> 或 <code>frb-{eventType}-{campaignId}-{memberId}</code>（lifecycle 事件無 ticket 時）。</p>
+
+  <h3>5.4 票券即時狀態同步（Q10）</h3>
+  <p>Figma 顯示 inbox 要呈現「USED: n」「使用完畢 disabled」「過期隱藏按鈕」等動態狀態，<b>不能只靠單次 Winning event 寫入就完成</b>。三個候選方案：</p>
+  <table>
+    <thead><tr><th>方案</th><th>機制</th><th>優點</th><th>缺點</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>A. Read API <span class="badge new">推薦</span></td>
+        <td>FRB 提供 <code>GET /api/frb/tickets?member_id=&amp;status=</code>，msg-center 在 inbox 開啟時即時查</td>
+        <td>實作單純、無同步問題；msg-center 不需要維護 read model</td>
+        <td>每次開 inbox 都打 FRB；流量大時需快取</td>
+      </tr>
+      <tr>
+        <td>B. Outbox update events</td>
+        <td>每次 ticket 狀態變動（claim / 開始使用 / 累積使用 / 過期）寫 outbox</td>
+        <td>msg-center 自治、無查詢延遲</td>
+        <td>事件量大（每 spin 都可能要寫，需聚合策略）；msg-center 需 read model</td>
+      </tr>
+      <tr>
+        <td>C. 訂閱現有 Redis channel</td>
+        <td>msg-center 訂 <code>frb:ticket:in_use</code> / <code>frb:ticket:completed</code></td>
+        <td>FRB 不需新介面</td>
+        <td>耦合到 FRB 的 Redis、跨服務不乾淨；違反 D1「全走 outbox」精神</td>
+      </tr>
+    </tbody>
+  </table>
+  <p>推薦理由：方案 A 符合微服務邊界、實作成本最低、可加 cache layer 解決流量。最終仍須與 msg-center team 對齊。</p>
+</section>
+
+<!-- ============ Tab 6: Codebase 影響清單 ============ -->
+<section class="panel" id="impact">
+  <h2>6. Codebase 影響清單</h2>
+
+  <p>
+    <span class="impact-level high"></span>高衝擊（流程／狀態機核心）
+    <span class="impact-level mid"></span>中衝擊（新增模組、可隔離）
+    <span class="impact-level low"></span>低衝擊（少量修改）
+  </p>
+
+  <h3>6.1 新增檔案</h3>
+  <table>
+    <thead><tr><th>路徑</th><th>角色</th><th>對齊參考</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Application/Interfaces/IFrbOutboxPublisher.cs</span></td>
+        <td>outbox publisher 介面</td>
+        <td><code>ITournamentOutboxPublisher</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Infrastructure/Outbox/FrbOutboxPublisher.cs</span></td>
+        <td>outbox publisher 實作（呼叫 DAL <code>SystemService.InsertOutboxMessage</code>）</td>
+        <td><code>TournamentOutboxPublisher</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Host/FrbOutboxOptions.cs</span></td>
+        <td>topic、idempotency 設定</td>
+        <td><code>TournamentOutboxOptions</code>（直接共用也行）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Application/Services/TicketClaimService.cs</span></td>
+        <td>處理 msg-center claim callback、狀態機轉換</td>
+        <td><code>RewardClaimService</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Domain/Services/TicketStateMachine.cs</span></td>
+        <td>新增 <code>PendingClaim → Claiming → Pending</code> 合法轉換</td>
+        <td><code>RewardStateMachine</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Api/Controllers/TicketClaimController.cs</span></td>
+        <td>暴露 <code>POST /api/frb/{ticketId}/claim</code></td>
+        <td><code>RewardController</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Domain/Events/FrbLifecycleEvent.cs</span></td>
+        <td>各 lifecycle 事件的 payload value object</td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Api/Controllers/TicketQueryController.cs</span></td>
+        <td>
+          <b>條件性新增</b>（依 Q10 答案）：暴露 <code>GET /api/frb/tickets?member_id=&amp;status=</code><br>
+          供 msg-center 在 inbox 開啟時查詢票券即時狀態（used_rounds、剩餘、過期）
+        </td>
+        <td>Tournament <code>LeaderboardController</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>6.2 既有檔案的改動</h3>
+  <table>
+    <thead><tr><th>路徑</th><th>改動</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="impact-level high"></span><span class="file-ref">src/FreeRoundBonus.Shared/Enums/TicketStatus.cs</span></td>
+        <td>新增 <code>PendingClaim = 6</code>、<code>Claiming = 7</code>（不要改既有值 1–5，避免 DB 相容性問題）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Application/Services/BetEventProcessor.cs</span></td>
+        <td>達門檻時改建立 <code>status=PendingClaim</code> 的 Ticket（而非 <code>Pending</code>）並改呼叫 <code>FrbOutboxPublisher</code>，移除 <code>INotificationPublisher</code> 相依</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Domain/Services/TicketBuilder.cs:50</span></td>
+        <td><code>StatusEnum = TicketStatus.PendingClaim</code></td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Application/Services/TicketService.cs</span></td>
+        <td>查詢 / 過濾條件可能需要分辨 PendingClaim vs Pending（前者尚未 claim，後者已可使用）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Host/CampaignSyncBackgroundService.cs</span></td>
+        <td>新增偵測：活動 N 分鐘前發 ComingSoon、活動開始發 Welcome（N 由後台設定欄位讀取）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Infrastructure/MySQL/TournamentCampaignTracker.cs</span></td>
+        <td>已有偵測 campaign_type=4 status change → outbox 的範式，可推廣 / 抽出 base class 給 FRB 使用</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Program.cs</span></td>
+        <td>DI 註冊 <code>IFrbOutboxPublisher</code>、<code>TicketClaimService</code>、<code>TicketStateMachine</code>；移除 <code>INotificationPublisher</code> / <code>RedisNotificationPublisher</code> 註冊（與 GameServer 切換對齊後）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Domain/ValueObjects/TicketNotification.cs</span></td>
+        <td>若 outbox 改用新的 event payload，此 record 可在切換完成後刪除</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Infrastructure/Redis/RedisNotificationPublisher.cs</span></td>
+        <td>切換完成後整檔刪除（含其註冊與 Redis channel 常數）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Domain/Entities/ThresholdConfig.cs</span></td>
+        <td>新增 <code>BetCents</code>（或類似）by-level 欄位；同步調整 <code>MySqlThresholdConfigRepository</code> 與對應 gRPC proto</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Infrastructure/MySQL/MySqlConfigRepository.cs:64</span></td>
+        <td><code>GameChipsConfig.Bet</code> 的取值邏輯與 by-level bet 取值順序釐清（誰優先、誰 fallback）</td>
+      </tr>
+      <tr>
+        <td><span class="impact-level low"></span><span class="file-ref">src/FreeRoundBonus.Shared/Enums/</span>（InboxEventType / 相關 enum）</td>
+        <td>新增 7 個 FRB lifecycle 事件值；對齊 Tournament 既有事件 enum 風格</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>6.3 DB / Schema 改動</h3>
+  <table>
+    <thead><tr><th>對象</th><th>改動</th><th>備註</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>OceanBase <code>frb_ticket.status</code></td>
+        <td>支援新值 <code>6 (PendingClaim)</code>、<code>7 (Claiming)</code></td>
+        <td>TINYINT 欄位本身不需 alter，僅應用層 enum 擴充</td>
+      </tr>
+      <tr>
+        <td>MySQL <code>campaign_threshold_currency</code></td>
+        <td>新增 <code>bet</code> 欄位（待 Q7–Q9 確認）</td>
+        <td>或另開表，視 Q9 答覆</td>
+      </tr>
+      <tr>
+        <td>MySQL campaign 設定（end reminder）</td>
+        <td>暫不動 schema</td>
+        <td>D7 決定：先記得，之後再處理</td>
+      </tr>
+      <tr>
+        <td>Valhalla proto（campaign.proto）</td>
+        <td><code>ThresholdConfig</code> 訊息加 <code>bet</code> 欄位</td>
+        <td>需與 DAL team 對齊；參考 <code>docs/md/valhalla-grpc-write-proto-proposal.md</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>6.4 跨服務責任界線</h3>
+  <table>
+    <thead><tr><th>項目</th><th>FRB 責任</th><th>備註</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>GameServer / GameClient 程式改動</td>
+        <td><b>無</b>（D9）</td>
+        <td>由各自團隊負責</td>
+      </tr>
+      <tr>
+        <td>FRB 自己的 Pub/Sub 下線時機</td>
+        <td>有</td>
+        <td>必須等 GameServer 切換到 msg-center 後才下線，否則玩家收不到通知</td>
+      </tr>
+      <tr>
+        <td>切換期過渡策略</td>
+        <td>可選</td>
+        <td>建議 outbox + Pub/Sub <b>雙寫</b>一段時間，下游驗證完成再下線；雙寫期需注意避免重複推送同一 winning</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============ Tab 7: 實作建議 ============ -->
+<section class="panel" id="plan">
+  <h2>7. 實作建議 / Milestone</h2>
+
+  <h3>M1. 基礎建設 <span class="badge new">先做、可獨立</span></h3>
+  <ul>
+    <li>新增 <code>IFrbOutboxPublisher</code> + <code>FrbOutboxPublisher</code>（複製 Tournament 模式）</li>
+    <li>在 <code>InboxEventType</code> 加 FRB 對應的 7 個事件值</li>
+    <li><code>TicketStatus</code> 新增 <code>PendingClaim = 6</code>、<code>Claiming = 7</code></li>
+    <li>DI 註冊、單元測試</li>
+  </ul>
+
+  <h3>M2. Lifecycle 事件發送 <span class="badge new">可灰度</span></h3>
+  <ul>
+    <li><code>CampaignSyncBackgroundService</code> 加 ComingSoon / Welcome 觸發</li>
+    <li>後台操作端（Suspend / Terminate / EndEarly）追加 outbox 寫入<br>
+        <span style="color:var(--text-dim); font-size:12px;">— 詳見 <a href="#" onclick="goTab('plan');return false;" style="color:var(--accent)">7.1 風險</a> 中「後台操作路徑」</span></li>
+    <li>單元測試 + 端到端驗證（msg-center 收到對應事件）</li>
+  </ul>
+
+  <h3>M3. Claim 流程 <span class="badge danger">主菜</span></h3>
+  <ul>
+    <li><code>TicketStateMachine</code>（PendingClaim → Claiming → Pending）</li>
+    <li><code>TicketClaimService</code>（含 idempotency、過期檢查、競態保護 — 參考 Tournament <code>StuckClaimingRetryJob</code> 的設計）</li>
+    <li><code>TicketClaimController</code> 暴露 callback endpoint，<b>同一 endpoint 同時服務 popup PLAY NOW 與 inbox PLAY NOW</b>（兩個入口、一個 API）</li>
+    <li>修改 <code>BetEventProcessor</code> / <code>TicketBuilder</code>：達門檻時建立 <code>PendingClaim</code> ticket + 發 Winning outbox（含 Figma 要的所有欄位：game_name / bet_cents / reward_count / expires_at 等）</li>
+    <li>整合測試 + 跟 msg-center 端聯調</li>
+  </ul>
+
+  <h3>M3.5 票券即時狀態同步 <span class="badge danger">待 Q10 答覆</span></h3>
+  <p>方案比較與推薦見 <a href="#" onclick="goTab('channel');return false;" style="color:var(--accent)">Tab 5.4</a>。實作落點視 Q10 答覆：</p>
+  <ul>
+    <li><b>採方案 A</b>（推薦）：新增 <code>TicketQueryController</code> + <code>ITicketQueryService</code>，回傳含 used_rounds、剩餘次數、過期狀態的 DTO</li>
+    <li>採方案 B：在 <code>TicketStatusProcessor</code> 與 <code>TicketExpirationBackgroundService</code> 加 outbox publish 副作用（事件量大，需聚合策略）</li>
+    <li>採方案 C：跨團隊 Redis channel 共享（不建議）</li>
+  </ul>
+
+  <h3>M4. 舊管道下線 <span class="badge pending">需跨團隊同步</span></h3>
+  <ul>
+    <li>確認 GameServer 端已切換到 msg-center 為唯一通知來源</li>
+    <li>下線 <code>RedisNotificationPublisher</code>、<code>TicketNotification</code>、<code>frb:ticket:pending</code> channel 與相關 DI</li>
+    <li>移除 <code>INotificationPublisher</code> 介面</li>
+  </ul>
+
+  <h3>M5. Bet by Level <span class="badge pending">等 Q7–Q9 答覆</span></h3>
+  <ul>
+    <li>確認 schema 落點（Q9）後 alter MySQL 表或建新表</li>
+    <li>更新 Valhalla proto（如果欄位走 DAL）</li>
+    <li>修改 <code>ThresholdConfig</code> / <code>MySqlThresholdConfigRepository</code> / <code>TicketBuilder</code> 取值順序</li>
+    <li><code>GameChipsConfig.Bet</code> 與新欄位的優先順序整理（誰 fallback）</li>
+  </ul>
+
+  <h3>7.1 風險 / 注意事項</h3>
+  <ul>
+    <li><b>狀態機回溯難</b>：<code>TicketStatus</code> 是 TINYINT 直存資料庫，加新值不影響歷史資料，但<b>不可改變既有值的數字</b>（會打爛舊 ticket 解讀）。</li>
+    <li><b>Claim idempotency</b>：claim callback 必須 idempotent，msg-center 重送同一個 claim 不可重複啟用票券。建議用 <code>(ticket_id, member_id)</code> 為 key，搭配狀態檢查（只允許 <code>PendingClaim → Claiming</code>）。</li>
+    <li><b>Claim 過期邊界</b>：玩家在 inbox 看到 claim 按鈕但票券已到 <code>expires_at</code>，要回傳明確錯誤，msg-center 端要能呈現「已過期」。</li>
+    <li><b>後台操作路徑</b>：D6 說 Suspend / Terminate / End Early 是純後台操作 — 仍需釐清後台是<b>直接改 DB</b>還是<b>經 FRB API</b>：
+      <ul>
+        <li>若直接改 DB → 需 CDC + tracker 模式（類似 <code>TournamentCampaignTracker</code>）</li>
+        <li>若經 FRB API → 在現有 API 內部加 outbox 寫入即可</li>
+      </ul>
+    </li>
+    <li><b>切換期雙寫</b>：見 <a href="#" onclick="goTab('impact');return false;" style="color:var(--accent)">6.4 跨服務責任界線</a>；若採雙寫過渡，需確保不會對 GameServer 重複推送同一 winning。</li>
+    <li><b>共用 Tournament topic 的隱性耦合</b>：D2 決定共用，要確認 msg-center 端依 <code>event_type</code> 而非 topic 路由，避免 Tournament 流量影響到 FRB。</li>
+  </ul>
+
+  <h3>7.2 建議的開工順序</h3>
+  <ol>
+    <li><b>先行：跟 msg-center team 確認 Q10</b>（不會擋 M1，但會決定 M3.5 的形態）</li>
+    <li>M1 基礎建設（1–2 天，獨立 PR）</li>
+    <li>M2 lifecycle 事件（並行 M3 開始前）</li>
+    <li>M3 claim 流程（主菜，需與 msg-center 聯調）</li>
+    <li>M3.5 票券即時狀態同步（Q10 確認後並行 M3 後半）</li>
+    <li>M4 舊管道下線（跨團隊確認後）</li>
+    <li>M5 bet by level（待 Q7–Q9 答覆後插隊）</li>
+  </ol>
+</section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      darkMode: true,
+      background: '#1a1f29',
+      primaryColor: '#2a5a8e',
+      primaryTextColor: '#d5dae3',
+      primaryBorderColor: '#4ea1ff',
+      lineColor: '#9aa3b2',
+      secondaryColor: '#232a36',
+      tertiaryColor: '#161a22'
+    },
+    sequence: {
+      diagramMarginX: 30,
+      diagramMarginY: 16,
+      actorMargin: 60,
+      width: 140,
+      height: 50,
+      boxMargin: 8,
+      noteMargin: 10,
+      messageMargin: 32,
+      mirrorActors: false,
+      showSequenceNumbers: false
+    }
+  });
+
+  const tabs = document.querySelectorAll('.tab-btn');
+  const panels = document.querySelectorAll('.panel');
+  function activateTab(target) {
+    tabs.forEach(b => b.classList.toggle('active', b.dataset.tab === target));
+    panels.forEach(p => p.classList.toggle('active', p.id === target));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  tabs.forEach(btn => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
+  });
+  // 給 panel 內 <a onclick="goTab('xxx')"> 使用
+  window.goTab = activateTab;
+</script>
+
+</body>
+</html>
