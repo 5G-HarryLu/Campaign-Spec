@@ -17,6 +17,32 @@ Date opened: 2026-05-15 · Spec source: Keen / Notion FRB-msg-center-ticket-bet 
 
 Outbox topic is **shared** with Tournament (`TournamentOutboxOptions.Topic`, decision D2). msg-center must route by `event_type`, not topic.
 
+### Outbox table reference (confirmed)
+
+Storage lives on **OceanBase** (`five_game_trans_dev.outbox_msg`) — *not* MySQL. Source: `mcp__mysql__describe_table` against `oceanbase_dev` (2026-05-15).
+
+```sql
+CREATE TABLE `outbox_msg` (
+  `id`            varchar(24)  NOT NULL  COMMENT 'ObjectId',
+  `topic`         varchar(255) NOT NULL  COMMENT 'SNS topic name',
+  `partition_key` varchar(255) NOT NULL  COMMENT 'SNS MessageGroupId (e.g. member:<member_id>)',
+  `data`          json         NOT NULL  COMMENT 'Message payload',
+  `created_at`    datetime     NOT NULL  COMMENT 'Created time (UTC)',
+  PRIMARY KEY (`id`),
+  KEY `idx_created` (`created_at`)
+) partition by key(`id`) (64 partitions p0..p63);
+```
+
+| Column | Role for FRB outbox writes |
+|---|---|
+| `id` | 24-char Mongo ObjectId (`ObjectId.GenerateNewId().ToString()`) — matches Tournament's pattern. |
+| `topic` | Shared with Tournament: `msg-center-events` (`TournamentOutboxOptions.Topic`, D2). |
+| `partition_key` | `"{operator_id}:{member_id}"` for member-scoped events; for campaign-lifecycle events (no member) use `"campaign:{campaign_id}"`. |
+| `data` | JSON envelope — see [index.html §5.3](./index.html). Includes `type`, `event_type`, `campaign_type`, ticket-level fields for FrbWinning. |
+| `created_at` | Written by DAL (`SystemService.InsertOutboxMessage`) in UTC; FRB does not set this. |
+
+> Idempotency lives on the DAL gRPC side, not on this table — the `IdempotencyKey` field in `InsertOutboxMessageRequest` (e.g. `frb-FrbWinning-{ticketId}`) is what stops duplicate inserts. No idempotency column on the table itself.
+
 ---
 
 ## 2. Lifecycle event → repo responsibility matrix

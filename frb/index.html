@@ -561,12 +561,25 @@ sequenceDiagram
  └─ FrbOutboxPublisher [新增]
      └─ DAL SystemService.InsertOutboxMessage
               ↓
-        Tournament topic (共用)
+        OceanBase `outbox_msg` (共用 Tournament topic)
               ↓
           msg-center
             ├─ popup channel
             └─ inbox</pre>
     </div>
+  </div>
+
+  <div class="callout">
+    <div class="title">Outbox 表結構（已對齊 DB）</div>
+    寫入落點為 OceanBase <code>five_game_trans_dev.outbox_msg</code>（非 MySQL）。欄位：
+    <ul style="margin:6px 0;">
+      <li><code>id</code> varchar(24) — Mongo ObjectId（FRB 端用 <code>ObjectId.GenerateNewId().ToString()</code>，對齊 Tournament 既有寫法）</li>
+      <li><code>topic</code> varchar(255) — 共用 <code>msg-center-events</code>（<code>TournamentOutboxOptions.Topic</code>, D2）</li>
+      <li><code>partition_key</code> varchar(255) — member 事件用 <code>"{operator_id}:{member_id}"</code>；campaign-lifecycle 事件用 <code>"campaign:{campaign_id}"</code></li>
+      <li><code>data</code> json — payload，見 5.3</li>
+      <li><code>created_at</code> datetime UTC — 由 DAL 寫入，FRB 不需指定</li>
+    </ul>
+    Idempotency 由 <code>InsertOutboxMessageRequest.IdempotencyKey</code>（gRPC 層）負責，<b>表上沒有 idempotency 欄位</b>。建議 key：<code>frb-{eventType}-{ticketId}</code> 或 <code>frb-{eventType}-{campaignId}-{memberId}</code>。
   </div>
   <table>
     <thead><tr><th>面向</th><th>Before</th><th>After</th></tr></thead>
@@ -617,7 +630,7 @@ sequenceDiagram
   "expires_at": "2026-05-30T23:59:59Z"  // EXPIRED DATE 顯示用
 }</pre>
 
-  <p>需要在 <code>InboxEventType</code>（FreeRoundBonus.Shared.Enums）新增 FRB 對應的事件值。idempotency key 建議格式：<code>frb-{eventType}-{ticketId}</code> 或 <code>frb-{eventType}-{campaignId}-{memberId}</code>（lifecycle 事件無 ticket 時）。</p>
+  <p>需要在 <code>InboxEventType</code>（FreeRoundBonus.Shared.Enums）新增 FRB 對應的事件值。Idempotency key 規則見 5.1 的 outbox 表結構 callout（由 DAL <code>InsertOutboxMessageRequest.IdempotencyKey</code> 負責，非表欄位）。</p>
 
   <h3>5.4 票券即時狀態同步（Q10）</h3>
   <p>Figma 顯示 inbox 要呈現「USED: n」「使用完畢 disabled」「過期隱藏按鈕」等動態狀態，<b>不能只靠單次 Winning event 寫入就完成</b>。三個候選方案：</p>
