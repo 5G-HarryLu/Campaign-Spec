@@ -74,13 +74,13 @@ Detailed spec view: [index.html §6 Codebase 影響清單](./index.html).
 - [ ] 🟡 `src/Campaign/Infrastructure/Outbox/FrbOutboxPublisher.cs` — impl, calls DAL `SystemService.InsertOutboxMessage`.
 - [ ] 🟡 `src/Campaign/Host/FrbOutboxOptions.cs` — topic / idempotency settings. (Or reuse `TournamentOutboxOptions` directly per D2.)
 - [ ] 🔴 `src/Campaign/Application/Services/TicketClaimService.cs` — claim orchestration, idempotency, expiry checks. Pattern: `src/Tournament/Reward/RewardClaimService.cs`.
-- [ ] 🔴 `src/Campaign/Domain/Services/TicketStateMachine.cs` — `PendingClaim → Claiming → Pending` transitions. Pattern: `src/Tournament/Reward/RewardStateMachine.cs`.
-- [ ] 🟡 `src/Campaign/Api/Controllers/TicketClaimController.cs` — `POST /api/frb/{ticketId}/claim`. Pattern: `src/Tournament/Api/Controllers/RewardController.cs`.
+- [ ] 🔴 `src/Campaign/Domain/Services/TicketStateMachine.cs` — adds **two new transitions on top of the existing chain**: `PendingClaim → Claimed` (claim API) and `Claimed → Pending` (player enters game). Existing `Pending → InUse → Completed/EarlyCompleted/Expired` transitions remain unchanged. Pattern reference: `src/Tournament/Reward/RewardStateMachine.cs` (simpler here: no `Claiming` transient).
+- [ ] 🟡 `src/Campaign/Api/Controllers/TicketClaimController.cs` — `POST /api/frb/tickets/{ticketId}/levels/{level}/claim`. Pattern: `src/Tournament/Api/Controllers/RewardController.cs`.
 - [ ] 🟡 `src/Campaign/Domain/Events/FrbLifecycleEvent.cs` — payload value objects for the 7 events.
 - [ ] 🟡 `src/Campaign/Api/Controllers/TicketQueryController.cs` — **conditional on Q10**: `GET /api/frb/tickets?member_id=&status=` for msg-center inbox state refresh.
 
 **Existing files to modify**
-- [ ] 🔴 `src/FreeRoundBonus.Shared/Enums/TicketStatus.cs` — add `PendingClaim = 6`, `Claiming = 7`. **Do not renumber 1–5.**
+- [ ] 🔴 `src/FreeRoundBonus.Shared/Enums/TicketStatus.cs` — add `PendingClaim = 6` (msg-center showing PLAY NOW) and `Claimed = 7` (post-claim, awaiting player to enter game). **Do not renumber 1–5.** The two new states **prepend** to the existing chain — after `Claimed`, ticket transitions to existing `Pending = 1` when the player enters the game; the legacy `Pending → InUse → Completed/EarlyCompleted/Expired` path is unchanged. No transient `Claiming` state: claim API is a single conditional DB update (`UPDATE … WHERE status = PendingClaim`), no remote wallet call.
 - [ ] 🔴 `src/Campaign/Application/Services/BetEventProcessor.cs` — on threshold met, create `PendingClaim` ticket + call `FrbOutboxPublisher`; drop `INotificationPublisher` dependency.
 - [ ] 🔴 `src/Campaign/Domain/Services/TicketBuilder.cs` — `StatusEnum = TicketStatus.PendingClaim`.
 - [ ] 🟡 `src/Campaign/Application/Services/TicketService.cs` — filter queries that need to distinguish `PendingClaim` vs `Pending`.
@@ -112,7 +112,7 @@ Layout: four .NET services around Kafka + OceanBase/MySQL. Outbox flow today:
 - [ ] 🔴 `message-center-shared/Enums/EventType.cs` — extend with 7 FRB values (or 5 if Payout/End excluded from FRB's responsibility). Today only Tournament-style values exist (`PrizeSettled = 1`, `Suspended = 2`, `Terminated = 3`, `ComingSoon = 4`, `Running = 5`).
 - [ ] 🔴 `message-center-consumer/Models/OutboxEnvelope.cs` — confirm envelope covers `ticket_id`, `game_id`, `game_name`, `bet_cents`, `reward_count`, `max_payout_cents`, `expires_at` (Figma fields, [index.html §5.3](./index.html)).
 - [ ] 🔴 `message-center-consumer/ConsumerWorker.cs` (`ProcessMessage`) — branch on FRB event types; write to member_inbox with FRB-specific payload (game_name / bet / reward_count / expires_at).
-- [ ] 🟡 `message-center-api/Controllers/InboxController.cs` — expose PLAY NOW callback that issues `POST /api/frb/{ticketId}/claim` to FRB. Same endpoint serves popup PLAY NOW and inbox PLAY NOW.
+- [ ] 🟡 `message-center-api/Controllers/InboxController.cs` — expose PLAY NOW callback that issues `POST /api/frb/tickets/{ticketId}/levels/{level}/claim` to FRB. Same endpoint serves popup PLAY NOW and inbox PLAY NOW.
 - [ ] 🟡 `message-center-api/Repositories/MemberInboxRepository.cs` — handle FRB suppression / stale cascade (existing comment already mentions FRA/FRB single-game vs Tournament multi-game distinction).
 - [ ] 🟡 Inbox row state refresh path — **depends on Q10 (M3.5)**:
     - If method A (recommended): on inbox open, call FRB `GET /api/frb/tickets?member_id=&status=` and merge.
@@ -160,7 +160,7 @@ Carried from [index.html §7.1](./index.html), tagged by where they bite:
 | Q10 (inbox real-time ticket state) | FRB + msg-center | Blocker for M3.5 only. M1/M2 unblocked. Default to method A (FRB read API). |
 | Shared Tournament outbox topic | FRB + msg-center | msg-center must route on `event_type`, not topic. |
 | TicketStatus enum extension | FRB | Append 6/7; never renumber 1–5 (TINYINT-direct-persist). |
-| Claim idempotency | FRB | Key = `(ticket_id, member_id)`; only `PendingClaim → Claiming` transition allowed. msg-center may retry. |
+| Claim idempotency | FRB | Atomic via conditional UPDATE: `UPDATE free_round_bonus_ticket_details SET status = Claimed WHERE id = ? AND status = PendingClaim`. Claim is **per-level** (one detail row per claim). rowCount = 0 → already claimed / expired. msg-center may retry safely. |
 | Claim past `expires_at` | FRB + msg-center | FRB returns explicit "expired" error; msg-center must surface it in inbox. |
 
 ---

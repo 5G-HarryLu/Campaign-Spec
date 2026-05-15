@@ -295,7 +295,7 @@
     <thead><tr><th>狀態</th><th>顯示</th><th>對應 FRB ticket 狀態</th></tr></thead>
     <tbody>
       <tr><td>未領取</td><td>PLAY NOW 按鈕（黃色高亮）</td><td>PendingClaim（新狀態）</td></tr>
-      <tr><td>已 claim、未開始</td><td>PLAY NOW 按鈕</td><td>Pending（已 claim、可使用）</td></tr>
+      <tr><td>已 claim、未開始</td><td>PLAY NOW 按鈕</td><td>Claimed（新狀態，已 claim、可使用）</td></tr>
       <tr><td>部分使用</td><td>$<i>bet</i> × <i>剩餘</i> (USED: <i>n</i>) + PLAY NOW</td><td>InUse（可再次進入）</td></tr>
       <tr><td>使用完畢</td><td>USED 按鈕 disabled</td><td>Completed / EarlyCompleted</td></tr>
       <tr><td>過期</td><td>項目按鈕隱藏</td><td>Expired</td></tr>
@@ -478,16 +478,16 @@ sequenceDiagram
   Note over P,FRB: ── 玩家行為分支 ──
   alt 路徑 A：popup 按 PLAY NOW
     P->>MC: PLAY NOW
-    MC->>FRB: POST /api/frb/{ticketId}/claim
-    FRB->>OB: PendingClaim → Claiming → Pending
+    MC->>FRB: POST /api/frb/tickets/{ticketId}/levels/{level}/claim
+    FRB->>OB: PendingClaim → Claimed
     FRB-->>MC: ClaimResult.Success
     MC->>GC: 跳轉至綁定的 game_name
   else 路徑 B：popup 按 PLAY LATER
     P->>MC: PLAY LATER
     Note right of MC: ticket 仍是 PendingClaim<br>訊息保留在 inbox
     P->>MC: (稍後) 開啟 inbox、點 PLAY NOW
-    MC->>FRB: POST /api/frb/{ticketId}/claim
-    FRB->>OB: PendingClaim → Claiming → Pending
+    MC->>FRB: POST /api/frb/tickets/{ticketId}/levels/{level}/claim
+    FRB->>OB: PendingClaim → Claimed
     FRB-->>MC: ClaimResult.Success
     MC->>GC: 跳轉至綁定的 game_name
   else 路徑 C：玩家不操作直到過期
@@ -618,7 +618,8 @@ sequenceDiagram
   "campaign_name": "FREE SPIN BONUS - Lunar Promo",
   "operator_id": "...",
   "member_id": "...",
-  "ticket_id": "...",
+  "ticket_id": "...",                  // free_round_bonus_ticket.id (parent)
+  "ticket_detail_id": "...",           // free_round_bonus_ticket_details.id — claim target
   "level": 3,
 
   // inbox 顯示需要的資料（取自 Figma）
@@ -696,12 +697,12 @@ sequenceDiagram
       </tr>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Domain/Services/TicketStateMachine.cs</span></td>
-        <td>新增 <code>PendingClaim → Claiming → Pending</code> 合法轉換</td>
+        <td>新增 <code>PendingClaim → Claimed</code> 合法轉換</td>
         <td><code>RewardStateMachine</code></td>
       </tr>
       <tr>
         <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Api/Controllers/TicketClaimController.cs</span></td>
-        <td>暴露 <code>POST /api/frb/{ticketId}/claim</code></td>
+        <td>暴露 <code>POST /api/frb/tickets/{ticketId}/levels/{level}/claim</code></td>
         <td><code>RewardController</code></td>
       </tr>
       <tr>
@@ -726,7 +727,7 @@ sequenceDiagram
     <tbody>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/FreeRoundBonus.Shared/Enums/TicketStatus.cs</span></td>
-        <td>新增 <code>PendingClaim = 6</code>、<code>Claiming = 7</code>（不要改既有值 1–5，避免 DB 相容性問題）</td>
+        <td>新增 <code>PendingClaim = 6</code>、<code>Claimed = 7</code>（不要改既有值 1–5，避免 DB 相容性問題）。<b>不引入 Claiming 中介狀態</b> — claim API 是單次條件式 UPDATE（<code>WHERE status = PendingClaim</code>），無遠端錢包呼叫，沒有 Tournament <code>RewardClaimService</code> 那種「crash 在中間」的窗口；之後若加入遠端步驟再補。</td>
       </tr>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Application/Services/BetEventProcessor.cs</span></td>
@@ -738,7 +739,7 @@ sequenceDiagram
       </tr>
       <tr>
         <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Application/Services/TicketService.cs</span></td>
-        <td>查詢 / 過濾條件可能需要分辨 PendingClaim vs Pending（前者尚未 claim，後者已可使用）</td>
+        <td>查詢 / 過濾條件需要分辨 <code>PendingClaim</code>（尚未 claim）vs <code>Claimed</code>（已 claim、可使用）vs 既有 <code>Pending=1</code>（legacy 自動發票）；M4 之後不再寫入 <code>Pending=1</code>。</td>
       </tr>
       <tr>
         <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Host/CampaignSyncBackgroundService.cs</span></td>
@@ -780,9 +781,9 @@ sequenceDiagram
     <thead><tr><th>對象</th><th>改動</th><th>備註</th></tr></thead>
     <tbody>
       <tr>
-        <td>OceanBase <code>frb_ticket.status</code></td>
-        <td>支援新值 <code>6 (PendingClaim)</code>、<code>7 (Claiming)</code></td>
-        <td>TINYINT 欄位本身不需 alter，僅應用層 enum 擴充</td>
+        <td>OceanBase <code>free_round_bonus_ticket_details.status</code></td>
+        <td>支援新值 <code>6 (PendingClaim)</code>、<code>7 (Claimed)</code></td>
+        <td>TINYINT 欄位本身不需 alter，僅應用層 enum 擴充。<b>狀態落在 details（per-level）</b>，parent <code>free_round_bonus_ticket</code> 無 status；一個 ticket 不同 level 可同時處於不同狀態。</td>
       </tr>
       <tr>
         <td>MySQL <code>campaign_threshold_currency</code></td>
@@ -833,7 +834,7 @@ sequenceDiagram
   <ul>
     <li>新增 <code>IFrbOutboxPublisher</code> + <code>FrbOutboxPublisher</code>（複製 Tournament 模式）</li>
     <li>在 <code>InboxEventType</code> 加 FRB 對應的 7 個事件值</li>
-    <li><code>TicketStatus</code> 新增 <code>PendingClaim = 6</code>、<code>Claiming = 7</code></li>
+    <li><code>TicketStatus</code> 新增 <code>PendingClaim = 6</code>、<code>Claimed = 7</code>（無 <code>Claiming</code> 中介狀態，見 7.1 風險）</li>
     <li>DI 註冊、單元測試</li>
   </ul>
 
@@ -847,8 +848,8 @@ sequenceDiagram
 
   <h3>M3. Claim 流程 <span class="badge danger">主菜</span></h3>
   <ul>
-    <li><code>TicketStateMachine</code>（PendingClaim → Claiming → Pending）</li>
-    <li><code>TicketClaimService</code>（含 idempotency、過期檢查、競態保護 — 參考 Tournament <code>StuckClaimingRetryJob</code> 的設計）</li>
+    <li><code>TicketStateMachine</code>（PendingClaim → Claimed）</li>
+    <li><code>TicketClaimService</code>（含 idempotency、過期檢查、競態保護）。<b>Claim 粒度為 per-level</b>（每個 <code>free_round_bonus_ticket_details</code> row 各自 claim）。Idempotency / 競態靠條件式 UPDATE：<code>UPDATE free_round_bonus_ticket_details SET status = Claimed WHERE id = ? AND status = PendingClaim</code>；rowCount=0 即代表該 level 已被 claim 或已過期。<b>不需要 Tournament 的 <code>StuckClaimingRetryJob</code></b>，因為 FRB claim 不涉及遠端錢包呼叫，無 stuck-claim 風險。</li>
     <li><code>TicketClaimController</code> 暴露 callback endpoint，<b>同一 endpoint 同時服務 popup PLAY NOW 與 inbox PLAY NOW</b>（兩個入口、一個 API）</li>
     <li>修改 <code>BetEventProcessor</code> / <code>TicketBuilder</code>：達門檻時建立 <code>PendingClaim</code> ticket + 發 Winning outbox（含 Figma 要的所有欄位：game_name / bet_cents / reward_count / expires_at 等）</li>
     <li>整合測試 + 跟 msg-center 端聯調</li>
@@ -880,7 +881,7 @@ sequenceDiagram
   <h3>7.1 風險 / 注意事項</h3>
   <ul>
     <li><b>狀態機回溯難</b>：<code>TicketStatus</code> 是 TINYINT 直存資料庫，加新值不影響歷史資料，但<b>不可改變既有值的數字</b>（會打爛舊 ticket 解讀）。</li>
-    <li><b>Claim idempotency</b>：claim callback 必須 idempotent，msg-center 重送同一個 claim 不可重複啟用票券。建議用 <code>(ticket_id, member_id)</code> 為 key，搭配狀態檢查（只允許 <code>PendingClaim → Claiming</code>）。</li>
+    <li><b>Claim idempotency</b>：claim callback 必須 idempotent，msg-center 重送同一個 claim 不可重複啟用票券。靠條件式 UPDATE（<code>WHERE id = ? AND status = PendingClaim</code>）原子化，rowCount=0 視同 <code>AlreadyClaimed</code> / <code>Expired</code>，不需額外 idempotency table。</li>
     <li><b>Claim 過期邊界</b>：玩家在 inbox 看到 claim 按鈕但票券已到 <code>expires_at</code>，要回傳明確錯誤，msg-center 端要能呈現「已過期」。</li>
     <li><b>後台操作路徑</b>：D6 說 Suspend / Terminate / End Early 是純後台操作 — 仍需釐清後台是<b>直接改 DB</b>還是<b>經 FRB API</b>：
       <ul>
