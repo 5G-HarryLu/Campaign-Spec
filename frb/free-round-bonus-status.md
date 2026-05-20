@@ -1,8 +1,8 @@
 # free-round-bonus — Implementation Status
 
-Companion to [index.html](./index.html) and [cross-repo-changes.md](./cross-repo-changes.md). Covers **only** the `free-round-bonus` repo (`Campaign` and `FreeRoundBonus.Shared` projects). Last updated: 2026-05-18.
+Companion to [index.html](./index.html) and [cross-repo-changes.md](./cross-repo-changes.md). Covers **only** the `free-round-bonus` repo (`Campaign` and `FreeRoundBonus.Shared` projects). Last updated: 2026-05-20.
 
-Working branch: `feature/2026-05-15-alex-frb-enhance` (commits `dc54c60..3ae84da`).
+Working branch: `feature/2026-05-15-alex-frb-enhance` (commits `dc54c60..da106d1`).
 
 ---
 
@@ -135,38 +135,38 @@ Refs:
 
 Pure type-name refactor following 1.5. Field/ctor parameter changed from `TournamentOutboxOptions` → `OutboxMsgOptions`. Same DI registration, same topic value, same outbox write. No behavior change.
 
-### 1.7 Bet-by-level park markers
+### 1.7 M5 — Bet-by-level resolution
 
-Three sites where `GameChipsConfig.Bet` is read carry a `TODO(FRB-2.0 M5 — bet-by-level)` comment pointing to this doc and `cross-repo-changes.md §M5`. No code change.
+Q7/Q9 resolved by the DB: a `level INT NOT NULL DEFAULT 0` column was added to `campaign_operator_game_chips`, keying chips/bet by `(campaign_id, operator_id, game_id, level)`. Live MySQL already has multi-level rows (e.g. campaign `1e7b0527-…` carries levels 1–4 with distinct bets like `1:0.60, 2:9.00, 3:50.00, 4:300.00`), confirming Q7 = `(campaign, operator, game, level)` and Q9 = extend `campaign_operator_game_chips` (not `campaign_threshold_currency`, not a new table). Q8 stays as **per-game-within-a-level** because the row grain is per-game already — same level on two games can have different bets.
 
-Sites:
-- `src/Campaign/Application/Services/TicketService.cs:72`
-- `src/Campaign/Application/Services/BetEventProcessor.cs` (two sites)
+| Aspect | Before | After |
+|---|---|---|
+| Lookup key | `(campaign_id, operator_id, game_id)` | `(campaign_id, operator_id, game_id, level)` |
+| Caller passes | n/a | `threshold.Level` (i.e. the player's qualifying level) |
+| TicketService.CreateTicketsAsync | Resolves chips for level 1 indirectly | Passes `threshold.Level` (always `1` for this entry path) |
+| BetEventProcessor | One bet per (campaign, operator, game) | Reads the row for the level the player just qualified for |
+| Repository surface | `IConfigRepository.GetGameChipsConfigAsync` (DAL gRPC) | **New** `IFrbConfigRepository.GetGameChipsConfigByLevelAsync` (direct MySQL/Dapper) |
+
+**Why a new repository instead of changing `IConfigRepository`:** the existing RPC is shared with non-FRB callers (Aggregator, Tournament) and must not silently change shape. Keeping the FRB-specific lookup on its own interface lets non-FRB code continue calling the legacy single-row method without carrying a level argument.
+
+**Why direct MySQL today:** the Valhalla DAL `GetGameChipsConfig` RPC doesn't carry `level` (see `Valhalla/Sleipnir/repository/campaign_operator_game_chips_repo.go` — `WHERE campaign_id = ? AND operator_id = ? AND game_id = ?`). Rather than expand the proto in this branch, FRB reads MySQL directly via Dapper. Phase N+1 will move this to a level-aware DAL method and delete the direct-DB read here. The two RPCs coexist cleanly until then.
+
+Refs:
+- Spec: §1.3, §3.1 Q7–Q9, §7 M5
+- Code:
+  - `src/Campaign/Application/Interfaces/IFrbConfigRepository.cs` (new)
+  - `src/Campaign/Infrastructure/MySQL/FrbConfigRepository.cs` (new — direct Dapper)
+  - `src/Campaign/Domain/Entities/GameChipsConfig.cs` (added `Level`)
+  - `src/Campaign/Application/Services/TicketService.cs` (consumes `IFrbConfigRepository`; `IConfigRepository` no longer injected here)
+  - `src/Campaign/Application/Services/BetEventProcessor.cs` (consumes `IFrbConfigRepository` alongside `IConfigRepository`; the latter still holds `GetOperatorCurrencySnAsync`)
+  - `src/Campaign/Program.cs` (DI registration)
+- The three former `TODO(FRB-2.0 M5 — bet-by-level)` markers are removed.
 
 ---
 
 ## 2. Parked for future work
 
-### 2.1 Bet-by-level (Q7–Q9 / M5)
-
-The biggest open question. `GameChipsConfig.Bet` is currently keyed `(campaign, operator, game)` — one bet per game-in-a-campaign. The new requirement is to allow **per-level** bets.
-
-Unresolved decisions (from spec §3.1):
-- **Q7** — key shape: `(campaign, level)` vs `(campaign, level, game_id)`
-- **Q8** — cross-game behavior: shared bet within a level or per-game-within-a-level?
-- **Q9** — schema landing:
-  - A) extend `campaign_threshold_currency` with a `bet` column (lives next to `level`)
-  - B) new table `campaign_frb_level_bet`
-
-Until product confirms, we touch nothing. The three call sites are marked with TODOs so a future grep finds them.
-
-When unblocked, expected downstream work:
-- `ThresholdConfig` entity + `MySqlThresholdConfigRepository` — read new field
-- Valhalla DAL proto (`ThresholdConfigItem` or new message) — coordinate with DAL team
-- `TicketBuilder` / `BetEventProcessor` — switch bet-resolution order
-- DB migration (or new table) per Q9 outcome
-
-### 2.2 M3 — Claim flow
+### 2.1 M3 — Claim flow
 
 Not started in this branch. Spec §7 M3 covers it. Needed for:
 
@@ -181,7 +181,7 @@ Not started in this branch. Spec §7 M3 covers it. Needed for:
 
 Prerequisite: `PendingClaim = 6` and `Claimed = 7` are already in the `TicketStatus` enum (1.4 above), so M3 just adds writers/readers — no enum surgery.
 
-### 2.3 M3.5 — Inbox real-time ticket state (Q10)
+### 2.2 M3.5 — Inbox real-time ticket state (Q10)
 
 Blocker for the inbox-row USED/expired UI. Three candidate approaches in spec §5.4:
 
@@ -191,7 +191,7 @@ Blocker for the inbox-row USED/expired UI. Three candidate approaches in spec §
 
 Decision pending msg-center team alignment.
 
-### 2.4 M4 — Retire `RedisNotificationPublisher` / `frb:ticket:pending`
+### 2.3 M4 — Retire `RedisNotificationPublisher` / `frb:ticket:pending`
 
 The remaining FRB Redis publish (ticket-issued notification → GameServer) is still in place at `src/Campaign/Infrastructure/Redis/RedisNotificationPublisher.cs`. It retires only after:
 
@@ -205,17 +205,27 @@ Then this branch deletes:
 - DI registrations
 - `RedisKeys.TicketPendingChannel` constant
 
-### 2.5 Backstage operation path for Suspend / Terminate (D6 detail)
+### 2.4 Backstage operation path for Suspend / Terminate (D6 detail)
 
 Spec §7.1 risk row: "後台操作路徑". Today the FRB tracker assumes backstage flips `campaign.status` directly in MySQL (CDC-style detection). If backstage actually goes through a FRB API instead, the tracker still catches it via sync diff — but the latency window equals one sync interval. Decision pending backstage team confirmation.
 
-### 2.6 Shared `outbox_msg` topic routing (D2)
+### 2.5 Shared `outbox_msg` topic routing (D2)
 
 `OutboxMsgOptions.Topic` defaults to `"msg-center-events"`, shared with Tournament. Spec §7.1: "msg-center 端依 `event_type` 而非 topic 路由". Need msg-center team to confirm their routing is `event_type`-based, not topic-based, before high-traffic FRB lifecycle volume joins the shared topic.
 
-### 2.7 EndedEarly — `end_reason` propagation through DAL sync
+### 2.6 EndedEarly — `end_reason` propagation through DAL sync
 
 Today EndedEarly is emitted inline (1.2) because the sync proto doesn't carry `end_reason`. If a future requirement needs EndedEarly to fire from non-FRB code paths (e.g. an admin tool that writes the column directly), the cleanest fix is to add `end_reason` to `CampaignSyncItem` in Valhalla's proto. Not blocking; flagged for awareness.
+
+### 2.7 DAL: level-aware `GetGameChipsConfig`
+
+§1.7 ships `IFrbConfigRepository.GetGameChipsConfigByLevelAsync` as a **direct MySQL/Dapper** read so we don't have to round-trip a proto change through Valhalla in the same branch. The follow-up is straightforward and additive:
+
+1. Extend `GetGameChipsConfigRequest` with `uint32 level = 4` and `GetGameChipsConfigResponse` with `uint32 level = 6` in `src/Campaign/Infrastructure/Protos/campaign.proto`.
+2. Update Valhalla's `CampaignOperatorGameChipsRepoInterface.Get` to take `Level` and add `AND level = ?` to the GORM query.
+3. Re-point `FrbConfigRepository.GetGameChipsConfigByLevelAsync` at the new DAL call; delete the direct `IDbConnection` dependency and the inline SQL.
+
+No `level` overload is added to the legacy single-row `IConfigRepository.GetGameChipsConfigAsync` because non-FRB callers don't need it. Coordinate the proto bump with the DAL team before flipping FRB over.
 
 ---
 
@@ -228,8 +238,9 @@ Today EndedEarly is emitted inline (1.2) because the sync proto doesn't carry `e
 | `096279e` | feat: M2 — FRB lifecycle event emission | 1.1 (initial), 1.2 |
 | `3a330b5` | refactor: merge FRB lifecycle outbox emit into MySqlCampaignInfoService | 1.1 (correction) |
 | `3ae84da` | refactor: retire frb:campaign:status_changed Redis pub/sub | 1.1 (final) |
+| `da106d1` | feat: M5 — FRB bet/chips by level via FrbConfigRepository | 1.7 |
 
-554 → 551 tests after the M2 restructure; all green.
+554 → 551 → 553 tests (added two for `FrbConfigRepository`); all green.
 
 ---
 
