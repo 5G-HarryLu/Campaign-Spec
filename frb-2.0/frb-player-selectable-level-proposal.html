@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRB Player-Selectable Level 設計提案</title>
+<style>
+  :root{
+    --bg:#eef2f7; --panel:#ffffff; --ink:#1f2933; --muted:#5b6b7b;
+    --blue:#3b82f6; --blue-soft:#dbeafe; --purple:#9333ea; --purple-soft:#f3e8ff;
+    --gold:#f5b716; --gold-soft:#fff4d6; --line:#9aa7b4; --green:#16a34a; --red:#dc2626;
+    --border:#d7dee6; --code-bg:#0f172a; --code-ink:#e2e8f0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei","Noto Sans TC",Segoe UI,Roboto,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.7; font-size:15px;
+  }
+  header.top{
+    background:linear-gradient(135deg,#1e293b,#334155); color:#fff;
+    padding:22px 28px; position:sticky; top:0; z-index:50; box-shadow:0 2px 12px rgba(0,0,0,.18);
+  }
+  header.top h1{margin:0; font-size:21px; letter-spacing:.5px}
+  header.top .sub{margin-top:4px; font-size:12.5px; color:#cbd5e1}
+  /* progress step nav */
+  nav.steps{
+    display:flex; gap:6px; overflow-x:auto; padding:12px 20px; background:#0f172a;
+    position:sticky; top:0; z-index:40; scrollbar-width:thin;
+  }
+  nav.steps button{
+    flex:0 0 auto; border:1px solid #334155; background:#1e293b; color:#cbd5e1;
+    padding:8px 13px; border-radius:999px; font-size:12.5px; cursor:pointer; white-space:nowrap;
+    transition:.15s; display:flex; align-items:center; gap:7px;
+  }
+  nav.steps button .n{
+    display:inline-flex; width:20px; height:20px; border-radius:50%; background:#334155; color:#fff;
+    align-items:center; justify-content:center; font-size:11px; font-weight:700;
+  }
+  nav.steps button:hover{background:#273549; color:#fff}
+  nav.steps button.active{background:var(--blue); border-color:var(--blue); color:#fff}
+  nav.steps button.active .n{background:#fff; color:var(--blue)}
+  main{max-width:1040px; margin:0 auto; padding:26px 22px 70px}
+  section.page{display:none; animation:fade .25s ease}
+  section.page.show{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(6px)}to{opacity:1; transform:none}}
+  .kicker{font-size:12px; font-weight:700; letter-spacing:1.5px; color:var(--blue); text-transform:uppercase}
+  h2.title{font-size:25px; margin:6px 0 4px}
+  .lead{color:var(--muted); margin:0 0 18px; font-size:14.5px}
+  .card{background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:20px 22px; margin:16px 0; box-shadow:0 1px 3px rgba(15,23,42,.05)}
+  .card h3{margin:2px 0 12px; font-size:17px; display:flex; align-items:center; gap:8px}
+  .card h3 .dot{width:9px;height:9px;border-radius:50%;background:var(--blue)}
+  h4{margin:18px 0 8px; font-size:14.5px; color:#0f172a}
+  table{width:100%; border-collapse:collapse; margin:10px 0; font-size:13.5px}
+  th,td{border:1px solid var(--border); padding:8px 11px; text-align:left; vertical-align:top}
+  th{background:#f1f5f9; font-weight:700}
+  tbody tr:nth-child(even){background:#fafcfe}
+  code{background:#eef2f7; padding:1px 6px; border-radius:5px; font-size:12.5px; font-family:"SF Mono",Menlo,Consolas,monospace; color:#0b3d91}
+  pre{background:var(--code-bg); color:var(--code-ink); padding:16px 18px; border-radius:11px; overflow-x:auto; font-size:12.5px; line-height:1.6; font-family:"SF Mono",Menlo,Consolas,monospace}
+  pre .cm{color:#7c8aa0}
+  pre .kw{color:#7dd3fc}
+  pre .st{color:#fca5a5}
+  .pill{display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:700}
+  .pill.new{background:var(--gold-soft); color:#92600a; border:1px solid #f3d27a}
+  .pill.keep{background:#dcfce7; color:#166534; border:1px solid #86efac}
+  .pill.drop{background:#fee2e2; color:#991b1b; border:1px solid #fca5a5}
+  .note{background:#0f172a; color:#e2e8f0; border-radius:12px; padding:16px 18px; font-size:13px; margin:14px 0}
+  .note b{color:#fde68a}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media(max-width:760px){.grid2{grid-template-columns:1fr}}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin:6px 0 2px}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .sw{width:14px; height:14px; border-radius:3px; display:inline-block; border:1px solid #00000022}
+  .figwrap{text-align:center; margin:6px 0}
+  .figwrap svg{max-width:100%; height:auto}
+  .figcap{font-size:12px; color:var(--muted); margin-top:6px; text-align:center}
+  footer.nav{position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--border); padding:10px 18px; display:flex; justify-content:space-between; align-items:center; z-index:45; box-shadow:0 -2px 10px rgba(0,0,0,.05)}
+  footer.nav button{border:1px solid var(--blue); background:var(--blue); color:#fff; padding:9px 18px; border-radius:9px; cursor:pointer; font-size:14px; font-weight:600}
+  footer.nav button.ghost{background:#fff; color:var(--blue)}
+  footer.nav button:disabled{opacity:.35; cursor:not-allowed}
+  footer.nav .pos{font-size:13px; color:var(--muted)}
+  ul.tight{margin:8px 0; padding-left:20px}
+  ul.tight li{margin:5px 0}
+  .tagrow{display:flex; gap:8px; flex-wrap:wrap; margin:10px 0}
+  .tag{font-size:11.5px; padding:3px 10px; border-radius:7px; background:#eef2f7; color:#334155; border:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>FRB Player-Selectable Level 設計提案</h1>
+  <div class="sub">玩家自選「衝哪個 level」與「何時使用」 · 對齊 msg-center claim 流程（popup + inbox + info card） · 更新 2026-06-02</div>
+</header>
+
+<nav class="steps" id="steps"></nav>
+
+<main id="main">
+
+<!-- ============ PAGE 1 ============ -->
+<section class="page show" data-title="背景與目標">
+  <div class="kicker">Page 1 · Overview</div>
+  <h2 class="title">背景與目標</h2>
+  <p class="lead">為什麼要改，以及這次定案的方向。</p>
+
+  <div class="card">
+    <h3><span class="dot"></span>現行模型：循序累積佇列</h3>
+    <ul class="tight">
+      <li><code>ThresholdChecker.Check</code> 只回傳「第一個未達成」的 level（<b>累積門檻</b>）。</li>
+      <li>一次只能有一張活躍票（<code>Pending</code>/<code>InUse</code> 會 block accumulation）。</li>
+      <li>發票即被消耗（<code>Pending → InUse</code> 首 spin 自動轉移），玩家<b>無選擇使用時機</b>的權利。</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    🎯 <b>目標</b>：讓玩家自行選擇<b>衝哪個 level</b>、自行選擇<b>何時開玩</b>。獎勵透過 msg-center（popup + inbox）通知，玩家可「<b>馬上使用 PLAY NOW</b>」或「<b>稍後使用 PLAY LATER</b>（留 inbox 之後領）」。
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>需求定案（Confirmed Decisions）</h3>
+    <table>
+      <thead><tr><th style="width:22%">項目</th><th>決定</th><th style="width:30%">影響</th></tr></thead>
+      <tbody>
+        <tr><td>選擇範圍</td><td><b>已達標的 level 一次全產出，各自獨立使用</b>（移除循序 gating）</td><td><code>ThresholdChecker</code> 改回傳全部</td></tr>
+        <tr><td>門檻語意</td><td><b>維持累積門檻（同現行）</b>，<code>threshold_cents</code> 不變</td><td><b>無門檻數值遷移</b></td></tr>
+        <tr><td>累積規則</td><td><code>total_bet</code> 持續累積，<b>不被持票阻擋</b></td><td>移除 accumulation blocking</td></tr>
+        <tr><td>發放粒度</td><td><b>每 level 終身一張</b>（一生一次）</td><td><code>uk_ticket_level</code> 天然保證</td></tr>
+        <tr><td><b>建票時機</b></td><td><b>達標（winning）當下即建 <code>Pending</code> 票並寫 outbox</b></td><td>inbox 直接讀該票</td></tr>
+        <tr><td>by level winning</td><td>每達標一個 level 即<b>各自發一張 winning → 各自進 inbox</b>（累積達標可一次多張）</td><td>inbox 挑 level + 挑時機</td></tr>
+        <tr><td>使用時機</td><td><b>claim 模式</b>：PLAY NOW = claim+跳轉；PLAY LATER = 留 inbox</td><td>狀態機加 claim</td></tr>
+        <tr><td>通知管道</td><td>全走 <b>outbox → msg-center</b> fan-out（共用 Tournament topic）</td><td>不直接推 GameServer</td></tr>
+        <tr><td><b>bet 面額</b></td><td>由 by-game 改為 <b>by-level</b> 設定</td><td>寫進 <code>campaign_frb_level</code></td></tr>
+        <tr><td>reminder</td><td>僅取消「活動結束倒數」；斷線重進 reminder/轉導<b>保留</b></td><td>後台 end reminder 欄位可拔</td></tr>
+        <tr><td>併發使用</td><td><b>允許同時多張 InUse</b>；<b>玩家透過 inbox / PLAY NOW 選定要用哪張 level 票，帶票券資訊到 GameServer 使用</b>（非 GameServer 自選）</td><td>每局寫 mapping；<code>used_rounds</code> per-ticket</td></tr>
+        <tr><td>上線方式</td><td><b>就地優化、轉新語意</b>（非新 campaign type，上線後即無 1.0）</td><td>無在途票窗口部署 + rolling 對齊</td></tr>
+        <tr><td>即時狀態（Q10）</td><td><b>A. FRB Read API</b>（查 Redis 回即時值）</td><td>msg-center 需即時資料時呼叫</td></tr>
+        <tr><td>併發防護</td><td>後踢前單一 session → <b>不需 <code>Activated</code>/<code>version</code></b></td><td><code>idempotencyKey</code> + 狀態 CAS 即足夠</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ PAGE 2 ============ -->
+<section class="page" data-title="新模型總覽">
+  <div class="kicker">Page 2 · Big Picture</div>
+  <h2 class="title">新模型總覽</h2>
+  <p class="lead">下注 → 累積 → 每 level 達標 → 即建 Pending 票並通知 → 玩家自選馬上/稍後使用。</p>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--blue-soft);border-color:var(--blue)"></i>起點/動作</span>
+    <span><i class="sw" style="background:var(--purple-soft);border-color:var(--purple)"></i>判斷</span>
+    <span><i class="sw" style="background:var(--gold-soft);border-color:var(--gold)"></i>建票/通知</span>
+    <span><i class="sw" style="background:#fff;border-color:var(--line)"></i>流程</span>
+  </div>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 1170" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs>
+          <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M0,0 L8,3 L0,6 z" fill="#7a8a99"/>
+          </marker>
+        </defs>
+        <style>
+          .b{fill:#fff;stroke:#9aa7b4;stroke-width:1.5;rx:10}
+          .t{font-size:14px;fill:#1f2933}
+          .ts{font-size:12px;fill:#5b6b7b}
+          .ln{stroke:#7a8a99;stroke-width:1.8;fill:none;marker-end:url(#arr)}
+          .lbl{font-size:11.5px;fill:#475569}
+        </style>
+        <!-- start -->
+        <rect x="345" y="14" width="190" height="46" rx="23" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+        <text class="t" x="440" y="42" text-anchor="middle" font-weight="700">玩家下注</text>
+        <path class="ln" d="M440,60 V100"/>
+        <!-- accumulate -->
+        <rect class="b" x="305" y="100" width="270" height="50"/>
+        <text class="t" x="440" y="122" text-anchor="middle">total_bet 全域持續累積</text>
+        <text class="ts" x="440" y="140" text-anchor="middle">（不被持票阻擋）</text>
+        <path class="ln" d="M440,150 V196"/>
+        <!-- decision threshold -->
+        <polygon points="440,196 560,250 440,304 320,250" fill="#f3e8ff" stroke="#9333ea" stroke-width="1.5"/>
+        <text class="ts" x="440" y="244" text-anchor="middle">累積門檻判定（同現行）</text>
+        <text class="ts" x="440" y="261" text-anchor="middle">total_bet ≥ 累積門檻?</text>
+        <path class="ln" d="M440,304 V346"/>
+        <text class="lbl" x="452" y="328">達標（每 level 各自）</text>
+        <!-- winning -->
+        <rect x="305" y="346" width="270" height="50" rx="10" fill="#fff4d6" stroke="#f5b716" stroke-width="1.5"/>
+        <text class="t" x="440" y="376" text-anchor="middle" font-weight="700">達標 winning</text>
+        <path class="ln" d="M440,396 V438"/>
+        <!-- build pending -->
+        <rect class="b" x="290" y="438" width="300" height="50"/>
+        <text class="t" x="440" y="468" text-anchor="middle">立即建 Pending 票 ＋ 寫 outbox</text>
+        <path class="ln" d="M440,488 V530"/>
+        <!-- msg-center fanout -->
+        <rect x="280" y="530" width="320" height="52" rx="10" fill="#fff4d6" stroke="#f5b716" stroke-width="1.5"/>
+        <text class="t" x="440" y="552" text-anchor="middle" font-weight="700">msg-center fan-out</text>
+        <text class="ts" x="440" y="570" text-anchor="middle">winning popup ＋ inbox 紅點</text>
+        <path class="ln" d="M440,582 V624"/>
+        <!-- player choice -->
+        <polygon points="440,624 560,678 440,732 320,678" fill="#f3e8ff" stroke="#9333ea" stroke-width="1.5"/>
+        <text class="t" x="440" y="684" text-anchor="middle" font-weight="700">玩家選擇</text>
+        <!-- PLAY LATER (left) -->
+        <path class="ln" d="M320,678 H170 V758"/>
+        <text class="lbl" x="200" y="668">稍後使用 PLAY LATER</text>
+        <rect class="b" x="60" y="758" width="220" height="64"/>
+        <text class="t" x="170" y="784" text-anchor="middle">票留 inbox（Pending）</text>
+        <text class="ts" x="170" y="804" text-anchor="middle">之後 inbox 點擊使用</text>
+        <path class="ln" d="M170,822 V900 H330"/>
+        <!-- PLAY NOW (right/center) -->
+        <path class="ln" d="M440,732 V900"/>
+        <text class="lbl" x="452" y="772">馬上使用 PLAY NOW（claim+跳轉）</text>
+        <!-- enter FRB -->
+        <rect class="b" x="330" y="900" width="220" height="50"/>
+        <text class="t" x="440" y="930" text-anchor="middle">進入 FRB 模式遊玩</text>
+        <path class="ln" d="M440,950 V992"/>
+        <!-- InUse -->
+        <rect class="b" x="345" y="992" width="190" height="46"/>
+        <text class="t" x="440" y="1020" text-anchor="middle">首 spin → InUse</text>
+        <path class="ln" d="M440,1038 V1078"/>
+        <!-- terminal -->
+        <rect x="250" y="1078" width="160" height="44" rx="9" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+        <text class="ts" x="330" y="1105" text-anchor="middle">Completed /<tspan> EarlyCompleted</tspan></text>
+        <rect x="470" y="1078" width="160" height="44" rx="9" fill="#fee2e2" stroke="#dc2626" stroke-width="1.4"/>
+        <text class="ts" x="550" y="1105" text-anchor="middle">Expired（逾期）</text>
+        <path class="ln" d="M440,1078 L350,1078"/>
+        <path class="ln" d="M440,1078 L470,1078"/>
+        <!-- pending expire -->
+        <path class="ln" d="M280,790 H30 V1100 H470" stroke-dasharray="5 4"/>
+        <text class="lbl" x="40" y="1094">待領 Pending 逾 expired_at → Expired</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 2-1　新模型端到端主流程（每 level 達標即各自建票進 inbox）</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>三個關鍵差異</h3>
+    <ul class="tight">
+      <li><b>達標即建票</b>：winning 當下就建 <code>Pending</code> 票並寫 outbox，inbox 直接讀該票顯示 <code>bet × 剩餘次數、過期、game_name</code>。</li>
+      <li><b>領取 ≠ 使用</b>：<code>Pending</code>（在 inbox 待領、不阻擋累積）與 <code>InUse</code>（claim 後開玩）分離。</li>
+      <li><b>累積達標、一次全產出</b>：累積門檻沿用現行；達標到 L3 時 <b>L1~L3 同時各自產出 winning 票</b>，玩家各自獨立使用（不再循序 gating）。</li>
+    </ul>
+  </div>
+
+  <div class="note">
+    🧮 <b>範例</b>：門檻 L1=10、L2=20、L3=30（累積判定，沿用現行）。玩家<b>直接下注 100，一次達標到 L3</b>。<br>
+    · <span class="pill drop">現行</span> 只先給 L1，用完才給 L2、再用完才給 L3（一次一張、卡關）。<br>
+    · <span class="pill new">新做法</span> L1~L3 <b>同時全部產出</b>，inbox 同時看到 3 張，玩家挑哪張先用、何時用。
+  </div>
+</section>
+
+<!-- ============ PAGE 3 ============ -->
+<section class="page" data-title="現行 vs 新">
+  <div class="kicker">Page 3 · Before / After</div>
+  <h2 class="title">現行 vs 新模型對照</h2>
+  <p class="lead">同一個玩家旅程，兩種模型的差別一眼看懂。</p>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs>
+          <marker id="arr2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker>
+        </defs>
+        <style>
+          .bx{rx:9;stroke-width:1.4}
+          .tt{font-size:12px;fill:#1f2933;text-anchor:middle}
+          .a{stroke:#7a8a99;stroke-width:1.6;fill:none;marker-end:url(#arr2)}
+        </style>
+        <!-- OLD lane -->
+        <rect x="10" y="14" width="120" height="28" rx="6" fill="#e2e8f0"/>
+        <text x="70" y="33" class="tt" font-weight="700">現行（循序）</text>
+        <rect x="150" y="12" width="120" height="44" class="bx" fill="#fff" stroke="#9aa7b4"/><text x="210" y="38" class="tt">達標</text>
+        <path class="a" d="M270,34 H300"/>
+        <rect x="300" y="12" width="130" height="44" class="bx" fill="#fff4d6" stroke="#f5b716"/><text x="365" y="32" class="tt">立即建票</text><text x="365" y="48" class="tt">Pending</text>
+        <path class="a" d="M430,34 H460"/>
+        <rect x="460" y="12" width="150" height="44" class="bx" fill="#fff" stroke="#9aa7b4"/><text x="535" y="32" class="tt">首 spin 自動</text><text x="535" y="48" class="tt">Pending→InUse</text>
+        <path class="a" d="M610,34 H640"/>
+        <rect x="640" y="12" width="120" height="44" class="bx" fill="#dcfce7" stroke="#16a34a"/><text x="700" y="38" class="tt">完成</text>
+        <path class="a" d="M700,56 V92 H210 V100"/>
+        <rect x="150" y="100" width="200" height="40" class="bx" fill="#f1f5f9" stroke="#9aa7b4"/><text x="250" y="125" class="tt">完成才發下一張（排隊）</text>
+        <text x="600" y="125" font-size="12" fill="#dc2626">✗ 一次一張 · 阻擋累積 · 無選擇權</text>
+
+        <line x1="10" y1="175" x2="870" y2="175" stroke="#cbd5e1" stroke-dasharray="4 4"/>
+
+        <!-- NEW lane -->
+        <rect x="10" y="200" width="120" height="28" rx="6" fill="#dbeafe"/>
+        <text x="70" y="219" class="tt" font-weight="700" fill="#1e40af">新（可選+claim）</text>
+        <rect x="150" y="198" width="150" height="44" class="bx" fill="#fff" stroke="#9aa7b4"/><text x="225" y="218" class="tt">每 level 各自</text><text x="225" y="234" class="tt">達標 winning</text>
+        <path class="a" d="M300,220 H330"/>
+        <rect x="330" y="198" width="150" height="44" class="bx" fill="#fff4d6" stroke="#f5b716"/><text x="405" y="218" class="tt">建 Pending 票</text><text x="405" y="234" class="tt">+ outbox</text>
+        <path class="a" d="M480,220 H510"/>
+        <rect x="510" y="198" width="160" height="44" class="bx" fill="#fff4d6" stroke="#f5b716"/><text x="590" y="218" class="tt">msg-center</text><text x="590" y="234" class="tt">popup + inbox</text>
+        <path class="a" d="M670,220 H700"/>
+        <rect x="700" y="198" width="160" height="44" class="bx" fill="#f3e8ff" stroke="#9333ea"/><text x="780" y="224" class="tt">玩家選擇時機</text>
+        <!-- branch -->
+        <path class="a" d="M780,242 V280 H560"/>
+        <path class="a" d="M780,242 V280 H560 M560,280 V300"/>
+        <rect x="430" y="300" width="130" height="40" class="bx" fill="#fff" stroke="#9aa7b4"/><text x="495" y="325" class="tt">PLAY NOW</text>
+        <path class="a" d="M780,280 H905 M780,242 V346 H700 V346"/>
+        <rect x="610" y="300" width="150" height="40" class="bx" fill="#fff" stroke="#9aa7b4"/><text x="685" y="325" class="tt">PLAY LATER 留 inbox</text>
+        <path class="a" d="M495,340 V370 H600"/>
+        <path class="a" d="M685,340 V370 H600"/>
+        <rect x="500" y="370" width="200" height="40" class="bx" fill="#dcfce7" stroke="#16a34a"/><text x="600" y="395" class="tt">進入 FRB 遊玩 → InUse</text>
+        <text x="150" y="320" font-size="12" fill="#16a34a">✓ 多張庫存 · 不阻擋 · 自選 level+時機</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 3-1　現行 vs 新模型旅程對照</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>逐項差異</h3>
+    <table>
+      <thead><tr><th>構面</th><th>現行（循序佇列）</th><th>新（可選 + claim）</th></tr></thead>
+      <tbody>
+        <tr><td>門檻</td><td>累積 <code>Σ threshold 1..N</code></td><td>累積 <code>Σ threshold 1..N</code>（<b>不變</b>）</td></tr>
+        <tr><td><code>ThresholdChecker</code></td><td>回傳第一個未達成 level（其餘卡關）</td><td>回傳<b>所有</b>已達標未建票 level（一次全產出）</td></tr>
+        <tr><td>達標動作</td><td>立即建票（首 spin 自動 InUse）</td><td>立即建票（<b>待 claim</b>，進 inbox）</td></tr>
+        <tr><td>同時持票</td><td>最多一張</td><td>多張（inbox 庫存）</td></tr>
+        <tr><td>accumulation 阻擋</td><td><code>Pending</code>/<code>InUse</code> 阻擋</td><td><b>不阻擋</b></td></tr>
+        <tr><td>下一張票</td><td>完成後 <code>TryGrantNextLevelTicketAsync</code></td><td><b>移除</b>循序授予</td></tr>
+        <tr><td>使用觸發</td><td>首 spin 自動 <code>Pending→InUse</code></td><td>玩家 claim → 進遊戲 → 首 spin InUse</td></tr>
+        <tr><td>通知</td><td>Redis Pub/Sub → GameServer</td><td>outbox → msg-center（popup+inbox+info card）</td></tr>
+        <tr><td>過期</td><td>campaign 級 <code>expired_at</code></td><td>detail 級 <code>expired_at</code>（達標起算=領獎期間）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ PAGE 4 ============ -->
+<section class="page" data-title="票券狀態機">
+  <div class="kicker">Page 4 · State Machine</div>
+  <h2 class="title">票券狀態機（沿用既有，語意更新）</h2>
+  <p class="lead">不新增 <code>Granted</code>，直接用 <code>Pending</code> 當「在 inbox 待領」態，只更新語意。</p>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 320" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs><marker id="arr3" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <style>.s{rx:11;stroke-width:1.6}.st2{font-size:13px;text-anchor:middle;fill:#1f2933;font-weight:700}.sd{font-size:11px;text-anchor:middle;fill:#5b6b7b}.aa{stroke:#7a8a99;stroke-width:1.8;fill:none;marker-end:url(#arr3)}.al{font-size:11px;fill:#475569}</style>
+        <!-- Pending -->
+        <rect x="40" y="120" width="180" height="70" class="s" fill="#fff4d6" stroke="#f5b716"/>
+        <text class="st2" x="130" y="150">Pending</text>
+        <text class="sd" x="130" y="168">在 inbox 待領</text>
+        <text class="sd" x="130" y="183">不阻擋累積</text>
+        <!-- InUse -->
+        <rect x="350" y="120" width="170" height="70" class="s" fill="#dbeafe" stroke="#3b82f6"/>
+        <text class="st2" x="435" y="152">InUse</text>
+        <text class="sd" x="435" y="170">claim 後開玩中</text>
+        <!-- Completed -->
+        <rect x="650" y="40" width="200" height="56" class="s" fill="#dcfce7" stroke="#16a34a"/>
+        <text class="st2" x="750" y="64">Completed</text>
+        <text class="sd" x="750" y="82">全數玩完</text>
+        <!-- EarlyCompleted -->
+        <rect x="650" y="120" width="200" height="56" class="s" fill="#dcfce7" stroke="#16a34a"/>
+        <text class="st2" x="750" y="144">EarlyCompleted</text>
+        <text class="sd" x="750" y="162">達 max payout / 手動</text>
+        <!-- Expired -->
+        <rect x="650" y="220" width="200" height="56" class="s" fill="#fee2e2" stroke="#dc2626"/>
+        <text class="st2" x="750" y="244">Expired</text>
+        <text class="sd" x="750" y="262">待領逾期 / 使用中逾期</text>
+        <!-- arrows -->
+        <path class="aa" d="M220,155 H350"/>
+        <text class="al" x="240" y="146">PLAY NOW / inbox 點擊使用 → 首 spin</text>
+        <path class="aa" d="M520,140 H650 V68"/>
+        <path class="aa" d="M520,155 H650"/>
+        <path class="aa" d="M435,190 V248 H650" stroke-dasharray="5 4"/>
+        <text class="al" x="445" y="240">使用中逾期</text>
+        <path class="aa" d="M130,190 V248 H650" stroke-dasharray="5 4"/>
+        <text class="al" x="150" y="240">待領逾 expired_at</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 4-1　新版票券 FSM（綠=正常終態，紅=過期）</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="dot"></span>狀態定義</h3>
+      <table>
+        <thead><tr><th>值</th><th>狀態</th><th>語意</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td><b>Pending</b></td><td>達標已建、在 inbox 待 claim、<span class="pill new">不阻擋累積</span></td></tr>
+          <tr><td>2</td><td>InUse</td><td>claim 後開玩中</td></tr>
+          <tr><td>3</td><td>Completed</td><td>全數玩完</td></tr>
+          <tr><td>4</td><td>EarlyCompleted</td><td>達 max payout / 手動結束</td></tr>
+          <tr><td>5</td><td>Expired</td><td>待領逾期 或 使用中逾期</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">無 <code>Granted</code>、無 <code>Activated</code>；狀態值維持 <code>1..5</code>，<code>CHECK (status BETWEEN 1 AND 5)</code> 不變。</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>語意變更重點</h3>
+      <ul class="tight">
+        <li><span class="pill drop">舊</span> <code>Pending</code> 阻擋累積、首 spin 自動使用。</li>
+        <li><span class="pill new">新</span> <code>Pending</code> 不阻擋累積、需玩家 claim 才使用。</li>
+        <li><b>不新增 <code>Granted</code></b>：收斂回 <code>Pending</code>，降低狀態機複雜度。</li>
+        <li><b>不需 <code>Activated</code></b>：遊戲是<b>後踢前（單一 session）</b>，多裝置併發不會發生 → 無需鎖 session（見 Page 9 情境）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PAGE 5 ============ -->
+<section class="page" data-title="資料結構">
+  <div class="kicker">Page 5 · Data Structures</div>
+  <h2 class="title">資料結構變更</h2>
+  <p class="lead">DDL、Threshold、PlayerProgress、Redis 庫存索引。</p>
+
+  <div class="card">
+    <h3><span class="dot"></span><code>free_round_bonus_ticket_details</code> DDL</h3>
+    <p class="lead" style="margin:0 0 8px">票券於 winning（達標）時建立，故 <code>created_at</code> = 達標時間。</p>
+<pre><span class="kw">ALTER TABLE</span> `free_round_bonus_ticket_details`
+  <span class="kw">ADD COLUMN</span> `claimed_at` timestamp(3) <span class="kw">NULL</span> <span class="cm">-- 玩家 claim(PLAY NOW/LATER) 時間</span>
+  <span class="kw">ADD COLUMN</span> `expired_at` timestamp    <span class="kw">NULL</span>; <span class="cm">-- 領獎期間到期 = created_at + ticket_validity_days</span>
+
+<span class="kw">ALTER TABLE</span> `free_round_bonus_ticket_details`
+  <span class="kw">ADD KEY</span> `idx_status_expired_at` (`status`, `expired_at`); <span class="cm">-- 過期掃描</span>
+
+<span class="cm">-- 不需 version 欄位：後踢前單一 session，併發以「狀態條件式 UPDATE」(CAS) 即可：</span>
+<span class="cm">--   UPDATE ... SET status=InUse, claimed_at=now WHERE id=? AND status=Pending  → 檢查 affected=1</span></pre>
+    <div class="note">「每 level 終身一張」由既有 <b>uk_ticket_level (ticket_id, level)</b> ＋ 父票 <b>uk_campaign_operator_member</b> 天然保證，<b>無需新增唯一鍵</b>。<br>
+    <code>max_payout_cents / reward_count / game_id / rate / bet</code> 於<b>建票（達標）時</b>從 <code>campaign_frb_level</code> 凍結寫入（<code>bet</code> 改 by-level）。</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="dot"></span><code>ThresholdChecker</code> 改寫</h3>
+<pre><span class="cm">// 舊：只回第一個未達成（其餘卡關）</span>
+<span class="cm">// 新：回傳「所有」已達標未建票 level（累積門檻不變）</span>
+GetNewlyWonLevels(progress, thresholds) =>
+  thresholds.OrderBy(t =&gt; t.Level)
+   .Where(t =&gt; !progress.HasWon(t.Level))
+   .Where(t =&gt; progress.TotalBet &gt;= CumulativeThreshold(t.Level)) <span class="cm">// Σ 1..N 沿用現行</span>
+   .Select(t =&gt; t.Level);</pre>
+      <p style="font-size:13px;color:var(--muted);margin:6px 0 0"><code>CalculateActualThreshold</code> 累積邏輯<b>保留</b>；<code>threshold_cents</code> 語意<b>不變</b>，只是 <code>Check</code> 改為一次回傳所有已達標 level（移除循序 gating）。</p>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span><code>PlayerProgress</code> 欄位</h3>
+      <table>
+        <thead><tr><th>舊</th><th>新</th></tr></thead>
+        <tbody>
+          <tr><td><code>level_N_qualified</code></td><td><code>level_N_won</code>（達標已建票冪等鍵）</td></tr>
+          <tr><td><code>level_N_qualified_at_bet</code></td><td>保留（稽核）</td></tr>
+          <tr><td><code>level_N_ticket_id</code></td><td>建票時寫入</td></tr>
+          <tr><td><code>level_N_notified</code></td><td>保留（winning 去重）</td></tr>
+        </tbody>
+      </table>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">claim/使用狀態存在票券本身（<code>status</code>/<code>claimed_at</code>），progress 只負責建票冪等。</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>Redis 庫存索引（新增）</h3>
+<pre><span class="kw">Key</span>:  frb:inventory:{campaign_id}:{operator_id}:{member_id}   <span class="cm">(Hash / ZSet)</span>
+<span class="kw">Val</span>:  detail_id -&gt; { level, status, created_at, expired_at,
+                     bet, reward_count, used_rounds, max_payout_cents, game_id }</pre>
+    <ul class="tight">
+      <li><b>建票（達標）時</b> <code>HSET</code>；狀態轉移 / 過期時同步更新或移除。</li>
+      <li><code>frb:ticket:{detail_id}</code> 既有單票 hash 沿用（GameServer 讀取）。</li>
+      <li>inbox 即時狀態（used_rounds/剩餘/過期）由 <b>FRB Read API 查 Redis 回即時值</b>（Keen Q10 已定案 A）。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ PAGE 6 ============ -->
+<section class="page" data-title="端到端流程">
+  <div class="kicker">Page 6 · End-to-End Flow</div>
+  <h2 class="title">端到端流程（swimlane）</h2>
+  <p class="lead">玩家 / FRB Service / msg-center / GameServer 四方協作。</p>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 470" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs><marker id="arr4" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <style>.lane{fill:#f8fafc;stroke:#e2e8f0}.lt{font-size:12px;font-weight:700;fill:#334155}.n{rx:8;stroke-width:1.3}.nt{font-size:11.5px;text-anchor:middle;fill:#1f2933}.f{stroke:#7a8a99;stroke-width:1.6;fill:none;marker-end:url(#arr4)}</style>
+        <!-- lanes -->
+        <rect class="lane" x="0" y="10" width="880" height="110"/>
+        <rect class="lane" x="0" y="120" width="880" height="110"/>
+        <rect class="lane" x="0" y="230" width="880" height="110"/>
+        <rect class="lane" x="0" y="340" width="880" height="110"/>
+        <text class="lt" x="10" y="30">FRB Service</text>
+        <text class="lt" x="10" y="140">msg-center</text>
+        <text class="lt" x="10" y="250">玩家 (前端)</text>
+        <text class="lt" x="10" y="360">GameServer</text>
+        <!-- FRB lane nodes -->
+        <rect class="n" x="120" y="40" width="150" height="50" fill="#fff4d6" stroke="#f5b716"/><text class="nt" x="195" y="60">達標 winning</text><text class="nt" x="195" y="76">建 Pending 票</text>
+        <rect class="n" x="320" y="40" width="130" height="50" fill="#fff" stroke="#9aa7b4"/><text class="nt" x="385" y="68">寫 outbox</text>
+        <rect class="n" x="600" y="40" width="160" height="50" fill="#fff" stroke="#9aa7b4"/><text class="nt" x="680" y="60">claim API</text><text class="nt" x="680" y="76">set claimed_at (status CAS)</text>
+        <!-- msg-center -->
+        <rect class="n" x="320" y="150" width="200" height="50" fill="#fff4d6" stroke="#f5b716"/><text class="nt" x="420" y="170">fan-out</text><text class="nt" x="420" y="186">winning popup + inbox</text>
+        <!-- player -->
+        <rect class="n" x="320" y="260" width="150" height="50" fill="#dbeafe" stroke="#3b82f6"/><text class="nt" x="395" y="280">看到 popup/inbox</text><text class="nt" x="395" y="296">紅點</text>
+        <rect class="n" x="500" y="260" width="200" height="50" fill="#f3e8ff" stroke="#9333ea"/><text class="nt" x="600" y="278">選定要用哪張 level 票</text><text class="nt" x="600" y="296">PLAY NOW / inbox 點擊使用</text>
+        <!-- gameserver -->
+        <rect class="n" x="600" y="370" width="170" height="50" fill="#dbeafe" stroke="#3b82f6"/><text class="nt" x="685" y="390">以該票進 FRB 遊玩</text><text class="nt" x="685" y="406">首 spin → InUse</text>
+        <!-- flows -->
+        <path class="f" d="M270,65 H320"/>
+        <path class="f" d="M385,90 V150"/>
+        <path class="f" d="M420,200 V260 H320"/>
+        <path class="f" d="M470,285 H500"/>
+        <path class="f" d="M680,310 V370 M600,310 V340 H680 V370"/>
+        <path class="f" d="M680,260 V90" stroke-dasharray="5 4"/>
+        <text x="690" y="180" font-size="11" fill="#475569">claim 回 FRB</text>
+        <text x="555" y="356" font-size="11" fill="#475569">帶選定票券資訊給 GameServer</text>
+        <text x="475" y="335" font-size="11" fill="#475569">PLAY LATER → 票留 inbox（Pending）下次再來</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 6-1　達標 → 通知 → claim → 使用 的四方協作</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="dot"></span>① 達標 → 建票 + outbox</h3>
+      <p style="font-size:13.5px"><code>BetEventProcessor</code>：</p>
+      <ul class="tight">
+        <li>累積 <code>total_bet</code>（不阻擋）。</li>
+        <li><code>GetNewlyWonLevels</code> 取新達標 level。</li>
+        <li>每 level 建 <code>Pending</code> 票，凍結 <code>game_id/rate/bet/reward_count/max_payout</code>，設 <code>expired_at</code>。</li>
+        <li><code>uk_ticket_level</code> 撞鍵 → 冪等略過。</li>
+        <li>寫 <code>frb:inventory</code> ＋ 發 winning outbox。</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>② claim / ③ 使用 / ④ 過期</h3>
+      <ul class="tight">
+        <li><b>PLAY NOW</b>：claim+跳轉，狀態條件式 UPDATE（<code>WHERE status=Pending</code>）設 <code>claimed_at</code>，<b>帶選定票券資訊到 GameServer</b>，進遊戲首 spin → <code>InUse</code>。</li>
+        <li><b>PLAY LATER</b>：票維持 <code>Pending</code> 留 inbox，之後點擊使用同上。</li>
+        <li><b>允許同時多張 InUse</b>：玩家在 inbox / PLAY NOW <b>自行選定</b>要用哪張 level 票，GameServer 以該票遊玩、每局寫 mapping（<code>frb_ticket_detail_id</code>）。</li>
+        <li><b>移除</b> <code>TryGrantNextLevelTicketAsync</code> 循序授予。</li>
+        <li><b>過期</b>：<code>TicketExpirationBackgroundService</code> 改掃 detail 級 <code>expired_at</code>（待領+使用中）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PAGE 7 ============ -->
+<section class="page" data-title="通知路由">
+  <div class="kicker">Page 7 · Notification Routing</div>
+  <h2 class="title">通知路由與 msg-center 整合</h2>
+  <p class="lead">全部 lifecycle 事件 outbox → msg-center fan-out 成三通道。</p>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs><marker id="arr5" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <style>.c{rx:10;stroke-width:1.5}.ct{font-size:13px;text-anchor:middle;font-weight:700;fill:#1f2933}.cs{font-size:11px;text-anchor:middle;fill:#5b6b7b}.cf{stroke:#7a8a99;stroke-width:1.8;fill:none;marker-end:url(#arr5)}</style>
+        <rect class="c" x="350" y="20" width="180" height="48" fill="#fff" stroke="#9aa7b4"/><text class="ct" x="440" y="40">FRB Service</text><text class="cs" x="440" y="57">寫 outbox 事件</text>
+        <path class="cf" d="M440,68 V108"/>
+        <rect class="c" x="330" y="108" width="220" height="48" fill="#fff4d6" stroke="#f5b716"/><text class="ct" x="440" y="130">msg-center fan-out</text><text class="cs" x="440" y="147">共用 Tournament topic</text>
+        <!-- three channels -->
+        <path class="cf" d="M440,156 V190 H160 V214"/>
+        <path class="cf" d="M440,156 V214"/>
+        <path class="cf" d="M440,156 V190 H720 V214"/>
+        <rect class="c" x="40" y="214" width="240" height="70" fill="#fff4d6" stroke="#f5b716"/>
+        <text class="ct" x="160" y="238">popup（彈窗）</text><text class="cs" x="160" y="256">Coming Soon · Welcome</text><text class="cs" x="160" y="272">Winning · Payout</text>
+        <rect class="c" x="320" y="214" width="240" height="70" fill="#dbeafe" stroke="#3b82f6"/>
+        <text class="ct" x="440" y="238">inbox（信件）</text><text class="cs" x="440" y="256">Winning · Suspend</text><text class="cs" x="440" y="272">Terminate · End Early</text>
+        <rect class="c" x="600" y="214" width="240" height="70" fill="#f3e8ff" stroke="#9333ea"/>
+        <text class="ct" x="720" y="238">info card（資訊卡）</text><text class="cs" x="720" y="256">ticket 在領獎期間時</text><text class="cs" x="720" y="272">常駐顯示（FRA 無）</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 7-1　三通道通知 fan-out（Winning 為 popup+inbox 雙管齊下）</div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h3><span class="dot"></span>事件路由表</h3>
+      <table>
+        <thead><tr><th>事件</th><th>popup</th><th>inbox</th></tr></thead>
+        <tbody>
+          <tr><td>Coming Soon</td><td>✓</td><td></td></tr>
+          <tr><td>Welcome</td><td>✓</td><td></td></tr>
+          <tr><td><b>Winning</b></td><td>✓</td><td>✓</td></tr>
+          <tr><td>Payout</td><td>✓</td><td></td></tr>
+          <tr><td>Suspend / Terminate / End Early</td><td></td><td>✓</td></tr>
+          <tr><td>End（自然結束）</td><td colspan="2" style="text-align:center;color:#dc2626">兩者都不要</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span>info card & reminder & payload</h3>
+      <ul class="tight">
+        <li><b>info card</b>：<code>now BETWEEN created_at AND expired_at</code> 且 <code>Pending/InUse</code> → 顯示。<b>FRA 無此線</b>。</li>
+        <li><b>reminder</b>：<span class="pill drop">取消</span> 活動結束倒數；<span class="pill keep">保留</span> 斷線重進 FRB 的 reminder/轉導。</li>
+        <li><b>winning payload</b>：<code>campaign_name / game_id / game_name / bet_cents / reward_count / max_payout_cents / expires_at / level</code>。</li>
+      </ul>
+      <div class="note" style="margin-top:10px">✅ <b>Keen Q10 已定案＝A. FRB Read API</b>：msg-center 需即時 used_rounds/剩餘/過期 時查 FRB API，FRB 讀 Redis 回即時值（msg-center 不需懂 FRB 內部）。實作細節與 msg-center team 對接。</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PAGE 8 ============ -->
+<section class="page" data-title="bet by level & API">
+  <div class="kicker">Page 8 · Config & API</div>
+  <h2 class="title">bet by level & API 草案</h2>
+
+  <div class="card">
+    <h3><span class="dot"></span>bet by level</h3>
+    <ul class="tight">
+      <li>現況：贈送 bet 面額是 <b>by game</b>（<code>GameChipsConfig</code>）。</li>
+      <li>需求：改為 <b>by level</b>，寫進 <code>campaign_frb_level</code>（新增 <code>bet_cents</code> 或對應欄位）；建票時依該 level 取值寫入 detail <code>bet</code>。</li>
+      <li>待補（Keen Q7–Q9）：by-level 的 key、跨遊戲行為、schema 落點。</li>
+    </ul>
+    <div class="figwrap" style="margin-top:8px">
+      <svg viewBox="0 0 760 120" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <style>.q{rx:8;stroke-width:1.3;fill:#fff;stroke:#9aa7b4}.qt{font-size:12px;text-anchor:middle;fill:#1f2933}</style>
+        <defs><marker id="arr6" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <rect class="q" x="20" y="40" width="200" height="44" style="fill:#fee2e2;stroke:#dc2626"/><text class="qt" x="120" y="58">舊：GameChipsConfig</text><text class="qt" x="120" y="74">by game</text>
+        <line x1="220" y1="62" x2="290" y2="62" stroke="#7a8a99" stroke-width="1.6" marker-end="url(#arr6)"/>
+        <rect class="q" x="290" y="40" width="220" height="44" style="fill:#dcfce7;stroke:#16a34a"/><text class="qt" x="400" y="58">新：campaign_frb_level</text><text class="qt" x="400" y="74">bet_cents (by level)</text>
+        <line x1="510" y1="62" x2="580" y2="62" stroke="#7a8a99" stroke-width="1.6" marker-end="url(#arr6)"/>
+        <rect class="q" x="580" y="40" width="160" height="44" style="fill:#fff4d6;stroke:#f5b716"/><text class="qt" x="660" y="58">建票時凍結</text><text class="qt" x="660" y="74">detail.bet</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>API 草案（FRB Service）</h3>
+    <table>
+      <thead><tr><th>Method</th><th>Path</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET</code></td><td><code>/api/frb/inventory</code></td><td>列出玩家庫存票（level/狀態/bet/剩餘/過期/game）— 供 inbox & info card</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/frb/claim</code></td><td><code>{ticketDetailId, mode: now|later, idempotencyKey}</code> → 設 <code>claimed_at</code>（status CAS）</td></tr>
+      </tbody>
+    </table>
+    <ul class="tight">
+      <li>建票由 winning 流程自動完成，<b>無對外建票 API</b>。</li>
+      <li>claim 防重：<code>idempotencyKey</code>（擋雙擊/重送）+ 狀態條件式 UPDATE（<code>WHERE status=Pending</code>，保證只成功一次）；<b>不需 <code>version</code> 欄位</b>。</li>
+      <li>供 msg-center callback，對齊 Tournament <code>RewardClaimService</code> 設計。</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>凍結策略</h3>
+    <ul class="tight">
+      <li>於 <b>winning（建票）時</b> 凍結 <code>campaign_frb_level</code> 當下配置寫入 detail。</li>
+      <li>建票後配置變更：已建票維持原值；未達標 level 套新值。</li>
+      <li>「換遊戲使用」屬另案，本提案先固定建票當下 <code>game_id</code>。</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============ PAGE 9 ============ -->
+<section class="page" data-title="影響 & 情境">
+  <div class="kicker">Page 9 · Impact & Edge Cases</div>
+  <h2 class="title">受影響元件 & 邊界情境</h2>
+
+  <div class="card">
+    <h3><span class="dot"></span>受影響元件清單</h3>
+    <table>
+      <thead><tr><th style="width:38%">元件</th><th>變更</th></tr></thead>
+      <tbody>
+        <tr><td><code>TicketStatus.cs</code> / Converter</td><td><code>Pending</code> 語意更新（狀態值維持 1..5）</td></tr>
+        <tr><td><code>ThresholdChecker.cs</code></td><td>保留累積門檻；改回傳<b>所有</b>已達標 level（移除循序 gating）</td></tr>
+        <tr><td><code>ThresholdConfig.cs</code></td><td>不變（累積門檻沿用）</td></tr>
+        <tr><td><code>BetEventProcessor.cs</code></td><td>達標即建 Pending 票 + 寫 outbox；移除阻擋</td></tr>
+        <tr><td><code>TicketStatusProcessor.cs</code></td><td>移除 <code>TryGrantNextLevelTicketAsync</code></td></tr>
+        <tr><td><code>PlayerProgress</code> / Redis repo</td><td><code>level_N_won</code> 等欄位</td></tr>
+        <tr><td><code>TicketService.cs</code></td><td>新增 Claim（NOW/LATER）；建票時機改達標</td></tr>
+        <tr><td>通知層</td><td>Pub/Sub → outbox→msg-center（沿用 <code>TournamentOutboxPublisher</code>）；舊 Pub/Sub 下線</td></tr>
+        <tr><td><code>RedisTicketWriter.cs</code></td><td>新增 <code>frb:inventory</code> 維護</td></tr>
+        <tr><td><code>TicketExpirationBackgroundService</code></td><td>改掃 detail 級 <code>expired_at</code></td></tr>
+        <tr><td><code>campaign_frb_level</code></td><td>by-level <code>bet</code>；<code>threshold_cents</code> 不變（累積）；end reminder 欄位（先不動 schema）</td></tr>
+        <tr><td>OceanBase DDL</td><td>detail 新增 <code>claimed_at/expired_at</code>（不需 <code>version</code>）</td></tr>
+        <tr><td>Reconciliation / 報表</td><td>新增「待領/使用中/待領逾期/使用中逾期」口徑</td></tr>
+        <tr><td>Back Office / 前端</td><td>inbox 領取 UI、info card、每 level 進度條；拔 end reminder 欄位</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>邊界情境與處理</h3>
+    <table>
+      <thead><tr><th style="width:40%">情境</th><th>處理</th></tr></thead>
+      <tbody>
+        <tr><td>達標囤票不領 / 不玩</td><td>detail <code>expired_at</code>（created+validity）回收 → Expired</td></tr>
+        <tr><td>多裝置同時開同一票</td><td><b>不會發生</b>：遊戲後踢前、單一 session</td></tr>
+        <tr><td>同 session 雙擊 / 斷線重送 claim</td><td><code>idempotencyKey</code> + 狀態 CAS（<code>WHERE status=Pending</code>）冪等</td></tr>
+        <tr><td>同時多張 InUse</td><td><b>允許</b>；玩家在 inbox / PLAY NOW 選定要用哪張 level 票，帶資訊到 GameServer 使用，每局寫 mapping，<code>used_rounds</code> per-ticket 不受影響</td></tr>
+        <tr><td>跳級使用（先 L3 後 L1）</td><td>允許（達標 level 一次全產出、各 level 各自建票）</td></tr>
+        <tr><td>重複達標同一 level</td><td><code>uk_ticket_level</code> + <code>level_N_won</code> 冪等</td></tr>
+        <tr><td>持票期間繼續下注賺更高 level</td><td>允許（不阻擋），各 level 各自 winning</td></tr>
+        <tr><td>winning popup 選稍後使用</td><td>票維持 <code>Pending</code> 留 inbox</td></tr>
+        <tr><td>部分使用後再進遊戲</td><td>inbox 仍可 PLAY NOW 續用（剩餘次數遞減）</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ============ PAGE 10 ============ -->
+<section class="page" data-title="FRA vs FRB">
+  <div class="kicker">Page 10 · FRA vs FRB</div>
+  <h2 class="title">FRA vs FRB 差異</h2>
+  <p class="lead">兩張來源圖的關鍵分歧：觸發來源、通知通道數、是否有 level/門檻邏輯。</p>
+
+  <div class="legend">
+    <span><i class="sw" style="background:var(--blue-soft);border-color:var(--blue)"></i>FRB</span>
+    <span><i class="sw" style="background:var(--purple-soft);border-color:var(--purple)"></i>FRA</span>
+    <span><i class="sw" style="background:#dcfce7;border-color:var(--green)"></i>共用</span>
+  </div>
+
+  <div class="card">
+    <div class="figwrap">
+      <svg viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs><marker id="arr8" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <style>.x{rx:9;stroke-width:1.4}.xt{font-size:12px;text-anchor:middle;font-weight:700;fill:#1f2933}.xs{font-size:10.5px;text-anchor:middle;fill:#5b6b7b}.xf{stroke:#7a8a99;stroke-width:1.6;fill:none;marker-end:url(#arr8)}</style>
+        <!-- column headers -->
+        <rect x="40" y="14" width="360" height="34" rx="8" fill="#dbeafe" stroke="#3b82f6"/><text class="xt" x="220" y="36" font-size="14">FRB</text>
+        <rect x="480" y="14" width="360" height="34" rx="8" fill="#f3e8ff" stroke="#9333ea"/><text class="xt" x="660" y="36" font-size="14">FRA</text>
+        <!-- trigger -->
+        <rect class="x" x="70" y="66" width="300" height="56" fill="#fff" stroke="#9aa7b4"/><text class="xt" x="220" y="90">觸發來源</text><text class="xs" x="220" y="108">達到流水門檻（每 level 各自，自動）</text>
+        <rect class="x" x="510" y="66" width="300" height="56" fill="#fff" stroke="#9aa7b4"/><text class="xt" x="660" y="90">觸發來源</text><text class="xs" x="660" y="108">收到 Operator 建立的 FRA（推送）</text>
+        <path class="xf" d="M220,122 V150"/>
+        <path class="xf" d="M660,122 V150"/>
+        <!-- winning -->
+        <rect class="x" x="100" y="150" width="240" height="44" fill="#fff4d6" stroke="#f5b716"/><text class="xt" x="220" y="177">winning → 建 Pending 票</text>
+        <rect class="x" x="540" y="150" width="240" height="44" fill="#fff4d6" stroke="#f5b716"/><text class="xt" x="660" y="177">winning → 建票</text>
+        <path class="xf" d="M220,194 V222"/>
+        <path class="xf" d="M660,194 V222"/>
+        <!-- channels -->
+        <rect class="x" x="40" y="222" width="120" height="44" fill="#fff4d6" stroke="#f5b716"/><text class="xs" x="100" y="248">popup</text>
+        <rect class="x" x="170" y="222" width="110" height="44" fill="#dbeafe" stroke="#3b82f6"/><text class="xs" x="225" y="248">inbox</text>
+        <rect class="x" x="290" y="222" width="120" height="44" fill="#f3e8ff" stroke="#9333ea"/><text class="xs" x="350" y="242">info card</text><text class="xs" x="350" y="258">✓ 有</text>
+        <rect class="x" x="500" y="222" width="130" height="44" fill="#fff4d6" stroke="#f5b716"/><text class="xs" x="565" y="248">popup</text>
+        <rect class="x" x="640" y="222" width="130" height="44" fill="#dbeafe" stroke="#3b82f6"/><text class="xs" x="705" y="248">inbox</text>
+        <rect class="x" x="780" y="222" width="60" height="44" fill="#fee2e2" stroke="#dc2626"/><text class="xs" x="810" y="242">info</text><text class="xs" x="810" y="258">✗ 無</text>
+        <!-- shared bottom -->
+        <rect x="40" y="300" width="800" height="48" rx="9" fill="#dcfce7" stroke="#16a34a"/>
+        <text class="xt" x="440" y="320">共用：claim（PLAY NOW / PLAY LATER）· 進入模式遊玩 · payout · 斷線重進 reminder/轉導</text>
+        <text class="xs" x="440" y="338">FRB 與 FRA 在「使用」之後流程相同</text>
+        <path class="xf" d="M225,266 V300"/>
+        <path class="xf" d="M705,266 V300"/>
+        <!-- diff badges -->
+        <rect x="40" y="368" width="360" height="46" rx="9" fill="#eff6ff" stroke="#3b82f6"/><text class="xs" x="220" y="388" font-weight="700" fill="#1e40af">FRB 專屬</text><text class="xs" x="220" y="404">by-level 門檻 · 多 level 庫存 · 自選 level · info card</text>
+        <rect x="480" y="368" width="360" height="46" rx="9" fill="#faf5ff" stroke="#9333ea"/><text class="xs" x="660" y="388" font-weight="700" fill="#6b21a8">FRA 專屬</text><text class="xs" x="660" y="404">Operator 推送單筆 · 無門檻累積 · 無 level</text>
+      </svg>
+    </div>
+    <div class="figcap">圖 10-1　FRA vs FRB（上半=差異，下半綠=共用流程）</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>逐項對照</h3>
+    <table>
+      <thead><tr><th style="width:24%">構面</th><th>FRB</th><th>FRA</th></tr></thead>
+      <tbody>
+        <tr><td>winning 觸發</td><td>達到<b>流水門檻</b>（系統累積，每 level 各自）</td><td><b>Operator 建立</b>並推送（外部觸發）</td></tr>
+        <tr><td>level / 門檻</td><td>累積門檻（同現行）；達標 level 一次全產出、可各自獨立使用</td><td><b>無</b> level 累積邏輯（單筆贈送）</td></tr>
+        <tr><td>同時持票</td><td>多張（多 level inbox 庫存）</td><td>依 Operator 建立而定</td></tr>
+        <tr><td>通知通道</td><td>popup + inbox + <b>info card</b>（三線）</td><td>popup + inbox（<b>兩線，無 info card</b>）</td></tr>
+        <tr><td>建票時機</td><td>達標當下即建 <code>Pending</code> 票</td><td>收到 Operator 建立即建票</td></tr>
+        <tr><td>claim 使用</td><td colspan="2" style="text-align:center;color:#166534"><b>相同</b>：PLAY NOW / PLAY LATER → 進入模式遊玩 → payout</td></tr>
+        <tr><td>reminder</td><td>取消結束倒數；保留斷線重進 reminder/轉導</td><td><b>不受影響</b>（原本會跳的視窗之後照跳）</td></tr>
+        <tr><td>bet 設定</td><td>改 <b>by level</b>（<code>campaign_frb_level</code>）</td><td>由 Operator 建立時帶入</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="note">
+    🔑 <b>一句話總結</b>：FRA 是「Operator 推一張、玩家挑時機用」；FRB 是「玩家自己用流水衝出多張不同 level、再挑哪張＋何時用」。<b>差別在「怎麼來」與「有沒有 level/info card」；「怎麼用」兩者一致。</b>
+  </div>
+</section>
+
+<!-- ============ PAGE 11 ============ -->
+<section class="page" data-title="風險 & 實作">
+  <div class="kicker">Page 11 · Risks & Roadmap</div>
+  <h2 class="title">風險未決 & 實作階段</h2>
+
+  <div class="card">
+    <h3><span class="dot"></span>風險與未決項</h3>
+    <ol class="tight">
+      <li><b>門檻無遷移</b>：累積門檻語意與現行相同、<code>threshold_cents</code> 不變，<span class="pill keep">無數值遷移風險</span>。真正的行為改動是<b>移除循序 gating</b>（一次全產出）。<span class="pill keep">已定案</span> 允許玩家同時持/開多張票；<b>玩家透過 inbox / PLAY NOW 選定要用哪張 level 票，帶票券資訊到 GameServer 使用</b>（非 GameServer 自選），每局寫 mapping（<code>frb_ticket_detail_id</code>），<code>used_rounds</code> per-ticket 不受影響。</li>
+      <li><b><code>Pending</code> 語意切換</b>：<span class="pill keep">已定案＝轉新語意</span>。FRB 2.0 為<b>就地優化（非新 campaign type）</b>，上線後即無 1.0；因上線時不會有 1.0 在途活動，遷移風險低。仍建議<b>在無在途 Pending 票的窗口部署</b>，並以 rolling-deploy 安全措施（feature flag / 對齊）避免新舊副本並存時發票邏輯不一致。</li>
+      <li><b>成本/負債</b>：<span class="pill keep">已定案</span> 配額以<b>父票計（一玩家＝一張票，與 level 數無關）</b>，<code>prize_quantity</code>（玩家數上限）不受全產出影響。僅 max payout 為 per-detail 各 level 累加，屬預算面數字、不影響張數配額。</li>
+      <li><b>票券即時狀態同步（Keen Q10）</b>：<span class="pill keep">已定案＝A. FRB Read API</span>。msg-center 需即時 <code>used_rounds/剩餘/過期</code> 時查 FRB API（讀 Redis 回即時值）。實作細節待與 msg-center team 對接。</li>
+      <li><b>bet by-level schema（Keen Q7–Q9）</b>：key、跨遊戲行為、落點待補。</li>
+      <li><b>併發防護已定案</b>：遊戲後踢前（單一 session）→ <b>不需</b> <code>Activated</code> 與 <code>version</code>，claim 以 <code>idempotencyKey</code> + 狀態 CAS 即足夠。</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h3><span class="dot"></span>建議實作階段</h3>
+    <div class="figwrap">
+      <svg viewBox="0 0 880 130" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
+        <defs><marker id="arr7" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
+        <style>.p{rx:9;stroke-width:1.4}.pt{font-size:12px;text-anchor:middle;font-weight:700;fill:#fff}.ps{font-size:10.5px;text-anchor:middle;fill:#1f2933}</style>
+        <g>
+          <rect class="p" x="10" y="20" width="160" height="40" fill="#3b82f6"/><text class="pt" x="90" y="44">P1 資料層</text>
+          <rect class="p" x="185" y="20" width="160" height="40" fill="#6366f1"/><text class="pt" x="265" y="44">P2 達標/建票</text>
+          <rect class="p" x="360" y="20" width="160" height="40" fill="#9333ea"/><text class="pt" x="440" y="44">P3 通知整合</text>
+          <rect class="p" x="535" y="20" width="160" height="40" fill="#c026d3"/><text class="pt" x="615" y="44">P4 時效/對帳</text>
+          <rect class="p" x="710" y="20" width="160" height="40" fill="#db2777"/><text class="pt" x="790" y="44">P5 前端/後台</text>
+          <line x1="170" y1="40" x2="185" y2="40" stroke="#7a8a99" marker-end="url(#arr7)"/>
+          <line x1="345" y1="40" x2="360" y2="40" stroke="#7a8a99" marker-end="url(#arr7)"/>
+          <line x1="520" y1="40" x2="535" y2="40" stroke="#7a8a99" marker-end="url(#arr7)"/>
+          <line x1="695" y1="40" x2="710" y2="40" stroke="#7a8a99" marker-end="url(#arr7)"/>
+          <text class="ps" x="90" y="82">Pending語意 · DDL</text><text class="ps" x="90" y="96">累積不變 · by-level bet</text>
+          <text class="ps" x="265" y="82">Checker改寫 · 建Pending票</text><text class="ps" x="265" y="96">inventory · winning outbox</text>
+          <text class="ps" x="440" y="82">popup/inbox路由</text><text class="ps" x="440" y="96">info card · claim API</text>
+          <text class="ps" x="615" y="82">detail過期掃描</text><text class="ps" x="615" y="96">對帳口徑 · 舊Pub/Sub下線</text>
+          <text class="ps" x="790" y="82">inbox領取UI</text><text class="ps" x="790" y="96">info card · 進度條</text>
+        </g>
+      </svg>
+    </div>
+  </div>
+
+  <div class="note">
+    📎 對應 markdown 全文：<b>docs/md/frb-player-selectable-level-proposal.md</b><br>
+    📎 msg-center 規格：<b>docs/frb-msg-center-spec.html</b> · 來源圖：FRB2.0 / FRA2.0 msg & inbox & info card flow
+  </div>
+</section>
+
+</main>
+
+<footer class="nav">
+  <button class="ghost" id="prev">← 上一頁</button>
+  <span class="pos" id="pos"></span>
+  <button id="next">下一頁 →</button>
+</footer>
+
+<script>
+  const pages = Array.from(document.querySelectorAll('section.page'));
+  const stepsNav = document.getElementById('steps');
+  const pos = document.getElementById('pos');
+  const prev = document.getElementById('prev');
+  const next = document.getElementById('next');
+  let cur = 0;
+
+  pages.forEach((p,i)=>{
+    const b = document.createElement('button');
+    b.innerHTML = '<span class="n">'+(i+1)+'</span>'+p.dataset.title;
+    b.onclick = ()=>go(i);
+    stepsNav.appendChild(b);
+  });
+  const stepBtns = Array.from(stepsNav.children);
+
+  function go(i){
+    cur = Math.max(0, Math.min(pages.length-1, i));
+    pages.forEach((p,idx)=>p.classList.toggle('show', idx===cur));
+    stepBtns.forEach((b,idx)=>b.classList.toggle('active', idx===cur));
+    pos.textContent = (cur+1)+' / '+pages.length;
+    prev.disabled = cur===0;
+    next.disabled = cur===pages.length-1;
+    const ab = stepBtns[cur]; if(ab) ab.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  prev.onclick=()=>go(cur-1);
+  next.onclick=()=>go(cur+1);
+  document.addEventListener('keydown',e=>{
+    if(e.key==='ArrowRight') go(cur+1);
+    if(e.key==='ArrowLeft') go(cur-1);
+  });
+  go(0);
+</script>
+</body>
+</html>

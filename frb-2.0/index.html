@@ -47,6 +47,14 @@
     transition: color .15s;
   }
   header .home:hover { color: var(--accent); }
+  header .proposal-link {
+    display: inline-block; margin-bottom: 8px; margin-left: 12px;
+    font-size: 11px; font-weight: 600; letter-spacing: .5px;
+    color: var(--accent); text-decoration: none;
+    border: 1px solid var(--accent); border-radius: 5px; padding: 3px 10px;
+    transition: all .15s;
+  }
+  header .proposal-link:hover { background: var(--accent); color: #0d1117; }
   .tabs {
     display: flex;
     background: var(--bg-elev);
@@ -210,6 +218,7 @@
 
 <header>
   <a href="../" class="home">← Home</a>
+  <a href="frb-player-selectable-level-proposal.html" class="proposal-link">🎚 Highlight by Level Setting →</a>
   <h1>FRB msg-center 整合需求與改動分析</h1>
   <div class="meta">
     需求者：Keen ・ 來源：Notion FRB-msg-center-ticket-bet ・ 文件日期：2026-05-13
@@ -267,7 +276,7 @@
     目前後台只允許「不同 level 給不同獎品數量（spins）」，<b>下注金額尚不能 by level</b>；本次改動會把下注金額也納入 level 維度。
   </p>
   <figure style="margin:14px 0 4px">
-    <img src="frb-bet-by-level.png" alt="Back Office — FRB bet by level 設定畫面" style="width:100%;border-radius:8px;border:1px solid var(--border)">
+    <img src="images/frb-bet-by-level.png" alt="Back Office — FRB bet by level 設定畫面" style="width:100%;border-radius:8px;border:1px solid var(--border)">
     <figcaption style="font-size:12px;color:var(--text-dim);margin-top:6px">後台 FRB 設定畫面：目前可 by-level 設定的是 spins 數量，bet amount 尚未開放。</figcaption>
   </figure>
 
