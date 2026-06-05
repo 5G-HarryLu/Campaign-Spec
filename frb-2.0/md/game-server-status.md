@@ -108,11 +108,13 @@ Reads from `frb:ticket:{id}` hash (`GetTicketAsync`, `GetTicketsAsync`, `GetPlay
 
 All consumers in active gameplay paths — `LoginService`, `WSUser`, `CampaignService`, `CampaignServiceHelper`, `GameActionHelper` — remain unchanged. FRB continues to write the hash and player set on ticket creation; FRB continues to subscribe to GameServer's `in_use` / `completed` publishes to drive its state machine.
 
-### 2.2 `PendingClaim (6)` / `Claimed (7)` handling on GameServer side
+### 2.2 Claim handling on GameServer side (5-enum model, decided 2026-06-05)
 
-Per Q1 confirmation: when the player taps PLAY NOW in popup or inbox, msg-center calls FRB's claim API, which flips `PendingClaim → Claimed` and then (on player entering game) `Claimed → Pending`. By the time GameServer sees the ticket via `FrbTicketHelper.GetTicketAsync`, the status is already `Pending` and the existing `Pending → InUse → Completed / EarlyCompleted / Expired` flow takes over. **No GameServer code reads or writes the two new states.**
+**Updated**: FRB does **not** add `PendingClaim`/`Claimed` states. Status stays `1..5`; `Pending = 1` itself is the "in inbox, awaiting claim" state, and **claim = PLAY NOW only** sets a `claimed_at` timestamp via CAS (`WHERE status = Pending`) — status does not change on claim. (The `6/7` previously shipped into the FRB `TicketStatus` enum is reverted on the implementation branch.)
 
-The `FrbTicketStatus` enum on GameServer (`Pending`, `InUse`, `Completed`, `EarlyCompleted`) is unchanged and intentionally does not mirror the FRB-side additions.
+Net effect on GameServer is **the same as before, and even simpler**: when the player taps PLAY NOW, msg-center calls FRB's claim API (sets `claimed_at`) and redirects into the game. By the time GameServer sees the ticket via `FrbTicketHelper.GetTicketAsync`, status is `Pending` and the existing `Pending → InUse → Completed / EarlyCompleted / Expired` flow takes over. **No GameServer code reads or writes any claim-specific state** — `claimed_at` is FRB-internal.
+
+The `FrbTicketStatus` enum on GameServer (`Pending`, `InUse`, `Completed`, `EarlyCompleted`) is unchanged and intentionally does not mirror anything FRB-side.
 
 ### 2.3 `BalanceSyncService` and `member:wallet:refresh`
 

@@ -99,12 +99,13 @@ Winning event (member-scoped, M3 will emit):
 
 | Enum | Added | Used today by |
 |---|---|---|
-| `TicketStatus` | `PendingClaim = 6`, `Claimed = 7` | **No code writes them yet** — M3 |
-| `TicketStatusConverter` | string mappings `pending_claim` / `claimed`, int mappings 6 / 7 | Reads of the two values when they appear |
-| `InboxEventType` | `CampaignWinning = 6` | M3 |
-| `InboxEventType` | `EndedEarly = 7` | Inline emit (1.2) — active |
+| ~~`TicketStatus`~~ | ~~`PendingClaim = 6`, `Claimed = 7`~~ — **TO BE REVERTED (M3)** | No code writes them; superseded by the 5-enum + `claimed_at` model |
+| ~~`TicketStatusConverter`~~ | ~~string `pending_claim` / `claimed`, int 6 / 7~~ — **revert with the enum** | — |
+| `InboxEventType` | `CampaignWinning = 6` | M3 — **keep** (different enum from `TicketStatus`) |
+| `InboxEventType` | `EndedEarly = 7` | Inline emit (1.2) — active — **keep** |
 
-> Wire-compat note: `TicketStatus` is a `byte` stored as TINYINT. Values 1–5 are unchanged; new values append. No DDL alter required.
+> **FSM model decided 2026-06-05** — `TicketStatus` stays at `1..5`; the `6/7` above are reverted on the M3 branch. Claim is a **`claimed_at` timestamp** (PLAY NOW only), not a status value; `Pending=1` is the inbox/awaiting-claim state and no longer blocks accumulation. **Do not confuse with `InboxEventType` 6/7, which is a separate enum and stays.**
+> Wire-compat note: `TicketStatus` is a `byte` stored as TINYINT. Values 1–5 are unchanged.
 
 Refs:
 - Spec: §6.2 "既有檔案的改動" rows for `TicketStatus.cs` and `InboxEventType`
@@ -172,14 +173,18 @@ Not started in this branch. Spec §7 M3 covers it. Needed for:
 
 | Piece | Status |
 |---|---|
-| `TicketStateMachine` for `PendingClaim → Claimed` transition | Not started |
-| `TicketClaimService` (idempotent claim via conditional UPDATE on `free_round_bonus_ticket_details.id`) | Not started |
-| `TicketClaimController` exposing `POST /api/frb/tickets/{ticketId}/levels/{level}/claim` | Not started |
-| `BetEventProcessor` change: threshold-met writes `status = PendingClaim` instead of legacy `Pending = 1` | Not started |
-| `TicketBuilder.StatusEnum = PendingClaim` | Not started |
+| **Revert** `TicketStatus.PendingClaim/Claimed` (6/7) + their `TicketStatusConverter` mappings | Not started |
+| `free_round_bonus_ticket_details` DDL: add `claimed_at timestamp NULL` (+ detail-level `expired_at`) | Not started |
+| `TicketStateMachine` — **no new transitions**; claim sets `claimed_at`, status stays `Pending` | Not started |
+| `TicketClaimService` (idempotent claim via CAS `SET claimed_at WHERE status=Pending AND claimed_at IS NULL`) | Not started |
+| `TicketClaimController` exposing `POST /api/frb/tickets/{ticketId}/levels/{level}/claim` (PLAY NOW only) | Not started |
+| `BetEventProcessor` change: threshold-met creates `status = Pending, claimed_at=NULL`; stop blocking accumulation | Not started |
+| `TicketBuilder.StatusEnum = Pending` (claimed_at null) | Not started |
 | `FrbOutboxMsgPublisher.PublishWinningAsync` first caller | Wired but unused |
 
-Prerequisite: `PendingClaim = 6` and `Claimed = 7` are already in the `TicketStatus` enum (1.4 above), so M3 just adds writers/readers — no enum surgery.
+> **✅ FSM model decided (2026-06-05) — keep 5 enums + `claimed_at`.** Status stays `1..5`; `Pending=1` *is* the "in inbox, awaiting claim" state (semantics updated: no longer blocks accumulation). **claim = PLAY NOW only** → CAS-set `claimed_at` (`WHERE status=Pending`), status unchanged; first spin → `InUse`. **PLAY LATER does not claim** (ticket stays `Pending, claimed_at=NULL`). Distinguish the two buckets by `claimed_at IS NULL` vs `IS NOT NULL`. The shipped `PendingClaim=6`/`Claimed=7` are **reverted in this M3 work** (see the first table row). This is simpler than 6/7 and meets the "identify granted-but-unclaimed vs claimed-but-not-played" requirement. *(`InboxEventType` 6/7 is a different enum — keep it.)*
+
+**Concurrency / claim idempotency (decided 2026-06-05):** a player can **multi-open different games at once**, and one FRB campaign can **target multiple games**, so same-game "後踢前 single session" does **not** guarantee a single claimer. Protection is **FSM + CAS** under the DB's exclusive row lock: the conditional `UPDATE … SET status = <claimed> WHERE id = ? AND status = <pending>` lets exactly one caller see `affected = 1`; everyone else sees `0` (already claimed / expired). `idempotencyKey` guards double-click / resend. **No `version` / optimistic-lock column** is added.
 
 ### 2.2 M3.5 — Inbox real-time ticket state (Q10)
 
@@ -189,7 +194,7 @@ Blocker for the inbox-row USED/expired UI. Three candidate approaches in spec §
 - **B.** Per-state-transition outbox events — high traffic, needs aggregation
 - **C.** msg-center subscribes to FRB Redis channels — violates D1
 
-Decision pending msg-center team alignment.
+**Decided (2026-06-05) = A.** Implement as a **new web API on free-round-bonus**, same pattern as the existing APIs FRB already exposes to PlatformApi. It reads **Redis** (`frb:inventory:*` / `frb:ticket:*`) and returns live `used_rounds` / remaining / `expired_at`, so callers (msg-center, PlatformApi) get real-time values without understanding FRB internals. Remaining work is just the controller + read path; implementation details still to align with the msg-center team.
 
 ### 2.3 M4 — Retire `RedisNotificationPublisher` / `frb:ticket:pending`
 
@@ -252,4 +257,4 @@ For completeness, these are spec-adjacent things we did **not** modify on `free-
 - **msg-center service** — spec D1; their team owns the consumer side. See [cross-repo-changes.md §3.2](./cross-repo-changes.md).
 - **`Aggregator/Infrastructure/Redis/RedisBetEventPublisher`** — internal bet-event pipeline, not player-facing.
 - **`Tournament.Infrastructure.Redis.RedisMemberWalletNotifier`** and **`Campaign.Api.MembersController` `member:wallet:refresh` publish** — wallet refresh path, unrelated.
-- **End-reminder backstage field** — spec D7: "先不動 schema, 之後再處理".
+- **Reminder mechanism** — **decision updated 2026-06-05: removed entirely.** The whole reminder mechanism is dropped — both the activity end-countdown reminder and the reconnect/re-enter reminder & redirect. Back Office reminder fields are pulled; any reconnect-redirect that's still wanted becomes a pure front-end concern. (Supersedes the earlier D7 "先不動 schema, 之後再處理".)

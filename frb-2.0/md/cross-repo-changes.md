@@ -3,7 +3,9 @@
 Shared reference for changes spanning **three repos** driven by the FRB msg-center integration spec ([index.html](./index.html)).
 Date opened: 2026-05-15 · Spec source: Keen / Notion FRB-msg-center-ticket-bet · Spec date: 2026-05-13.
 
-> **Bet-by-level scope note** — per current decision, the **bet-by-level** work (spec §1.3, Q7–Q9, M5) is **commented out / parked** in every section below. Each repo's section flags those items as `[PARKED — bet-by-level]` so we can revisit without re-reading the spec. Do not implement them yet.
+> **Bet-by-level scope note (UPDATED 2026-06-05)** — bet-by-level is now **un-parked and largely already implemented**. The data layer reuses the existing **`campaign_operator_game_chips`** table, which already carries a **`level`** column (key = `campaign_id, operator_id, game_id, level`); `GameChipsConfig.Level` + `IFrbConfigRepository.GetGameChipsConfigByLevelAsync(camp, op, game, level)` already exist in the codebase. **Decision: do NOT add `campaign_frb_level.bet_cents` / `ThresholdConfig.BetCents` / a new `campaign_frb_level_bet` table.** Build-time freezes `detail.bet` from the by-level game-chips row. The remaining open part of Q7–Q9 is only the *cross-game behaviour* product question, not schema. Items previously tagged `[PARKED — bet-by-level]` are annotated inline below.
+
+> **✅ State-machine model DECIDED (2026-06-05)** — keep `TicketStatus` at **`1..5`** (`Pending / InUse / Completed / EarlyCompleted / Expired`). **`Pending=1` IS the "in inbox, awaiting claim" state** (semantics updated: no longer blocks accumulation). **claim = PLAY NOW only**, recorded as a **`claimed_at` timestamp** set via CAS `WHERE status=Pending` — status does **not** change on claim; first spin moves `Pending → InUse`. **PLAY LATER does not claim** — the ticket stays `Pending, claimed_at=NULL` in the inbox. The two buckets are distinguished by `claimed_at IS NULL` (un-claimed) vs `IS NOT NULL` (claimed, not yet played). **No `PendingClaim`/`Claimed`, no `Granted`, no `Activated`, no `version`.** The `PendingClaim=6`/`Claimed=7` already shipped into the FRB enum are **reverted on the implementation branch** (incl. `TicketStatusConverter`); this doc no longer references them. *(Unrelated: msg-center's `InboxEventType`/`EventType` 6/7 = `CampaignWinning`/`EndedEarly` is a different enum and stays.)* The file-level checklists below have been updated to this model.
 
 ---
 
@@ -53,7 +55,7 @@ CREATE TABLE `outbox_msg` (
 | `FrbWelcome` | `CampaignSyncBackgroundService` writes outbox at start. | Route to popup. | — |
 | `FrbSuspend` | Backstage path writes outbox (see §3 D6 risk). | Route to inbox. | — |
 | `FrbTerminate` | Backstage path writes outbox. | Route to inbox. | — |
-| `FrbWinning` | Threshold met → create `PendingClaim` ticket + write outbox (full payload, see [index.html §5.3](./index.html)). | Fan-out popup **and** inbox row with PLAY NOW / PLAY LATER. PLAY NOW → call FRB claim API. | — |
+| `FrbWinning` | Threshold met → create `Pending` ticket (`claimed_at=NULL`) + write outbox (full payload, see [index.html §5.3](./index.html)). | Fan-out popup **and** inbox row with PLAY NOW / PLAY LATER. **PLAY NOW** → call FRB claim API (sets `claimed_at`). **PLAY LATER** → no claim, leave row in inbox. | — |
 | `FrbPayout` | **No FRB action** (Keen: msg-center decides). | popup, msg-center semantics. | — |
 | `FrbEndEarly` | Backstage path writes outbox. | Route to inbox. | — |
 | `FrbEnd` (natural end) | No event. | — | — |
@@ -74,16 +76,17 @@ Detailed spec view: [index.html §6 Codebase 影響清單](./index.html).
 - [ ] 🟡 `src/Campaign/Infrastructure/Outbox/FrbOutboxPublisher.cs` — impl, calls DAL `SystemService.InsertOutboxMessage`.
 - [ ] 🟡 `src/Campaign/Host/FrbOutboxOptions.cs` — topic / idempotency settings. (Or reuse `TournamentOutboxOptions` directly per D2.)
 - [ ] 🔴 `src/Campaign/Application/Services/TicketClaimService.cs` — claim orchestration, idempotency, expiry checks. Pattern: `src/Tournament/Reward/RewardClaimService.cs`.
-- [ ] 🔴 `src/Campaign/Domain/Services/TicketStateMachine.cs` — adds **two new transitions on top of the existing chain**: `PendingClaim → Claimed` (claim API) and `Claimed → Pending` (player enters game). Existing `Pending → InUse → Completed/EarlyCompleted/Expired` transitions remain unchanged. Pattern reference: `src/Tournament/Reward/RewardStateMachine.cs` (simpler here: no `Claiming` transient).
+- [ ] 🔴 `src/Campaign/Domain/Services/TicketStateMachine.cs` — **no new status transitions.** Claim does not change status (sets `claimed_at` only). Legal transitions stay `Pending → InUse → Completed/EarlyCompleted/Expired`. No `Claiming` transient, no `PendingClaim`/`Claimed`.
 - [ ] 🟡 `src/Campaign/Api/Controllers/TicketClaimController.cs` — `POST /api/frb/tickets/{ticketId}/levels/{level}/claim`. Pattern: `src/Tournament/Api/Controllers/RewardController.cs`.
 - [ ] 🟡 `src/Campaign/Domain/Events/FrbLifecycleEvent.cs` — payload value objects for the 7 events.
 - [ ] 🟡 `src/Campaign/Api/Controllers/TicketQueryController.cs` — **conditional on Q10**: `GET /api/frb/tickets?member_id=&status=` for msg-center inbox state refresh.
 
 **Existing files to modify**
-- [ ] 🔴 `src/FreeRoundBonus.Shared/Enums/TicketStatus.cs` — add `PendingClaim = 6` (msg-center showing PLAY NOW) and `Claimed = 7` (post-claim, awaiting player to enter game). **Do not renumber 1–5.** The two new states **prepend** to the existing chain — after `Claimed`, ticket transitions to existing `Pending = 1` when the player enters the game; the legacy `Pending → InUse → Completed/EarlyCompleted/Expired` path is unchanged. No transient `Claiming` state: claim API is a single conditional DB update (`UPDATE … WHERE status = PendingClaim`), no remote wallet call.
-- [ ] 🔴 `src/Campaign/Application/Services/BetEventProcessor.cs` — on threshold met, create `PendingClaim` ticket + call `FrbOutboxPublisher`; drop `INotificationPublisher` dependency.
-- [ ] 🔴 `src/Campaign/Domain/Services/TicketBuilder.cs` — `StatusEnum = TicketStatus.PendingClaim`.
-- [ ] 🟡 `src/Campaign/Application/Services/TicketService.cs` — filter queries that need to distinguish `PendingClaim` vs `Pending`.
+- [ ] 🔴 `src/FreeRoundBonus.Shared/Enums/TicketStatus.cs` — **revert the shipped `PendingClaim = 6` / `Claimed = 7`** (and their `TicketStatusConverter` mappings). Keep `1..5`. Update the `Pending = 1` doc-comment: it is the "in inbox, awaiting claim" state and **no longer blocks accumulation**.
+- [ ] 🔴 `free_round_bonus_ticket_details` DDL — add **`claimed_at timestamp NULL`** (claim marker) + `expired_at` (detail-level expiry). No `version` column.
+- [ ] 🔴 `src/Campaign/Application/Services/BetEventProcessor.cs` — on threshold met, create `Pending` ticket (`claimed_at=NULL`) + call `FrbOutboxPublisher`; drop `INotificationPublisher` dependency. Stop blocking accumulation while a `Pending`/`InUse` ticket exists.
+- [ ] 🔴 `src/Campaign/Domain/Services/TicketBuilder.cs` — `StatusEnum = TicketStatus.Pending`, `claimed_at = null`.
+- [ ] 🟡 `src/Campaign/Application/Services/TicketService.cs` — filter via `status` + `claimed_at`: un-claimed = `Pending ∧ claimed_at IS NULL`; claimed-not-played = `Pending ∧ claimed_at IS NOT NULL`; in-use = `InUse`.
 - [ ] 🟡 `src/Campaign/Host/CampaignSyncBackgroundService.cs` — emit `ComingSoon` (N min before start, N from backstage) and `Welcome` (on start).
 - [ ] 🟡 `src/Campaign/Infrastructure/MySQL/TournamentCampaignTracker.cs` — generalise pattern for FRB lifecycle (Suspend/Terminate/EndEarly) if backstage writes DB directly (see §4 risk D6).
 - [ ] 🟡 `src/Campaign/Program.cs` — register `IFrbOutboxPublisher`, `TicketClaimService`, `TicketStateMachine`; remove `INotificationPublisher` / `RedisNotificationPublisher` registration **only after GameServer cuts over** (M4).
@@ -91,12 +94,13 @@ Detailed spec view: [index.html §6 Codebase 影響清單](./index.html).
 - [ ] 🟢 `src/Campaign/Infrastructure/Redis/RedisNotificationPublisher.cs` — delete after M4 cutover; remove `frb:ticket:pending` constant from `src/FreeRoundBonus.Shared/Constants/RedisKeys.cs`.
 - [ ] 🟢 `src/FreeRoundBonus.Shared/Enums/InboxEventType.cs` — add 7 FRB values (style-match Tournament enums).
 
-**[PARKED — bet-by-level]** *(do not start until Q7–Q9 confirmed)*
-- [ ] 🟡 `src/Campaign/Domain/Entities/ThresholdConfig.cs` — add `BetCents` (or equivalent) by-level field.
-- [ ] 🟡 `src/Campaign/Infrastructure/MySQL/MySqlThresholdConfigRepository.cs` — read/write new field.
-- [ ] 🟢 `src/Campaign/Infrastructure/MySQL/MySqlConfigRepository.cs:64` — clarify `GameChipsConfig.Bet` vs by-level priority/fallback.
-- [ ] 🟡 `src/Campaign/Infrastructure/Protos/campaign.proto` — add `bet` field to threshold message (currently `ThresholdConfigItem`); coordinate with Valhalla team.
-- [ ] DB schema: `campaign_threshold_currency.bet` (or new `campaign_frb_level_bet` table — Q9).
+**bet-by-level** *(UPDATED 2026-06-05 — reuse existing `campaign_operator_game_chips` + `level`; data layer already in place)*
+- [x] 🟢 DB schema: **no new column/table.** `campaign_operator_game_chips` already has `level` (default 1) + `bet`/`chips`. Key = `campaign_id, operator_id, game_id, level`.
+- [x] 🟢 `src/Campaign/Domain/Entities/GameChipsConfig.cs` — already carries `Level`; `Bet` is the by-level face value (cents).
+- [x] 🟢 `src/Campaign/Application/Interfaces/IFrbConfigRepository.cs` — `GetGameChipsConfigByLevelAsync(camp, op, game, level, ct)` already exists.
+- [ ] 🟢 Build-time freeze: confirm `BetEventProcessor` / `TicketService` write `detail.bet` from the by-level game-chips row at winning time (callsites already use `GetGameChipsConfigByLevelAsync`; verify the frozen value lands on the detail).
+- [ ] 🟢 `level=0` fallback semantics: rows written before the column existed, and the legacy `GetGameChipsConfig` RPC (no `level` arg), resolve via `level=0`. Document the fallback order.
+- [ ] ~~`ThresholdConfig.BetCents` / `MySqlThresholdConfigRepository` / `campaign.proto` threshold `bet` / `campaign_frb_level_bet` table~~ — **DROPPED**; superseded by game-chips by-level reuse.
 
 **Tests**
 - [ ] `tests/Campaign.Tests/...` — claim state machine, outbox payload shape, idempotency.
@@ -119,8 +123,8 @@ Layout: four .NET services around Kafka + OceanBase/MySQL. Outbox flow today:
     - If method B: subscribe FRB outbox update events.
     - If method C: subscribe FRB Redis channels (not recommended).
 
-**[PARKED — bet-by-level]**
-- [ ] If inbox needs to display per-level bet, payload key naming must match FRB's final schema decision (Q9).
+**bet-by-level** *(UPDATED 2026-06-05)*
+- [ ] If inbox needs to display per-level bet, it reads `bet_cents` from the winning payload (frozen from `campaign_operator_game_chips` by-level at build time). No msg-center schema dependency on FRB config tables.
 
 **Tests**
 - [ ] FRB event routing in consumer; PLAY NOW callback happy/error/expired paths; inbox state refresh per Q10 outcome.
@@ -145,7 +149,9 @@ Today GameServer is the **direct consumer** of FRB Redis Pub/Sub. After migratio
 **Cutover prerequisite**
 - Before deleting the subscribers, confirm with GameServer team that msg-center is the single source of FRB winning notification (popup + inbox). FRB will run an optional double-write window (outbox + Pub/Sub) to de-risk — see §4.
 
-**[PARKED — bet-by-level]** — none expected. GameServer reads bet from ticket payload, not from threshold config.
+**bet-by-level** — none expected. GameServer reads bet from the ticket payload (frozen by-level value), not from any config table.
+
+**reminder removal (UPDATED 2026-06-05)** — the reminder mechanism is **removed entirely** (activity end-countdown + reconnect reminder/redirect). If GameServer hosted any reminder trigger/redirect, retire it alongside the Pub/Sub subscribers in M4; reconnect-redirect, if still wanted, becomes a pure front-end concern.
 
 ---
 
@@ -157,10 +163,10 @@ Carried from [index.html §7.1](./index.html), tagged by where they bite:
 |---|---|---|
 | Backstage path for Suspend/Terminate/EndEarly (D6 unresolved) | FRB + Backstage | If backstage writes DB directly → CDC-style tracker. If backstage hits FRB API → outbox write inline. Decide before M2. |
 | Cutover double-write window | FRB + GameServer + msg-center | Outbox + Redis Pub/Sub in parallel until GameServer cuts. Guard against duplicate winning push (idempotency key on msg-center side: suggest `frb-FrbWinning-{ticketId}`). |
-| Q10 (inbox real-time ticket state) | FRB + msg-center | Blocker for M3.5 only. M1/M2 unblocked. Default to method A (FRB read API). |
+| Q10 (inbox real-time ticket state) | FRB + msg-center | **Decided = method A (FRB Read API).** Implemented as a **new web API on free-round-bonus** (same pattern as the existing APIs it already exposes to PlatformApi); reads Redis and returns live `used_rounds` / remaining / `expired_at`. msg-center & PlatformApi call it; they don't need to understand FRB internals. Blocker for M3.5 only; M1/M2 unblocked. |
 | Shared Tournament outbox topic | FRB + msg-center | msg-center must route on `event_type`, not topic. |
-| TicketStatus enum extension | FRB | Append 6/7; never renumber 1–5 (TINYINT-direct-persist). |
-| Claim idempotency | FRB | Atomic via conditional UPDATE: `UPDATE free_round_bonus_ticket_details SET status = Claimed WHERE id = ? AND status = PendingClaim`. Claim is **per-level** (one detail row per claim). rowCount = 0 → already claimed / expired. msg-center may retry safely. |
+| TicketStatus enum | FRB | Keep `1..5`; **revert the shipped 6/7**. Never renumber 1–5 (TINYINT-direct-persist). Claim is a `claimed_at` timestamp, not a status value. |
+| Claim idempotency | FRB | **claim = PLAY NOW only.** A player can **multi-open different games simultaneously**, and one FRB campaign can target **multiple games**, so we **cannot rely on same-game "後踢前" single-session** for safety. Protection is the **FSM + CAS** (DB exclusive row lock): atomic `UPDATE free_round_bonus_ticket_details SET claimed_at = NOW() WHERE id = ? AND status = Pending AND claimed_at IS NULL`. Claim is **per-level** (one detail row per claim). rowCount = 1 → won the claim; rowCount = 0 → already claimed / in-use / expired (msg-center may retry safely). **No `version` / optimistic-lock column needed.** PLAY LATER issues no claim. |
 | Claim past `expires_at` | FRB + msg-center | FRB returns explicit "expired" error; msg-center must surface it in inbox. |
 
 ---
@@ -171,17 +177,19 @@ Carried from [index.html §7.1](./index.html), tagged by where they bite:
 |---|---|---|
 | M1 | Outbox publisher + enum extensions + DI wiring (no behaviour change yet) | free-round-bonus |
 | M2 | Lifecycle events (ComingSoon / Welcome / Suspend / Terminate / EndEarly) | free-round-bonus, message-center-service |
-| M3 | Claim flow — state machine, claim API, BetEventProcessor switch to `PendingClaim` + Winning outbox | free-round-bonus, message-center-service |
-| M3.5 | Inbox real-time state refresh (Q10) | free-round-bonus, message-center-service |
-| M4 | Retire `RedisNotificationPublisher` / `frb:ticket:pending` and GameServer subscribers | free-round-bonus, GameServer |
-| **M5 [PARKED]** | Bet by level (Q7–Q9) | free-round-bonus (+ Valhalla proto, backstage) |
+| M3 | Claim flow — `claimed_at` CAS claim API (PLAY NOW only), revert shipped 6/7 enum, BetEventProcessor creates `Pending` + Winning outbox + stop blocking accumulation | free-round-bonus, message-center-service |
+| M3.5 | Inbox real-time state refresh (Q10) — **new FRB Read web API** (Redis-backed), called by msg-center / PlatformApi | free-round-bonus, message-center-service |
+| M4 | Retire `RedisNotificationPublisher` / `frb:ticket:pending` and GameServer subscribers; **remove reminder mechanism** (end-countdown + reconnect reminder/redirect) | free-round-bonus, GameServer, Back Office |
+| M5 | Bet by level — **reuse `campaign_operator_game_chips` + `level`** (data layer already exists); freeze `detail.bet` at winning. No new schema. | free-round-bonus |
 
 ---
 
 ## 6. Open questions to track
 
-- **Q7–Q9** — bet-by-level key shape, cross-game behaviour, schema location. **[PARKED]** until product clarifies.
-- **Q10** — how msg-center pulls real-time ticket state. Default plan: FRB read API.
+- **Q7–Q9** — bet-by-level. **RESOLVED on schema/location**: reuse `campaign_operator_game_chips` + `level` (no new column/table); key = `campaign_id, operator_id, game_id, level`. Still open: cross-game behaviour product decision only.
+- **Q10** — how msg-center pulls real-time ticket state. **DECIDED = method A**: a **new FRB Read web API** (Redis-backed) on free-round-bonus, same pattern as its existing PlatformApi-facing APIs.
+- **Concurrency** — players can multi-open different games; campaigns can target multiple games → no single-session "後踢前" guarantee. Claim safety = **FSM + CAS** (DB exclusive row lock), no `version` column.
+- **Reminder** — **removed entirely** (end-countdown and reconnect reminder/redirect both dropped); Back Office reminder fields pulled.
 - **D6 follow-up** — backstage operation path (direct DB vs API) for Suspend/Terminate/EndEarly.
 
 ---

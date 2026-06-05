@@ -121,7 +121,7 @@ Three approaches in spec [§5.4](./index.html):
 
 | Option | Plan | Status |
 |---|---|---|
-| **A. (recommended)** | On `/get_list` (or per-row hydration), msg-center calls FRB `GET /api/frb/tickets?member_id=&status=` and merges live fields (`used_rounds`, `remaining_rounds`, `status`, etc.) into the response | Not started — needs alignment with FRB on response shape + caching strategy |
+| **A. (DECIDED 2026-06-05)** | On `/get_list` (or per-row hydration), msg-center calls the **new FRB Read web API** (`GET /api/frb/tickets?member_id=&status=`) and merges live fields (`used_rounds`, `remaining_rounds`, `status`, `expired_at`, etc.) into the response. The API is a new endpoint on free-round-bonus (same pattern as its existing PlatformApi-facing APIs) that reads Redis and returns real-time values. | Not started — needs alignment with FRB on response shape + caching strategy |
 | B. | FRB emits a per-state-transition outbox event; msg-center keeps a local mirror of ticket state | High traffic, needs aggregation; rejected |
 | C. | msg-center subscribes to FRB Redis Pub/Sub | Violates [D1](./index.html) (Redis pub/sub retired); rejected |
 
@@ -172,9 +172,9 @@ FRB Winning carries `expires_at` (ticket claim deadline). The consumer currently
 
 Tournament and FRB now share the `msg-center-events` Kafka topic. The consumer already routes by `event_type` (numeric or string) inside the payload — **not** by topic, partition, or any other Kafka-level metadata. Confirmed compatible. No work needed; flagged for awareness when FRB lifecycle traffic ramps up.
 
-### 2.6 [PARKED — bet-by-level] inbox payload key naming
+### 2.6 bet-by-level — inbox payload key naming (RESOLVED 2026-06-05)
 
-If FRB's eventual bet-by-level work (spec Q7–Q9, M5) introduces per-level bet keys in the Winning payload, the inbox display path (§2.3 above) needs to match the final key names. Not blocked by anything in this repo; flagged so the §2.3 work doesn't bake in a key shape that'll need renaming.
+FRB's bet-by-level is now resolved by **reusing `campaign_operator_game_chips` + `level`** (already shipped on free-round-bonus, commit `da106d1`); no new FRB config schema. The per-level `bet` is frozen into the ticket at winning and surfaced as **`bet_cents`** in the Winning payload (§2.3 / [§5.3](./index.html)). msg-center's inbox display reads `bet_cents` as-is — **no key rename pending**, no FRB-config dependency.
 
 ---
 

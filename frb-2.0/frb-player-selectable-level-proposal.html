@@ -89,7 +89,7 @@
 
 <header class="top">
   <h1>FRB Player-Selectable Level 設計提案</h1>
-  <div class="sub">玩家自選「衝哪個 level」與「何時使用」 · 對齊 msg-center claim 流程（popup + inbox + info card） · 更新 2026-06-02</div>
+  <div class="sub">玩家自選「衝哪個 level」與「何時使用」 · 對齊 msg-center claim 流程（popup + inbox + info card） · 更新 2026-06-05</div>
 </header>
 
 <nav class="steps" id="steps"></nav>
@@ -105,7 +105,7 @@
   <div class="card">
     <h3><span class="dot"></span>現行模型：循序累積佇列</h3>
     <ul class="tight">
-      <li><code>ThresholdChecker.Check</code> 只回傳「第一個未達成」的 level（<b>累積門檻</b>）。</li>
+      <li><code>ThresholdChecker.Check</code> 只回傳「第一個已達標」的 level（<b>累積門檻</b>，其餘卡關）。</li>
       <li>一次只能有一張活躍票（<code>Pending</code>/<code>InUse</code> 會 block accumulation）。</li>
       <li>發票即被消耗（<code>Pending → InUse</code> 首 spin 自動轉移），玩家<b>無選擇使用時機</b>的權利。</li>
     </ul>
@@ -126,14 +126,14 @@
         <tr><td>發放粒度</td><td><b>每 level 終身一張</b>（一生一次）</td><td><code>uk_ticket_level</code> 天然保證</td></tr>
         <tr><td><b>建票時機</b></td><td><b>達標（winning）當下即建 <code>Pending</code> 票並寫 outbox</b></td><td>inbox 直接讀該票</td></tr>
         <tr><td>by level winning</td><td>每達標一個 level 即<b>各自發一張 winning → 各自進 inbox</b>（累積達標可一次多張）</td><td>inbox 挑 level + 挑時機</td></tr>
-        <tr><td>使用時機</td><td><b>claim 模式</b>：PLAY NOW = claim+跳轉；PLAY LATER = 留 inbox</td><td>狀態機加 claim</td></tr>
+        <tr><td>使用時機</td><td><b>claim = PLAY NOW only</b>：PLAY NOW = claim（設 <code>claimed_at</code>）+跳轉；<b>PLAY LATER = 不 claim、票留 inbox</b>（仍 <code>Pending</code>、<code>claimed_at IS NULL</code>）</td><td>不加狀態值；claim 以 <code>claimed_at</code> 記錄</td></tr>
         <tr><td>通知管道</td><td>全走 <b>outbox → msg-center</b> fan-out（共用 Tournament topic）</td><td>不直接推 GameServer</td></tr>
-        <tr><td><b>bet 面額</b></td><td>由 by-game 改為 <b>by-level</b> 設定</td><td>寫進 <code>campaign_frb_level</code></td></tr>
-        <tr><td>reminder</td><td>僅取消「活動結束倒數」；斷線重進 reminder/轉導<b>保留</b></td><td>後台 end reminder 欄位可拔</td></tr>
+        <tr><td><b>bet 面額</b></td><td>by-level 設定，<b>沿用既有 <code>campaign_operator_game_chips</code>（已含 <code>level</code> 欄）</b></td><td>建票時 <code>GetGameChipsConfigByLevelAsync(camp,op,game,level)</code> 取 <code>bet</code>；<b>資料層已存在</b></td></tr>
+        <tr><td>reminder</td><td><b>整體移除 reminder 機制</b>（含活動結束倒數、斷線重進 reminder/轉導）</td><td>後台 reminder 欄位拔除；轉導改由前端自行處理</td></tr>
         <tr><td>併發使用</td><td><b>允許同時多張 InUse</b>；<b>玩家透過 inbox / PLAY NOW 選定要用哪張 level 票，帶票券資訊到 GameServer 使用</b>（非 GameServer 自選）</td><td>每局寫 mapping；<code>used_rounds</code> per-ticket</td></tr>
         <tr><td>上線方式</td><td><b>就地優化、轉新語意</b>（非新 campaign type，上線後即無 1.0）</td><td>無在途票窗口部署 + rolling 對齊</td></tr>
-        <tr><td>即時狀態（Q10）</td><td><b>A. FRB Read API</b>（查 Redis 回即時值）</td><td>msg-center 需即時資料時呼叫</td></tr>
-        <tr><td>併發防護</td><td>後踢前單一 session → <b>不需 <code>Activated</code>/<code>version</code></b></td><td><code>idempotencyKey</code> + 狀態 CAS 即足夠</td></tr>
+        <tr><td>即時狀態（Q10）</td><td><b>A. FRB Read API</b> = free-round-bonus campaign <b>新增 web API</b>（原本就提供給 PlatformApi 呼叫的模式），查 Redis 回即時值</td><td>msg-center／PlatformApi 需即時 used_rounds/剩餘/過期 時呼叫</td></tr>
+        <tr><td>併發防護</td><td>玩家可<b>同時多開不同遊戲</b>、campaign 可<b>同時指定多遊戲</b> → <b>不能依賴同 session 後踢前</b>；改全面以 claim idempotency = <b>FSM + CAS</b>（DB exclusive row lock）保護</td><td>仍<b>不需 <code>Activated</code>/<code>version</code></b>：<code>idempotencyKey</code> + 狀態 CAS（<code>WHERE status=Pending</code>）即足夠</td></tr>
       </tbody>
     </table>
   </div>
@@ -311,7 +311,7 @@
       <thead><tr><th>構面</th><th>現行（循序佇列）</th><th>新（可選 + claim）</th></tr></thead>
       <tbody>
         <tr><td>門檻</td><td>累積 <code>Σ threshold 1..N</code></td><td>累積 <code>Σ threshold 1..N</code>（<b>不變</b>）</td></tr>
-        <tr><td><code>ThresholdChecker</code></td><td>回傳第一個未達成 level（其餘卡關）</td><td>回傳<b>所有</b>已達標未建票 level（一次全產出）</td></tr>
+        <tr><td><code>ThresholdChecker</code></td><td>回傳第一個已達標 level（其餘卡關）</td><td>回傳<b>所有</b>已達標未建票 level（一次全產出）</td></tr>
         <tr><td>達標動作</td><td>立即建票（首 spin 自動 InUse）</td><td>立即建票（<b>待 claim</b>，進 inbox）</td></tr>
         <tr><td>同時持票</td><td>最多一張</td><td>多張（inbox 庫存）</td></tr>
         <tr><td>accumulation 阻擋</td><td><code>Pending</code>/<code>InUse</code> 阻擋</td><td><b>不阻擋</b></td></tr>
@@ -374,16 +374,17 @@
     <div class="card">
       <h3><span class="dot"></span>狀態定義</h3>
       <table>
-        <thead><tr><th>值</th><th>狀態</th><th>語意</th></tr></thead>
+        <thead><tr><th>值</th><th>狀態</th><th>語意</th><th><code>claimed_at</code></th></tr></thead>
         <tbody>
-          <tr><td>1</td><td><b>Pending</b></td><td>達標已建、在 inbox 待 claim、<span class="pill new">不阻擋累積</span></td></tr>
-          <tr><td>2</td><td>InUse</td><td>claim 後開玩中</td></tr>
-          <tr><td>3</td><td>Completed</td><td>全數玩完</td></tr>
-          <tr><td>4</td><td>EarlyCompleted</td><td>達 max payout / 手動結束</td></tr>
-          <tr><td>5</td><td>Expired</td><td>待領逾期 或 使用中逾期</td></tr>
+          <tr><td>1</td><td><b>Pending</b><br>（未領取）</td><td>達標已建、在 inbox <b>待 claim</b>、<span class="pill new">不阻擋累積</span></td><td><code>NULL</code></td></tr>
+          <tr><td>1</td><td><b>Pending</b><br>（已 claim 未開始）</td><td>PLAY NOW 已 claim、尚未首 spin</td><td>已設</td></tr>
+          <tr><td>2</td><td>InUse</td><td>首 spin 後開玩中</td><td>已設</td></tr>
+          <tr><td>3</td><td>Completed</td><td>全數玩完</td><td>已設</td></tr>
+          <tr><td>4</td><td>EarlyCompleted</td><td>達 max payout / 手動結束</td><td>已設</td></tr>
+          <tr><td>5</td><td>Expired</td><td>待領逾期 或 使用中逾期</td><td>—</td></tr>
         </tbody>
       </table>
-      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">無 <code>Granted</code>、無 <code>Activated</code>；狀態值維持 <code>1..5</code>，<code>CHECK (status BETWEEN 1 AND 5)</code> 不變。</p>
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">無 <code>Granted</code>、無 <code>Activated</code>、無 <code>PendingClaim/Claimed</code>；狀態值維持 <code>1..5</code>。<b>「未領取」與「已 claim 未開始」同為 <code>Pending</code>，靠 <code>claimed_at</code> 是否為 NULL 區分</b>（claim = PLAY NOW only）。</p>
     </div>
     <div class="card">
       <h3><span class="dot"></span>語意變更重點</h3>
@@ -391,7 +392,7 @@
         <li><span class="pill drop">舊</span> <code>Pending</code> 阻擋累積、首 spin 自動使用。</li>
         <li><span class="pill new">新</span> <code>Pending</code> 不阻擋累積、需玩家 claim 才使用。</li>
         <li><b>不新增 <code>Granted</code></b>：收斂回 <code>Pending</code>，降低狀態機複雜度。</li>
-        <li><b>不需 <code>Activated</code></b>：遊戲是<b>後踢前（單一 session）</b>，多裝置併發不會發生 → 無需鎖 session（見 Page 9 情境）。</li>
+        <li><b>不需 <code>Activated</code></b>：玩家可<b>同時多開不同遊戲</b>、campaign 可<b>同時指定多遊戲</b>，不能靠同 session 後踢前；改全面以 <b>FSM + CAS</b>（DB exclusive row lock）保護 claim，affected-rows 檢查即權威，無需鎖 session（見 Page 9 情境）。</li>
       </ul>
     </div>
   </div>
@@ -407,22 +408,25 @@
     <h3><span class="dot"></span><code>free_round_bonus_ticket_details</code> DDL</h3>
     <p class="lead" style="margin:0 0 8px">票券於 winning（達標）時建立，故 <code>created_at</code> = 達標時間。</p>
 <pre><span class="kw">ALTER TABLE</span> `free_round_bonus_ticket_details`
-  <span class="kw">ADD COLUMN</span> `claimed_at` timestamp(3) <span class="kw">NULL</span> <span class="cm">-- 玩家 claim(PLAY NOW/LATER) 時間</span>
+  <span class="kw">ADD COLUMN</span> `claimed_at` timestamp(3) <span class="kw">NULL</span> <span class="cm">-- 玩家 claim 時間（PLAY NOW only；NULL=未領取，NOT NULL=已 claim 未開始）</span>
   <span class="kw">ADD COLUMN</span> `expired_at` timestamp    <span class="kw">NULL</span>; <span class="cm">-- 領獎期間到期 = created_at + ticket_validity_days</span>
 
 <span class="kw">ALTER TABLE</span> `free_round_bonus_ticket_details`
   <span class="kw">ADD KEY</span> `idx_status_expired_at` (`status`, `expired_at`); <span class="cm">-- 過期掃描</span>
 
-<span class="cm">-- 不需 version 欄位：後踢前單一 session，併發以「狀態條件式 UPDATE」(CAS) 即可：</span>
-<span class="cm">--   UPDATE ... SET status=InUse, claimed_at=now WHERE id=? AND status=Pending  → 檢查 affected=1</span></pre>
+<span class="cm">-- 維持 status 1..5（不加 PendingClaim/Claimed）；不需 version 欄位。</span>
+<span class="cm">-- 玩家可同時多開不同遊戲、campaign 可指定多遊戲，無法靠同 session 後踢前，</span>
+<span class="cm">-- 故全面以 FSM + 「狀態條件式 UPDATE」(CAS, DB exclusive row lock) 保護：</span>
+<span class="cm">--   claim(PLAY NOW): UPDATE ... SET claimed_at=now WHERE id=? AND status=Pending AND claimed_at IS NULL  → affected=1</span>
+<span class="cm">--   首 spin:         UPDATE ... SET status=InUse   WHERE id=? AND status=Pending                          → affected=1</span></pre>
     <div class="note">「每 level 終身一張」由既有 <b>uk_ticket_level (ticket_id, level)</b> ＋ 父票 <b>uk_campaign_operator_member</b> 天然保證，<b>無需新增唯一鍵</b>。<br>
-    <code>max_payout_cents / reward_count / game_id / rate / bet</code> 於<b>建票（達標）時</b>從 <code>campaign_frb_level</code> 凍結寫入（<code>bet</code> 改 by-level）。</div>
+    <code>max_payout_cents / reward_count / game_id / rate / bet</code> 於<b>建票（達標）時</b>凍結寫入；其中 <code>bet</code> 由 <b>by-level</b> 取得，沿用既有 <code>campaign_operator_game_chips</code>（已含 <code>level</code> 欄），<code>threshold_cents</code> 不變（累積）。</div>
   </div>
 
   <div class="grid2">
     <div class="card">
       <h3><span class="dot"></span><code>ThresholdChecker</code> 改寫</h3>
-<pre><span class="cm">// 舊：只回第一個未達成（其餘卡關）</span>
+<pre><span class="cm">// 舊：只回第一個已達標 level（其餘卡關）</span>
 <span class="cm">// 新：回傳「所有」已達標未建票 level（累積門檻不變）</span>
 GetNewlyWonLevels(progress, thresholds) =>
   thresholds.OrderBy(t =&gt; t.Level)
@@ -454,7 +458,7 @@ GetNewlyWonLevels(progress, thresholds) =>
     <ul class="tight">
       <li><b>建票（達標）時</b> <code>HSET</code>；狀態轉移 / 過期時同步更新或移除。</li>
       <li><code>frb:ticket:{detail_id}</code> 既有單票 hash 沿用（GameServer 讀取）。</li>
-      <li>inbox 即時狀態（used_rounds/剩餘/過期）由 <b>FRB Read API 查 Redis 回即時值</b>（Keen Q10 已定案 A）。</li>
+      <li>inbox 即時狀態（used_rounds/剩餘/過期）由 <b>FRB Read API 查 Redis 回即時值</b>（Keen Q10 已定案 A）。此 API 為 <b>free-round-bonus campaign 新增的 web API</b>（沿用「提供給 PlatformApi 呼叫」的既有模式）。</li>
     </ul>
   </div>
 </section>
@@ -578,10 +582,10 @@ GetNewlyWonLevels(progress, thresholds) =>
       <h3><span class="dot"></span>info card & reminder & payload</h3>
       <ul class="tight">
         <li><b>info card</b>：<code>now BETWEEN created_at AND expired_at</code> 且 <code>Pending/InUse</code> → 顯示。<b>FRA 無此線</b>。</li>
-        <li><b>reminder</b>：<span class="pill drop">取消</span> 活動結束倒數；<span class="pill keep">保留</span> 斷線重進 FRB 的 reminder/轉導。</li>
+        <li><b>reminder</b>：<span class="pill drop">整體移除</span> reminder 機制（含活動結束倒數與斷線重進 FRB 的 reminder/轉導）。</li>
         <li><b>winning payload</b>：<code>campaign_name / game_id / game_name / bet_cents / reward_count / max_payout_cents / expires_at / level</code>。</li>
       </ul>
-      <div class="note" style="margin-top:10px">✅ <b>Keen Q10 已定案＝A. FRB Read API</b>：msg-center 需即時 used_rounds/剩餘/過期 時查 FRB API，FRB 讀 Redis 回即時值（msg-center 不需懂 FRB 內部）。實作細節與 msg-center team 對接。</div>
+      <div class="note" style="margin-top:10px">✅ <b>Keen Q10 已定案＝A. FRB Read API</b>：此為 <b>free-round-bonus campaign 新增的 web API</b>（沿用提供給 PlatformApi 呼叫的既有模式）。msg-center／PlatformApi 需即時 used_rounds/剩餘/過期 時查此 API，FRB 讀 Redis 回即時值（呼叫端不需懂 FRB 內部）。實作細節與 msg-center team 對接。</div>
     </div>
   </div>
 </section>
@@ -594,17 +598,17 @@ GetNewlyWonLevels(progress, thresholds) =>
   <div class="card">
     <h3><span class="dot"></span>bet by level</h3>
     <ul class="tight">
-      <li>現況：贈送 bet 面額是 <b>by game</b>（<code>GameChipsConfig</code>）。</li>
-      <li>需求：改為 <b>by level</b>，寫進 <code>campaign_frb_level</code>（新增 <code>bet_cents</code> 或對應欄位）；建票時依該 level 取值寫入 detail <code>bet</code>。</li>
-      <li>待補（Keen Q7–Q9）：by-level 的 key、跨遊戲行為、schema 落點。</li>
+      <li>資料層<b>已就緒</b>：<code>campaign_operator_game_chips</code> 已新增 <code>level</code> 欄（key = <code>campaign_id, operator_id, game_id, level</code>），<code>bet</code> 即 by-level 面額。</li>
+      <li>取值：建票（達標）時呼叫 <code>GetGameChipsConfigByLevelAsync(camp, op, game, level)</code>，取該 level 的 <code>bet</code> 凍結寫入 detail <code>bet</code>。<b>沿用既有 <code>GameChipsConfig</code> + <code>level</code>，不新增 <code>campaign_frb_level.bet_cents</code>。</b></li>
+      <li>fallback：<code>level=0</code> 列為 legacy（建於 level 欄存在前），舊 RPC 無 <code>level</code> 參數時走此列。</li>
     </ul>
     <div class="figwrap" style="margin-top:8px">
       <svg viewBox="0 0 760 120" xmlns="http://www.w3.org/2000/svg" font-family="inherit">
         <style>.q{rx:8;stroke-width:1.3;fill:#fff;stroke:#9aa7b4}.qt{font-size:12px;text-anchor:middle;fill:#1f2933}</style>
         <defs><marker id="arr6" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#7a8a99"/></marker></defs>
-        <rect class="q" x="20" y="40" width="200" height="44" style="fill:#fee2e2;stroke:#dc2626"/><text class="qt" x="120" y="58">舊：GameChipsConfig</text><text class="qt" x="120" y="74">by game</text>
+        <rect class="q" x="20" y="40" width="200" height="44" style="fill:#fff;stroke:#9aa7b4"/><text class="qt" x="120" y="58">campaign_operator_game_chips</text><text class="qt" x="120" y="74">已含 level 欄</text>
         <line x1="220" y1="62" x2="290" y2="62" stroke="#7a8a99" stroke-width="1.6" marker-end="url(#arr6)"/>
-        <rect class="q" x="290" y="40" width="220" height="44" style="fill:#dcfce7;stroke:#16a34a"/><text class="qt" x="400" y="58">新：campaign_frb_level</text><text class="qt" x="400" y="74">bet_cents (by level)</text>
+        <rect class="q" x="290" y="40" width="220" height="44" style="fill:#dcfce7;stroke:#16a34a"/><text class="qt" x="400" y="58">GetGameChipsConfigByLevel</text><text class="qt" x="400" y="74">(camp,op,game,level) → bet</text>
         <line x1="510" y1="62" x2="580" y2="62" stroke="#7a8a99" stroke-width="1.6" marker-end="url(#arr6)"/>
         <rect class="q" x="580" y="40" width="160" height="44" style="fill:#fff4d6;stroke:#f5b716"/><text class="qt" x="660" y="58">建票時凍結</text><text class="qt" x="660" y="74">detail.bet</text>
       </svg>
@@ -617,12 +621,12 @@ GetNewlyWonLevels(progress, thresholds) =>
       <thead><tr><th>Method</th><th>Path</th><th>說明</th></tr></thead>
       <tbody>
         <tr><td><code>GET</code></td><td><code>/api/frb/inventory</code></td><td>列出玩家庫存票（level/狀態/bet/剩餘/過期/game）— 供 inbox & info card</td></tr>
-        <tr><td><code>POST</code></td><td><code>/api/frb/claim</code></td><td><code>{ticketDetailId, mode: now|later, idempotencyKey}</code> → 設 <code>claimed_at</code>（status CAS）</td></tr>
+        <tr><td><code>POST</code></td><td><code>/api/frb/claim</code></td><td><b>PLAY NOW only</b>：<code>{ticketDetailId, idempotencyKey}</code> → CAS 設 <code>claimed_at</code>（<code>WHERE status=Pending AND claimed_at IS NULL</code>）。PLAY LATER <b>不呼叫此 API</b>，票留 inbox 維持 Pending。</td></tr>
       </tbody>
     </table>
     <ul class="tight">
       <li>建票由 winning 流程自動完成，<b>無對外建票 API</b>。</li>
-      <li>claim 防重：<code>idempotencyKey</code>（擋雙擊/重送）+ 狀態條件式 UPDATE（<code>WHERE status=Pending</code>，保證只成功一次）；<b>不需 <code>version</code> 欄位</b>。</li>
+      <li>claim 防重：<code>idempotencyKey</code>（擋雙擊/重送）+ 狀態條件式 UPDATE（<code>WHERE status=Pending</code>，DB exclusive row lock 保證只成功一次）。玩家可同時多開不同遊戲、campaign 可指定多遊戲，<b>不靠同 session 後踢前</b>，全面以此 FSM + CAS 保護；<b>不需 <code>version</code> 欄位</b>。</li>
       <li>供 msg-center callback，對齊 Tournament <code>RewardClaimService</code> 設計。</li>
     </ul>
   </div>
@@ -630,7 +634,7 @@ GetNewlyWonLevels(progress, thresholds) =>
   <div class="card">
     <h3><span class="dot"></span>凍結策略</h3>
     <ul class="tight">
-      <li>於 <b>winning（建票）時</b> 凍結 <code>campaign_frb_level</code> 當下配置寫入 detail。</li>
+      <li>於 <b>winning（建票）時</b> 凍結當下配置寫入 detail（<code>bet</code> 取自 <code>campaign_operator_game_chips</code> by-level；<code>threshold</code> 取自累積門檻配置）。</li>
       <li>建票後配置變更：已建票維持原值；未達標 level 套新值。</li>
       <li>「換遊戲使用」屬另案，本提案先固定建票當下 <code>game_id</code>。</li>
     </ul>
@@ -654,13 +658,14 @@ GetNewlyWonLevels(progress, thresholds) =>
         <tr><td><code>TicketStatusProcessor.cs</code></td><td>移除 <code>TryGrantNextLevelTicketAsync</code></td></tr>
         <tr><td><code>PlayerProgress</code> / Redis repo</td><td><code>level_N_won</code> 等欄位</td></tr>
         <tr><td><code>TicketService.cs</code></td><td>新增 Claim（NOW/LATER）；建票時機改達標</td></tr>
-        <tr><td>通知層</td><td>Pub/Sub → outbox→msg-center（沿用 <code>TournamentOutboxPublisher</code>）；舊 Pub/Sub 下線</td></tr>
+        <tr><td>通知層</td><td>Pub/Sub → outbox→msg-center（沿用 <code>TournamentOutboxPublisher</code>）；舊 Pub/Sub 下線；<b>整體移除 reminder</b></td></tr>
+        <tr><td>FRB Read API</td><td><b>新增 web API</b>（free-round-bonus），查 Redis 回即時 used_rounds/剩餘/過期，供 msg-center／PlatformApi 呼叫</td></tr>
         <tr><td><code>RedisTicketWriter.cs</code></td><td>新增 <code>frb:inventory</code> 維護</td></tr>
         <tr><td><code>TicketExpirationBackgroundService</code></td><td>改掃 detail 級 <code>expired_at</code></td></tr>
-        <tr><td><code>campaign_frb_level</code></td><td>by-level <code>bet</code>；<code>threshold_cents</code> 不變（累積）；end reminder 欄位（先不動 schema）</td></tr>
+        <tr><td><code>campaign_operator_game_chips</code></td><td>by-level <code>bet</code> <b>沿用既有 <code>level</code> 欄</b>（資料層已就緒，<code>GetGameChipsConfigByLevelAsync</code> 已存在）；<code>threshold_cents</code> 不變（累積）</td></tr>
         <tr><td>OceanBase DDL</td><td>detail 新增 <code>claimed_at/expired_at</code>（不需 <code>version</code>）</td></tr>
         <tr><td>Reconciliation / 報表</td><td>新增「待領/使用中/待領逾期/使用中逾期」口徑</td></tr>
-        <tr><td>Back Office / 前端</td><td>inbox 領取 UI、info card、每 level 進度條；拔 end reminder 欄位</td></tr>
+        <tr><td>Back Office / 前端</td><td>inbox 領取 UI、info card、每 level 進度條；<b>移除 reminder 設定欄位</b>（含結束倒數）</td></tr>
       </tbody>
     </table>
   </div>
@@ -671,8 +676,8 @@ GetNewlyWonLevels(progress, thresholds) =>
       <thead><tr><th style="width:40%">情境</th><th>處理</th></tr></thead>
       <tbody>
         <tr><td>達標囤票不領 / 不玩</td><td>detail <code>expired_at</code>（created+validity）回收 → Expired</td></tr>
-        <tr><td>多裝置同時開同一票</td><td><b>不會發生</b>：遊戲後踢前、單一 session</td></tr>
-        <tr><td>同 session 雙擊 / 斷線重送 claim</td><td><code>idempotencyKey</code> + 狀態 CAS（<code>WHERE status=Pending</code>）冪等</td></tr>
+        <tr><td>同時多開不同遊戲 / 多遊戲 campaign 併發 claim 同一票</td><td>不靠後踢前；<b>FSM + CAS</b>（<code>WHERE status=Pending</code>，DB exclusive row lock）保證同一票只成功 claim 一次</td></tr>
+        <tr><td>雙擊 / 斷線重送 claim</td><td><code>idempotencyKey</code> + 狀態 CAS（<code>WHERE status=Pending</code>）冪等</td></tr>
         <tr><td>同時多張 InUse</td><td><b>允許</b>；玩家在 inbox / PLAY NOW 選定要用哪張 level 票，帶資訊到 GameServer 使用，每局寫 mapping，<code>used_rounds</code> per-ticket 不受影響</td></tr>
         <tr><td>跳級使用（先 L3 後 L1）</td><td>允許（達標 level 一次全產出、各 level 各自建票）</td></tr>
         <tr><td>重複達標同一 level</td><td><code>uk_ticket_level</code> + <code>level_N_won</code> 冪等</td></tr>
@@ -723,7 +728,7 @@ GetNewlyWonLevels(progress, thresholds) =>
         <rect class="x" x="780" y="222" width="60" height="44" fill="#fee2e2" stroke="#dc2626"/><text class="xs" x="810" y="242">info</text><text class="xs" x="810" y="258">✗ 無</text>
         <!-- shared bottom -->
         <rect x="40" y="300" width="800" height="48" rx="9" fill="#dcfce7" stroke="#16a34a"/>
-        <text class="xt" x="440" y="320">共用：claim（PLAY NOW / PLAY LATER）· 進入模式遊玩 · payout · 斷線重進 reminder/轉導</text>
+        <text class="xt" x="440" y="320">共用：PLAY NOW（claim）/ PLAY LATER（留 inbox）· 進入模式遊玩 · payout</text>
         <text class="xs" x="440" y="338">FRB 與 FRA 在「使用」之後流程相同</text>
         <path class="xf" d="M225,266 V300"/>
         <path class="xf" d="M705,266 V300"/>
@@ -745,9 +750,9 @@ GetNewlyWonLevels(progress, thresholds) =>
         <tr><td>同時持票</td><td>多張（多 level inbox 庫存）</td><td>依 Operator 建立而定</td></tr>
         <tr><td>通知通道</td><td>popup + inbox + <b>info card</b>（三線）</td><td>popup + inbox（<b>兩線，無 info card</b>）</td></tr>
         <tr><td>建票時機</td><td>達標當下即建 <code>Pending</code> 票</td><td>收到 Operator 建立即建票</td></tr>
-        <tr><td>claim 使用</td><td colspan="2" style="text-align:center;color:#166534"><b>相同</b>：PLAY NOW / PLAY LATER → 進入模式遊玩 → payout</td></tr>
-        <tr><td>reminder</td><td>取消結束倒數；保留斷線重進 reminder/轉導</td><td><b>不受影響</b>（原本會跳的視窗之後照跳）</td></tr>
-        <tr><td>bet 設定</td><td>改 <b>by level</b>（<code>campaign_frb_level</code>）</td><td>由 Operator 建立時帶入</td></tr>
+        <tr><td>claim 使用</td><td colspan="2" style="text-align:center;color:#166534"><b>相同</b>：PLAY NOW（claim+跳轉）/ PLAY LATER（不 claim、留 inbox）→ 進入模式遊玩 → payout</td></tr>
+        <tr><td>reminder</td><td><b>整體移除</b> reminder（含結束倒數與斷線重進 reminder/轉導）</td><td><b>不受影響</b>（原本會跳的視窗之後照跳）</td></tr>
+        <tr><td>bet 設定</td><td><b>by level</b>，沿用 <code>campaign_operator_game_chips</code>（已含 <code>level</code> 欄）</td><td>由 Operator 建立時帶入</td></tr>
       </tbody>
     </table>
   </div>
@@ -768,9 +773,10 @@ GetNewlyWonLevels(progress, thresholds) =>
       <li><b>門檻無遷移</b>：累積門檻語意與現行相同、<code>threshold_cents</code> 不變，<span class="pill keep">無數值遷移風險</span>。真正的行為改動是<b>移除循序 gating</b>（一次全產出）。<span class="pill keep">已定案</span> 允許玩家同時持/開多張票；<b>玩家透過 inbox / PLAY NOW 選定要用哪張 level 票，帶票券資訊到 GameServer 使用</b>（非 GameServer 自選），每局寫 mapping（<code>frb_ticket_detail_id</code>），<code>used_rounds</code> per-ticket 不受影響。</li>
       <li><b><code>Pending</code> 語意切換</b>：<span class="pill keep">已定案＝轉新語意</span>。FRB 2.0 為<b>就地優化（非新 campaign type）</b>，上線後即無 1.0；因上線時不會有 1.0 在途活動，遷移風險低。仍建議<b>在無在途 Pending 票的窗口部署</b>，並以 rolling-deploy 安全措施（feature flag / 對齊）避免新舊副本並存時發票邏輯不一致。</li>
       <li><b>成本/負債</b>：<span class="pill keep">已定案</span> 配額以<b>父票計（一玩家＝一張票，與 level 數無關）</b>，<code>prize_quantity</code>（玩家數上限）不受全產出影響。僅 max payout 為 per-detail 各 level 累加，屬預算面數字、不影響張數配額。</li>
-      <li><b>票券即時狀態同步（Keen Q10）</b>：<span class="pill keep">已定案＝A. FRB Read API</span>。msg-center 需即時 <code>used_rounds/剩餘/過期</code> 時查 FRB API（讀 Redis 回即時值）。實作細節待與 msg-center team 對接。</li>
-      <li><b>bet by-level schema（Keen Q7–Q9）</b>：key、跨遊戲行為、落點待補。</li>
-      <li><b>併發防護已定案</b>：遊戲後踢前（單一 session）→ <b>不需</b> <code>Activated</code> 與 <code>version</code>，claim 以 <code>idempotencyKey</code> + 狀態 CAS 即足夠。</li>
+      <li><b>票券即時狀態同步（Keen Q10）</b>：<span class="pill keep">已定案＝A. FRB Read API</span>＝ free-round-bonus <b>新增 web API</b>（沿用提供給 PlatformApi 呼叫的既有模式）。msg-center／PlatformApi 需即時 <code>used_rounds/剩餘/過期</code> 時查此 API（讀 Redis 回即時值）。實作細節待與 msg-center team 對接。</li>
+      <li><b>bet by-level</b>：<span class="pill keep">已定案</span> 沿用既有 <code>campaign_operator_game_chips</code>（已含 <code>level</code> 欄、<code>GetGameChipsConfigByLevelAsync</code> 已存在）；<b>不新增 <code>campaign_frb_level.bet_cents</code></b>。Q7–Q9 的跨遊戲行為仍需產品確認，但 schema 落點已定。</li>
+      <li><b>併發防護已定案</b>：玩家可同時多開不同遊戲、campaign 可指定多遊戲 → <b>不能依賴同 session 後踢前</b>；改全面以 claim idempotency = <b>FSM + CAS</b>（DB exclusive row lock）保護，affected-rows 檢查即權威。仍 <b>不需</b> <code>Activated</code> 與 <code>version</code>，<code>idempotencyKey</code> + 狀態 CAS 即足夠。</li>
+      <li><b>reminder 整體移除</b>：<span class="pill drop">取消</span> 含活動結束倒數與斷線重進 reminder/轉導；後台 reminder 欄位拔除。</li>
     </ol>
   </div>
 

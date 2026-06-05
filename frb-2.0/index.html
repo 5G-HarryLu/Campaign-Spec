@@ -265,13 +265,13 @@
 
   <h3>1.2 取消的機制</h3>
   <ul>
-    <li>Reminder 機制取消</li>
+    <li><b>Reminder 機制整體取消</b>（含活動結束倒數、斷線重進 reminder/轉導）</li>
     <li>自動轉跳遊戲機制取消（理由：獎勵可在 inbox 領取，不再需要強制導流）</li>
-    <li>End reminder（活動結束倒數）取消，後台對應欄位也要拔除</li>
+    <li>後台 reminder 對應欄位一併拔除</li>
   </ul>
 
   <h3>1.3 FRB bet 設定改動</h3>
-  <p>目前 bet 是按 <code>(campaign, operator, game)</code> 在 <code>GameChipsConfig</code> 設定；改為可<b>依 level 設定下注金額</b>。具體 key 結構與 schema 位置仍待補。</p>
+  <p>bet 改為<b>依 level 設定下注金額</b>，<b>沿用既有 <code>campaign_operator_game_chips</code></b>（已新增 <code>level</code> 欄，key = <code>(campaign, operator, game, level)</code>）。資料層已 ship（見 §3.1 已定案、§6.2）。</p>
   <p style="color:var(--text-dim);font-size:13px">
     目前後台只允許「不同 level 給不同獎品數量（spins）」，<b>下注金額尚不能 by level</b>；本次改動會把下注金額也納入 level 維度。
   </p>
@@ -303,13 +303,18 @@
   <table>
     <thead><tr><th>狀態</th><th>顯示</th><th>對應 FRB ticket 狀態</th></tr></thead>
     <tbody>
-      <tr><td>未領取</td><td>PLAY NOW 按鈕（黃色高亮）</td><td>PendingClaim（新狀態）</td></tr>
-      <tr><td>已 claim、未開始</td><td>PLAY NOW 按鈕</td><td>Claimed（新狀態，已 claim、可使用）</td></tr>
-      <tr><td>部分使用</td><td>$<i>bet</i> × <i>剩餘</i> (USED: <i>n</i>) + PLAY NOW</td><td>InUse（可再次進入）</td></tr>
+      <tr><td>未領取（在 inbox 待 claim）</td><td>PLAY NOW 按鈕（黃色高亮）</td><td><code>Pending=1</code>，<code>claimed_at IS NULL</code></td></tr>
+      <tr><td>已 claim（PLAY NOW）、未開始第一 spin</td><td>PLAY NOW 按鈕</td><td><code>Pending=1</code>，<code>claimed_at</code> 已設</td></tr>
+      <tr><td>部分使用</td><td>$<i>bet</i> × <i>剩餘</i> (USED: <i>n</i>) + PLAY NOW</td><td><code>InUse=2</code>（可再次進入）</td></tr>
       <tr><td>使用完畢</td><td>USED 按鈕 disabled</td><td>Completed / EarlyCompleted</td></tr>
       <tr><td>過期</td><td>項目按鈕隱藏</td><td>Expired</td></tr>
     </tbody>
   </table>
+
+  <div class="callout">
+    <div class="title">FSM 模型（定案 2026-06-05）：沿用 5 個 enum，不加 PendingClaim/Claimed</div>
+    票券狀態維持既有 <code>1..5</code>（<code>Pending / InUse / Completed / EarlyCompleted / Expired</code>）。<b><code>Pending=1</code> 本身就是「在 inbox 待 claim」態</b>，不再「阻擋累積」（語意更新）。<b>claim = PLAY NOW only</b>：PLAY NOW 設 <code>claimed_at</code>（CAS <code>WHERE status=Pending</code>）並跳轉；<b>PLAY LATER 不 claim、不動票</b>，留在 inbox 仍是 <code>Pending</code> + <code>claimed_at IS NULL</code>。「已 claim、未開始」與「未領取」靠 <code>claimed_at</code> 是否為 NULL 區分，<b>不需新增 <code>PendingClaim=6</code>/<code>Claimed=7</code></b>。首 spin → <code>InUse=2</code>。<br><span style="color:var(--text-dim)">⚠️ 已 ship 進 <code>TicketStatus</code> 的 <code>6/7</code> 由<b>實作分支</b>移除（含 <code>TicketStatusConverter</code>），本規格不再引用。注意：msg-center 的 <code>InboxEventType/EventType</code> 的 <code>6/7</code>（<code>CampaignWinning</code>/<code>EndedEarly</code>）是<b>另一個 enum</b>，不受影響。</span>
+  </div>
 
   <div class="callout danger">
     <div class="title">由 Figma 衍生的新核心問題</div>
@@ -357,8 +362,8 @@
       </tr>
       <tr>
         <td>D7</td>
-        <td>End reminder 後台欄位下線？</td>
-        <td>先不動 schema，記得待之後再處理</td>
+        <td>Reminder 後台欄位下線？</td>
+        <td><b>定案：reminder 機制整體移除</b>，後台欄位拔除（含結束倒數）</td>
       </tr>
       <tr>
         <td>D8</td>
@@ -384,42 +389,33 @@
 <section class="panel" id="pending">
   <h2>3. 待確認問題 <span class="badge pending">4 題</span></h2>
 
-  <h3>3.1 FRB bet by level（Q7–Q9）</h3>
-  <p>使用者已表示稍後補上：</p>
+  <h3>3.1 FRB bet by level（Q7–Q9）<span class="badge confirmed">已定案 2026-06-05</span></h3>
+  <p>schema 已定案：<b>沿用既有 <code>campaign_operator_game_chips</code>（已含 <code>level</code> 欄）</b>，資料層已 ship。</p>
 
   <table>
-    <thead><tr><th>#</th><th>問題</th><th>選項 / 思考點</th></tr></thead>
+    <thead><tr><th>#</th><th>問題</th><th>定案</th></tr></thead>
     <tbody>
       <tr>
         <td>Q7</td>
         <td>bet by level 的設定 key</td>
-        <td>
-          <code>(campaign, level)</code>＝同 campaign 內每個 level 一個 bet<br>
-          vs<br>
-          <code>(campaign, level, game_id)</code>＝再細分到每個遊戲<br>
-          後者資料量 = 前者 × 遊戲數
-        </td>
+        <td><b><code>(campaign_id, operator_id, game_id, level)</code></b> — 即 <code>campaign_operator_game_chips</code> 的天然 key（grain 本來就到 game）。</td>
       </tr>
       <tr>
         <td>Q8</td>
         <td>跨遊戲行為</td>
-        <td>同 level 不同遊戲共用一個 bet，還是各自設定？</td>
+        <td><b>per-game-within-a-level</b>：row grain 已到 game，同 level 不同遊戲可各自設不同 bet。</td>
       </tr>
       <tr>
         <td>Q9</td>
         <td>bet 欄位 schema 落點</td>
-        <td>
-          選項 A：加在現有 <code>campaign_threshold_currency</code> 表（最直接，與 level 同表）<br>
-          選項 B：另開 <code>campaign_frb_level_bet</code> 表（與 game_id 維度結合彈性高）
-        </td>
+        <td><b>沿用 <code>campaign_operator_game_chips</code> 的 <code>bet</code> 欄</b>（不加 <code>campaign_threshold_currency.bet</code>、不另開 <code>campaign_frb_level_bet</code> 表）。取值：<code>GetGameChipsConfigByLevelAsync</code>（已存在）。</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="callout warn">
-    <div class="title">為何 Q7–Q9 不擋整體規劃</div>
-    這三題只影響 <b>ThresholdConfig / TicketBuilder</b> 取 bet 的邏輯，不影響流程主軸（claim 模式、訊息管道）。
-    可以先把 Tab 4 / 5 / 6 / 7 的架構推進，bet by level 等細節明確再補一個小 PR。
+  <div class="callout">
+    <div class="title">Q7–Q9 已落地</div>
+    Live MySQL 已有多 level rows（如某 campaign levels 1–4 各自 bet <code>0.60 / 9.00 / 50.00 / 300.00</code>）。<code>GameChipsConfig.Level</code> + <code>GetGameChipsConfigByLevelAsync</code> 已在 codebase（commit <code>da106d1</code>）。建票時凍結該 level 的 <code>bet</code> 進 detail。剩下的唯一開放點是「換遊戲使用」屬另案。
   </div>
 
   <h3>3.2 票券即時狀態同步（Q10，源自 Figma）</h3>
@@ -480,27 +476,27 @@ sequenceDiagram
 
   Note over FRB,OB: ── 達門檻、發通知 ──
   FRB->>FRB: BetEventProcessor 累積 → 達門檻
-  FRB->>OB: 建立 Ticket (status=PendingClaim)
+  FRB->>OB: 建立 Ticket (status=Pending, claimed_at=NULL)
   FRB->>MC: outbox: Winning event (含 ticket_id / game_id / bet / reward_count / expires_at)
   MC->>P: popup (PLAY NOW + PLAY LATER) ＋ inbox 列表項
 
-  Note over P,FRB: ── 玩家行為分支 ──
+  Note over P,FRB: ── 玩家行為分支（claim = PLAY NOW only）──
   alt 路徑 A：popup 按 PLAY NOW
     P->>MC: PLAY NOW
     MC->>FRB: POST /api/frb/tickets/{ticketId}/levels/{level}/claim
-    FRB->>OB: PendingClaim → Claimed
+    FRB->>OB: CAS set claimed_at WHERE status=Pending (status 仍 Pending)
     FRB-->>MC: ClaimResult.Success
     MC->>GC: 跳轉至綁定的 game_name
   else 路徑 B：popup 按 PLAY LATER
     P->>MC: PLAY LATER
-    Note right of MC: ticket 仍是 PendingClaim<br>訊息保留在 inbox
+    Note right of MC: 不 claim、不動票<br>ticket 仍 Pending, claimed_at=NULL<br>訊息保留在 inbox
     P->>MC: (稍後) 開啟 inbox、點 PLAY NOW
     MC->>FRB: POST /api/frb/tickets/{ticketId}/levels/{level}/claim
-    FRB->>OB: PendingClaim → Claimed
+    FRB->>OB: CAS set claimed_at WHERE status=Pending
     FRB-->>MC: ClaimResult.Success
     MC->>GC: 跳轉至綁定的 game_name
   else 路徑 C：玩家不操作直到過期
-    Note over FRB: TicketExpirationBackgroundService 偵測<br>PendingClaim → Expired
+    Note over FRB: TicketExpirationBackgroundService 偵測<br>Pending 逾 expired_at → Expired
     Note right of MC: inbox 隱藏 PLAY NOW 按鈕<br>(透過 Q10 的查詢機制)
   end
 
@@ -706,7 +702,7 @@ sequenceDiagram
       </tr>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Domain/Services/TicketStateMachine.cs</span></td>
-        <td>新增 <code>PendingClaim → Claimed</code> 合法轉換</td>
+        <td>claim 不新增狀態值：以 CAS <code>SET claimed_at WHERE status=Pending</code> 表示「已 claim」；合法轉換維持 <code>Pending → InUse → Completed/EarlyCompleted/Expired</code></td>
         <td><code>RewardStateMachine</code></td>
       </tr>
       <tr>
@@ -736,19 +732,19 @@ sequenceDiagram
     <tbody>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/FreeRoundBonus.Shared/Enums/TicketStatus.cs</span></td>
-        <td>新增 <code>PendingClaim = 6</code>、<code>Claimed = 7</code>（不要改既有值 1–5，避免 DB 相容性問題）。<b>不引入 Claiming 中介狀態</b> — claim API 是單次條件式 UPDATE（<code>WHERE status = PendingClaim</code>），無遠端錢包呼叫，沒有 Tournament <code>RewardClaimService</code> 那種「crash 在中間」的窗口；之後若加入遠端步驟再補。</td>
+        <td><b>沿用既有 5 個值 <code>1..5</code>，不新增 PendingClaim/Claimed。</b>已 ship 的 <code>6/7</code> 由實作分支移除（含 <code>TicketStatusConverter</code> 的 6/7 對應）。改為更新 <code>Pending=1</code> 語意（= inbox 待 claim、不阻擋累積）＋ detail 新增 <code>claimed_at</code> 欄。<b>不引入 Claiming 中介狀態</b> — claim 是單次 CAS（<code>WHERE status=Pending</code>），無遠端錢包呼叫。（注意：msg-center <code>InboxEventType/EventType</code> 的 6/7 是另一個 enum，不動。）</td>
       </tr>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Application/Services/BetEventProcessor.cs</span></td>
-        <td>達門檻時改建立 <code>status=PendingClaim</code> 的 Ticket（而非 <code>Pending</code>）並改呼叫 <code>FrbOutboxPublisher</code>，移除 <code>INotificationPublisher</code> 相依</td>
+        <td>達門檻時建立 <code>status=Pending, claimed_at=NULL</code> 的 Ticket（語意已更新為 inbox 待 claim、不阻擋累積）並改呼叫 <code>FrbOutboxPublisher</code>，移除 <code>INotificationPublisher</code> 相依</td>
       </tr>
       <tr>
         <td><span class="impact-level high"></span><span class="file-ref">src/Campaign/Domain/Services/TicketBuilder.cs:50</span></td>
-        <td><code>StatusEnum = TicketStatus.PendingClaim</code></td>
+        <td><code>StatusEnum = TicketStatus.Pending</code>（建票即 inbox 待 claim），<code>claimed_at = NULL</code></td>
       </tr>
       <tr>
         <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Application/Services/TicketService.cs</span></td>
-        <td>查詢 / 過濾條件需要分辨 <code>PendingClaim</code>（尚未 claim）vs <code>Claimed</code>（已 claim、可使用）vs 既有 <code>Pending=1</code>（legacy 自動發票）；M4 之後不再寫入 <code>Pending=1</code>。</td>
+        <td>查詢 / 過濾以 <code>status</code> + <code>claimed_at</code> 區分：<b>未領取</b> = <code>Pending</code> ∧ <code>claimed_at IS NULL</code>；<b>已 claim 未開始</b> = <code>Pending</code> ∧ <code>claimed_at IS NOT NULL</code>；<b>使用中</b> = <code>InUse</code>。</td>
       </tr>
       <tr>
         <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Host/CampaignSyncBackgroundService.cs</span></td>
@@ -771,12 +767,12 @@ sequenceDiagram
         <td>切換完成後整檔刪除（含其註冊與 Redis channel 常數）</td>
       </tr>
       <tr>
-        <td><span class="impact-level mid"></span><span class="file-ref">src/Campaign/Domain/Entities/ThresholdConfig.cs</span></td>
-        <td>新增 <code>BetCents</code>（或類似）by-level 欄位；同步調整 <code>MySqlThresholdConfigRepository</code> 與對應 gRPC proto</td>
+        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Domain/Entities/GameChipsConfig.cs</span></td>
+        <td><b>已就緒</b>：已含 <code>Level</code> 欄，<code>Bet</code> 即 by-level 面額（cents）。不需改 <code>ThresholdConfig</code>，不加 <code>BetCents</code>。</td>
       </tr>
       <tr>
-        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Infrastructure/MySQL/MySqlConfigRepository.cs:64</span></td>
-        <td><code>GameChipsConfig.Bet</code> 的取值邏輯與 by-level bet 取值順序釐清（誰優先、誰 fallback）</td>
+        <td><span class="impact-level low"></span><span class="file-ref">src/Campaign/Application/Interfaces/IFrbConfigRepository.cs</span></td>
+        <td><b>已就緒</b>：<code>GetGameChipsConfigByLevelAsync(camp, op, game, level)</code> 已存在；<code>level=0</code> 為 legacy fallback。建票時取該 level 的 <code>bet</code> 凍結進 detail。</td>
       </tr>
       <tr>
         <td><span class="impact-level low"></span><span class="file-ref">src/FreeRoundBonus.Shared/Enums/</span>（InboxEventType / 相關 enum）</td>
@@ -790,24 +786,24 @@ sequenceDiagram
     <thead><tr><th>對象</th><th>改動</th><th>備註</th></tr></thead>
     <tbody>
       <tr>
-        <td>OceanBase <code>free_round_bonus_ticket_details.status</code></td>
-        <td>支援新值 <code>6 (PendingClaim)</code>、<code>7 (Claimed)</code></td>
-        <td>TINYINT 欄位本身不需 alter，僅應用層 enum 擴充。<b>狀態落在 details（per-level）</b>，parent <code>free_round_bonus_ticket</code> 無 status；一個 ticket 不同 level 可同時處於不同狀態。</td>
+        <td>OceanBase <code>free_round_bonus_ticket_details</code></td>
+        <td><b>新增 <code>claimed_at</code> 欄</b>（timestamp NULL）；<code>status</code> <b>維持 <code>1..5</code></b>（不加 6/7）</td>
+        <td>狀態值不擴充；「已 claim」由 <code>claimed_at</code> 表示。<b>狀態落在 details（per-level）</b>，parent <code>free_round_bonus_ticket</code> 無 status；一個 ticket 不同 level 可同時處於不同狀態 / claim 與否。</td>
       </tr>
       <tr>
-        <td>MySQL <code>campaign_threshold_currency</code></td>
-        <td>新增 <code>bet</code> 欄位（待 Q7–Q9 確認）</td>
-        <td>或另開表，視 Q9 答覆</td>
+        <td>MySQL <code>campaign_operator_game_chips</code></td>
+        <td><b>無需改動</b>：已含 <code>level</code> 欄，by-level <code>bet</code> 直接沿用</td>
+        <td>不新增 <code>campaign_threshold_currency.bet</code> / 不另開表</td>
       </tr>
       <tr>
-        <td>MySQL campaign 設定（end reminder）</td>
-        <td>暫不動 schema</td>
-        <td>D7 決定：先記得，之後再處理</td>
+        <td>MySQL campaign 設定（reminder）</td>
+        <td><b>移除 reminder 設定欄位</b>（含結束倒數）</td>
+        <td>reminder 機制整體移除（定案 2026-06-05）</td>
       </tr>
       <tr>
         <td>Valhalla proto（campaign.proto）</td>
-        <td><code>ThresholdConfig</code> 訊息加 <code>bet</code> 欄位</td>
-        <td>需與 DAL team 對齊；參考 <code>docs/md/valhalla-grpc-write-proto-proposal.md</code></td>
+        <td><b>不需為 bet 改 ThresholdConfig</b>；by-level bet 走既有 <code>campaign_operator_game_chips</code>。proto 僅在 §2.7 的 <code>GetGameChipsConfig</code> 加 <code>level</code> 為後續優化</td>
+        <td>參考 <code>docs/md/valhalla-grpc-write-proto-proposal.md</code></td>
       </tr>
     </tbody>
   </table>
@@ -843,7 +839,7 @@ sequenceDiagram
   <ul>
     <li>新增 <code>IFrbOutboxPublisher</code> + <code>FrbOutboxPublisher</code>（複製 Tournament 模式）</li>
     <li>在 <code>InboxEventType</code> 加 FRB 對應的 7 個事件值</li>
-    <li><code>TicketStatus</code> 新增 <code>PendingClaim = 6</code>、<code>Claimed = 7</code>（無 <code>Claiming</code> 中介狀態，見 7.1 風險）</li>
+    <li><code>TicketStatus</code> <b>維持 5 個值</b>；更新 <code>Pending</code> 語意（inbox 待 claim、不阻擋累積）＋ detail 加 <code>claimed_at</code> 欄。已 ship 的 <code>6/7</code> 由實作分支移除（含 converter）。（無 <code>Claiming</code> 中介狀態，見 7.1 風險）</li>
     <li>DI 註冊、單元測試</li>
   </ul>
 
@@ -857,10 +853,10 @@ sequenceDiagram
 
   <h3>M3. Claim 流程 <span class="badge danger">主菜</span></h3>
   <ul>
-    <li><code>TicketStateMachine</code>（PendingClaim → Claimed）</li>
-    <li><code>TicketClaimService</code>（含 idempotency、過期檢查、競態保護）。<b>Claim 粒度為 per-level</b>（每個 <code>free_round_bonus_ticket_details</code> row 各自 claim）。Idempotency / 競態靠條件式 UPDATE：<code>UPDATE free_round_bonus_ticket_details SET status = Claimed WHERE id = ? AND status = PendingClaim</code>；rowCount=0 即代表該 level 已被 claim 或已過期。<b>不需要 Tournament 的 <code>StuckClaimingRetryJob</code></b>，因為 FRB claim 不涉及遠端錢包呼叫，無 stuck-claim 風險。</li>
+    <li><code>TicketStateMachine</code>：claim 不改 status（維持 <code>Pending</code>）；合法轉換仍是 <code>Pending → InUse → Completed/EarlyCompleted/Expired</code>。</li>
+    <li><code>TicketClaimService</code>（含 idempotency、過期檢查、競態保護）。<b>claim = PLAY NOW only</b>；<b>Claim 粒度為 per-level</b>（每個 <code>free_round_bonus_ticket_details</code> row 各自 claim）。Idempotency / 競態靠 CAS：<code>UPDATE free_round_bonus_ticket_details SET claimed_at = NOW() WHERE id = ? AND status = Pending AND claimed_at IS NULL</code>；rowCount=0 即代表該 level 已被 claim、已使用或已過期。玩家可同時多開不同遊戲、campaign 可指定多遊戲 → <b>不靠後踢前</b>，全面以此 FSM + CAS（DB exclusive row lock）保護。<b>不需要 Tournament 的 <code>StuckClaimingRetryJob</code></b>，因為 FRB claim 不涉及遠端錢包呼叫，無 stuck-claim 風險。</li>
     <li><code>TicketClaimController</code> 暴露 callback endpoint，<b>同一 endpoint 同時服務 popup PLAY NOW 與 inbox PLAY NOW</b>（兩個入口、一個 API）</li>
-    <li>修改 <code>BetEventProcessor</code> / <code>TicketBuilder</code>：達門檻時建立 <code>PendingClaim</code> ticket + 發 Winning outbox（含 Figma 要的所有欄位：game_name / bet_cents / reward_count / expires_at 等）</li>
+    <li>修改 <code>BetEventProcessor</code> / <code>TicketBuilder</code>：達門檻時建立 <code>status=Pending, claimed_at=NULL</code> ticket + 發 Winning outbox（含 Figma 要的所有欄位：game_name / bet_cents / reward_count / expires_at 等）</li>
     <li>整合測試 + 跟 msg-center 端聯調</li>
   </ul>
 
@@ -890,7 +886,7 @@ sequenceDiagram
   <h3>7.1 風險 / 注意事項</h3>
   <ul>
     <li><b>狀態機回溯難</b>：<code>TicketStatus</code> 是 TINYINT 直存資料庫，加新值不影響歷史資料，但<b>不可改變既有值的數字</b>（會打爛舊 ticket 解讀）。</li>
-    <li><b>Claim idempotency</b>：claim callback 必須 idempotent，msg-center 重送同一個 claim 不可重複啟用票券。靠條件式 UPDATE（<code>WHERE id = ? AND status = PendingClaim</code>）原子化，rowCount=0 視同 <code>AlreadyClaimed</code> / <code>Expired</code>，不需額外 idempotency table。</li>
+    <li><b>Claim idempotency</b>：claim callback 必須 idempotent，msg-center 重送同一個 claim 不可重複處理。靠 CAS（<code>UPDATE … SET claimed_at=NOW() WHERE id = ? AND status = Pending AND claimed_at IS NULL</code>）原子化，rowCount=0 視同 <code>AlreadyClaimed</code> / <code>Expired</code>，不需額外 idempotency table。玩家可同時多開不同遊戲、campaign 可指定多遊戲 → 不靠後踢前，全面以此 FSM + CAS（DB exclusive row lock）保護。</li>
     <li><b>Claim 過期邊界</b>：玩家在 inbox 看到 claim 按鈕但票券已到 <code>expires_at</code>，要回傳明確錯誤，msg-center 端要能呈現「已過期」。</li>
     <li><b>後台操作路徑</b>：D6 說 Suspend / Terminate / End Early 是純後台操作 — 仍需釐清後台是<b>直接改 DB</b>還是<b>經 FRB API</b>：
       <ul>
