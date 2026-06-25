@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>即時報表架構 — Q&A</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e;
+    --blue:#58a6ff; --teal:#39d4c8; --green:#3fb950; --orange:#e3a008;
+    --gold:#d4a017; --purple:#bc8cff; --red:#f85149; --pink:#f778ba;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei","Segoe UI",sans-serif;
+    line-height:1.75;}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 22px 80px;}
+  a{color:var(--blue);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  .back{display:inline-block;font-size:13px;color:var(--muted);margin-bottom:18px;}
+  h1{font-size:28px;margin:0 0 6px;font-weight:800;letter-spacing:.5px;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:8px;}
+
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin:20px 0 28px;}
+  .toc ol{margin:6px 0 0;padding-left:20px;}
+  .toc li{margin:5px 0;}
+
+  .qa{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;margin:18px 0;}
+  .q{font-size:18px;font-weight:800;color:var(--text);margin:0 0 14px;
+    padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .q .num{display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:8px;background:rgba(88,166,255,.15);
+    color:var(--blue);font-size:14px;margin-right:10px;vertical-align:middle;}
+  h3{font-size:15px;margin:18px 0 6px;color:var(--teal);}
+  p{margin:8px 0;}
+
+  .takeaway{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.35);
+    border-radius:10px;padding:12px 16px;margin:16px 0 4px;font-size:14.5px;}
+  .takeaway b{color:var(--green);}
+  .note{background:rgba(227,160,8,.08);border:1px solid rgba(227,160,8,.35);
+    border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .note b{color:var(--orange);}
+
+  code{font-family:"SF Mono",Menlo,monospace;font-size:13px;
+    background:#0b1117;border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--teal);}
+  pre{font-family:"SF Mono",Menlo,monospace;font-size:13px;color:var(--text);
+    background:#0a0e14;border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;line-height:1.6;}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--panel2);font-weight:700;}
+  tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  .ok{color:var(--green);font-weight:600;}
+
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;}
+  .b-rw{background:rgba(57,212,200,.15);color:var(--teal);border:1px solid rgba(57,212,200,.4);}
+  .b-ob{background:rgba(212,160,23,.15);color:var(--gold);border:1px solid rgba(212,160,23,.4);}
+
+  .footer{margin-top:48px;text-align:center;font-size:12px;color:#484f58;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="./index.html">← 回到即時報表架構整合提案</a>
+  <h1>即時報表架構 — Q&A</h1>
+  <div class="sub">針對 OceanBase × RisingWave × OLAP 架構的觀念釐清</div>
+
+  <div class="toc">
+    <b>目錄</b>
+    <ol>
+      <li><a href="#q1">Sink 寫入 跟 一般寫入 的差別?</a></li>
+      <li><a href="#q2">OceanBase MV 再做一層加速,MV 代表什麼意思?</a></li>
+      <li><a href="#q3">RisingWave MV 的特色?本身用的 persistent storage 是什麼?</a></li>
+      <li><a href="#q4">OceanBase OLTP 與 OLAP 的差別?</a></li>
+    </ol>
+  </div>
+
+  <!-- ===== Q1 ===== -->
+  <div class="qa" id="q1">
+    <div class="q"><span class="num">1</span>Sink 寫入 跟 一般寫入 的差別?</div>
+    <p>在本架構裡,「Sink 寫入」是<b>串流系統(RisingWave)把計算結果「自動、持續地」推送到外部儲存</b>的專有名詞,跟應用程式的「一般寫入」差別如下:</p>
+    <table>
+      <tr><th>面向</th><th>一般寫入 (App INSERT/UPDATE)</th><th>Sink 寫入 (Streaming Sink)</th></tr>
+      <tr><td><b>發動者</b></td><td>應用程式主動下 SQL,每筆都是一次 request</td><td>串流引擎自己驅動,由上游資料變化觸發,無人工發送</td></tr>
+      <tr><td><b>觸發時機</b></td><td>業務邏輯當下執行</td><td>上游(Kafka / MV)一有新資料或變更就<b>自動</b>流出</td></tr>
+      <tr><td><b>資料形態</b></td><td>單筆 / 小批,命令式</td><td>連續資料流 (data stream),持續不斷</td></tr>
+      <tr><td><b>語義</b></td><td>自己保證一致性、去重、重試</td><td>連接器內建 <span class="ok">upsert / 冪等 / 主鍵去重 / exactly-once</span></td></tr>
+      <tr><td><b>耦合</b></td><td>App 直接綁定目標 DB</td><td>透過 connector(MySQL/JDBC 協議)解耦,換目標只改設定</td></tr>
+      <tr><td><b>目的</b></td><td>服務交易 (OLTP)</td><td>把算好的結果落地到查詢層 (OLAP)</td></tr>
+    </table>
+    <div class="takeaway"><b>一句話:</b> 一般寫入是「程式叫資料庫存一筆」;Sink 寫入是「串流引擎把算好的結果流,持續且冪等地灌進下游儲存」—— 在本架構即 RisingWave 透過 MySQL/JDBC Sink,把明細＋預匯總用主鍵 upsert 寫進 OceanBase OLAP 獨立集群。</div>
+  </div>
+
+  <!-- ===== Q2 ===== -->
+  <div class="qa" id="q2">
+    <div class="q"><span class="num">2</span>OceanBase MV 再做一層加速,MV 代表什麼意思?</div>
+    <p><b>MV = Materialized View(物化檢視 / 具體化視圖)。</b>關鍵在「Materialized(物化)」這個字 —— 跟一般 View 的差別就在這:</p>
+    <table>
+      <tr><th></th><th>一般 View(視圖)</th><th>Materialized View(物化檢視)</th></tr>
+      <tr><td><b>資料存在哪</b></td><td>不存資料,只存一段 SQL 定義</td><td><b>真的把查詢結果算好、實體存成一張表</b>(佔磁碟)</td></tr>
+      <tr><td><b>查詢時</b></td><td>每次查都即時重跑底層 SQL</td><td>直接讀已算好的結果,<b>不用重算</b></td></tr>
+      <tr><td><b>速度</b></td><td>慢(複雜 JOIN/聚合每次重算)</td><td><span class="ok">快</span>(換空間省時間)</td></tr>
+      <tr><td><b>代價</b></td><td>不佔額外儲存</td><td>佔儲存,底層資料變動後需「刷新 refresh」才更新</td></tr>
+    </table>
+    <h3>為什麼說「再做一層加速」</h3>
+    <p>資料路徑是 <code>RisingWave 算好增量結果 → Sink → OceanBase OLAP(明細＋預匯總)</code>。OceanBase 收到的雖已是預匯總,但報表常見查詢(如「某活動近 7 天每日彙總」)若每次還要對明細做 GROUP BY 仍有成本。<b>在 OceanBase 內再建一層 MV</b>,把常用聚合結果預先算好、實體落地,查詢時直接讀 MV → 又快一截。所以是「在已預匯總的基礎上,再疊一層加速」。</p>
+    <div class="note"><b>取捨:</b> MV 不是免費的即時 —— 它需要「刷新」。OceanBase MV 可設定刷新策略(即時/增量刷新 vs. 定時全量刷新),刷新越即時、維護成本越高。設計時要依報表能接受的延遲來選刷新模式。</div>
+  </div>
+
+  <!-- ===== Q3 ===== -->
+  <div class="qa" id="q3">
+    <div class="q"><span class="num">3</span>RisingWave MV 的特色?本身用的 persistent storage 是什麼?</div>
+    <h3>RisingWave MV 的特色</h3>
+    <table>
+      <tr><th>特色</th><th>說明</th></tr>
+      <tr><td><b>增量、即時更新</b></td><td>非定時全量重算;上游一有新資料就<b>增量</b>自動更新,結果永遠最新(這正是與 OceanBase MV「需 refresh」最大差異)</td></tr>
+      <tr><td><b>計算即服務</b></td><td>算好的結果<b>直接存在 RisingWave 裡,可直接 SQL 查</b>,不必先 sink 到外部才能查</td></tr>
+      <tr><td><b>一份 SQL 即定義</b></td><td><code>CREATE MATERIALIZED VIEW ... AS SELECT ...</code> 一句 SQL 定義即時報表,免寫 Java/Scala job、免維護連接器 jar</td></tr>
+      <tr><td><b>可疊接 (MV on MV)</b></td><td>MV 可建在另一個 MV 之上,組成串流運算 DAG</td></tr>
+      <tr><td><b>PostgreSQL 協議相容</b></td><td>用 PG wire protocol,可用 <code>psql</code>/PG driver 直接連 —— 但這<b>只是介面相容,不代表底層是 PostgreSQL</b></td></tr>
+    </table>
+
+    <h3>它的 persistent storage 是什麼? → 不是 PostgreSQL</h3>
+    <p>RisingWave 的 PostgreSQL 只是「連線/查詢協議」,底層儲存完全是自己的引擎:</p>
+    <ul>
+      <li>儲存引擎叫 <b>Hummock</b> —— 專為串流設計、基於 <b>LSM-tree</b> 的雲原生分散式 state store。</li>
+      <li>真正的持久化層是 <b>物件儲存(S3 協議)</b> —— AWS S3 / GCS / Azure Blob。RisingWave 把 S3 當作<b>唯一主儲存層</b>:所有 internal state、MV 結果、operator 輸出、recovery log 全部落在 S3。</li>
+      <li>帶來 <b>儲存與運算分離</b>:compute node 可彈性擴縮,狀態存於共享物件儲存,故障可恢復、成本低。</li>
+    </ul>
+
+    <h3>延伸:重啟/故障如何恢復?</h3>
+    <p>常見誤解是「raw data 在 S3、MV 在記憶體」。正確圖像是 <b>MV 與運算 state 本身就持久化在 S3</b>,記憶體/本地磁碟只是 <b>cache</b>:</p>
+<pre>S3 (唯一主儲存,真身)  ←── Hummock LSM-tree ──→  記憶體/本地 (只是 cache)
+  ├─ raw state
+  ├─ MV 結果          ← MV 也在這裡,不是只在記憶體
+  ├─ operator 中間狀態
+  └─ recovery log</pre>
+    <p>因此 compute node 重啟/故障時 <b>不需從頭重算</b>,直接從 S3 載回狀態 + recovery log 即可恢復,並保證 exactly-once。</p>
+    <div class="note"><b>注意:</b> RisingWave 存進 S3 的是「它維持串流計算所需的 state 與 MV 結果」,<b>不是</b>原始資料倉儲。raw data 的 source of truth 在上游(<span class="badge b-ob">OceanBase OLTP</span> → CDC → Kafka);長期可供 BI/報表查詢的明細與彙總,落在 <span class="badge b-ob">OceanBase OLAP</span>。</div>
+    <div class="takeaway"><b>一句話:</b> RisingWave 對外講 PostgreSQL 協議(故能用 PG 工具連),對內用自研 <b>Hummock(LSM-tree)+ S3 物件儲存</b>做持久化,跟 PostgreSQL 的儲存引擎毫無關係。</div>
+  </div>
+
+  <!-- ===== Q4 ===== -->
+  <div class="qa" id="q4">
+    <div class="q"><span class="num">4</span>OceanBase OLTP 與 OLAP 的差別?</div>
+    <h3>通用:OLTP vs OLAP</h3>
+    <table>
+      <tr><th>面向</th><th>OLTP(線上交易處理)</th><th>OLAP(線上分析處理)</th></tr>
+      <tr><td><b>目的</b></td><td>處理交易:下注、扣款、寫單</td><td>處理分析:報表、彙總、趨勢</td></tr>
+      <tr><td><b>典型操作</b></td><td>大量「小」讀寫,單筆 INSERT/UPDATE,主鍵點查</td><td>少量「大」查詢,掃描大量列做 GROUP BY/聚合</td></tr>
+      <tr><td><b>存取量</b></td><td>一次碰幾筆</td><td>一次掃幾百萬列</td></tr>
+      <tr><td><b>延遲要求</b></td><td>毫秒級、高併發</td><td>秒級可接受,重吞吐</td></tr>
+      <tr><td><b>資料形態</b></td><td>最新、即時、可變</td><td>歷史、累積、偏唯讀</td></tr>
+      <tr><td><b>儲存佈局</b></td><td>列式 (row-store),利於單列存取</td><td>列式儲存壓縮 + 向量化,利於大範圍掃描聚合</td></tr>
+    </table>
+
+    <h3>OceanBase 的特殊之處:HTAP</h3>
+    <p>OceanBase 本身是 <b>HTAP</b>(Hybrid Transactional/Analytical Processing)資料庫 —— 同一套分散式引擎,<b>既能當 OLTP 也能當 OLAP</b>。靠的是:<b>行列混存</b>(同時支援 row-store 給交易、column-store 給分析)與 <b>資源隔離</b>(分析查詢資源與交易隔開,避免大報表拖垮線上交易)。</p>
+
+    <h3>在本架構裡的角色(重點)</h3>
+    <p>本設計<b>刻意把兩者拆成兩個獨立集群</b>:</p>
+<pre>OceanBase OLTP ──(CDC)──→ Kafka ──→ RisingWave ──(Sink)──→ OceanBase OLAP(獨立集群)
+   交易主庫                                                    報表/分析庫</pre>
+    <table>
+      <tr><th></th><th>OceanBase OLTP(主庫)</th><th>OceanBase OLAP(獨立集群)</th></tr>
+      <tr><td><b>角色</b></td><td>線上業務交易的 source of truth</td><td>報表 / 分析查詢的服務層</td></tr>
+      <tr><td><b>寫入來源</b></td><td>應用程式(玩家行為、交易)</td><td>RisingWave 經 Sink upsert 寫入明細＋預匯總</td></tr>
+      <tr><td><b>讀取者</b></td><td>線上業務</td><td>BI / 報表 API</td></tr>
+      <tr><td><b>為何獨立</b></td><td>——</td><td><b>隔離分析負載,避免大報表查詢影響線上交易效能與穩定性</b></td></tr>
+    </table>
+    <div class="takeaway"><b>一句話:</b> OLTP＝處理交易(小而快、高併發、最新資料);OLAP＝處理分析(大掃描、聚合、可接受秒級)。OceanBase 雖是 HTAP 能兩者兼任,但本架構特意拆成兩個獨立集群,目的是<b>負載隔離 —— 分析不拖累交易</b>。</div>
+  </div>
+
+  <div class="footer">
+    CampaignServer Team · 即時報表架構 Q&A · <a href="./index.html">提案文件</a>
+  </div>
+
+</div>
+</body>
+</html>
