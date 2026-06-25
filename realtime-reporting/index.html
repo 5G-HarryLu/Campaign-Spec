@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>即時報表架構整合提案 — 提交 OceanBase 技術團隊 review</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e;
+    --blue:#58a6ff; --teal:#39d4c8; --green:#3fb950; --orange:#e3a008;
+    --gold:#d4a017; --purple:#bc8cff; --red:#f85149; --pink:#f778ba;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei","Segoe UI",sans-serif;
+    line-height:1.7;}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 22px 80px;}
+  h1{font-size:29px;margin:0 0 6px;font-weight:800;letter-spacing:.5px;}
+  h2{font-size:22px;margin:46px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  h3{font-size:17px;margin:24px 0 8px;color:var(--blue);}
+  p{margin:8px 0;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:18px;}
+  .badge{display:inline-block;padding:3px 11px;border-radius:20px;font-size:12px;font-weight:700;margin-right:6px;}
+  .b-rw{background:rgba(57,212,200,.15);color:var(--teal);border:1px solid rgba(57,212,200,.4);}
+  .b-ob{background:rgba(212,160,23,.15);color:var(--gold);border:1px solid rgba(212,160,23,.4);}
+  .b-redis{background:rgba(248,81,73,.13);color:var(--red);border:1px solid rgba(248,81,73,.4);}
+  .b-kafka{background:rgba(188,140,255,.13);color:var(--purple);border:1px solid rgba(188,140,255,.4);}
+  .b-api{background:rgba(88,166,255,.13);color:var(--blue);border:1px solid rgba(88,166,255,.4);}
+
+  .hero{background:linear-gradient(135deg,#161b22,#0f1620);border:1px solid var(--border);
+    border-radius:14px;padding:24px 26px;margin:18px 0 8px;}
+  .hero .line{font-size:15px;color:var(--muted);}
+  .hero .big{font-size:19px;font-weight:700;color:var(--text);margin:10px 0;}
+  .flowtag{font-family:"SF Mono",Menlo,monospace;font-size:13px;color:var(--teal);
+    background:#0b1117;border:1px solid var(--border);border-radius:8px;padding:10px 14px;margin-top:10px;display:block;overflow-x:auto;white-space:nowrap;}
+  .purpose{background:rgba(88,166,255,.07);border:1px solid rgba(88,166,255,.3);border-radius:10px;padding:14px 18px;margin:14px 0;}
+  .purpose b{color:var(--blue);}
+
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin:14px 0;}
+
+  /* ---- 架構圖 SVG ---- */
+  .diagram-box{background:#0a0e14;border:1px solid var(--border);border-radius:12px;padding:10px;overflow-x:auto;}
+  svg{display:block;width:100%;height:auto;min-width:760px;}
+  .node-rect{rx:10;transition:all .3s;}
+  .flow{stroke-dasharray:7 7;animation:dash 1s linear infinite;}
+  @keyframes dash{to{stroke-dashoffset:-28;}}
+  .node.active .node-rect{filter:drop-shadow(0 0 10px currentColor);}
+  text{font-family:-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;}
+
+  /* ---- 時序播放器 ---- */
+  .player{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;}
+  .ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+  button{background:var(--blue);color:#06101f;border:none;border-radius:8px;padding:9px 18px;
+    font-size:14px;font-weight:700;cursor:pointer;transition:.15s;}
+  button:hover{filter:brightness(1.12);}
+  button.ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .latency{margin-left:auto;font-family:"SF Mono",Menlo,monospace;font-size:14px;color:var(--muted);}
+  .latency b{color:var(--green);font-size:18px;}
+  .steps{display:flex;flex-direction:column;gap:8px;}
+  .step{display:grid;grid-template-columns:46px 1fr;gap:14px;align-items:start;
+    padding:12px 14px;border:1px solid var(--border);border-radius:10px;background:#0e131b;
+    opacity:.45;transition:.3s;}
+  .step.on{opacity:1;border-color:var(--blue);background:#111a26;box-shadow:0 0 0 1px var(--blue) inset;}
+  .step.done{opacity:.8;}
+  .step .num{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:15px;background:#1c2433;color:var(--muted);border:2px solid var(--border);}
+  .step.on .num{background:var(--blue);color:#06101f;border-color:var(--blue);}
+  .step.done .num{background:var(--green);color:#06101f;border-color:var(--green);}
+  .step .t{font-weight:700;font-size:15px;}
+  .step .where{font-size:12px;font-weight:700;padding:1px 8px;border-radius:5px;margin-left:8px;vertical-align:middle;}
+  .step .d{color:var(--muted);font-size:13.5px;margin-top:3px;}
+  .step .lat{font-family:"SF Mono",Menlo,monospace;font-size:12px;color:var(--teal);margin-top:3px;}
+
+  /* ---- 服務職責卡 ---- */
+  .svcgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:760px){.svcgrid{grid-template-columns:1fr;}}
+  .svc{border:1px solid var(--border);border-radius:12px;background:var(--panel);padding:16px 18px;}
+  .svc.hl{border-color:var(--gold);box-shadow:0 0 0 1px rgba(212,160,23,.3) inset;}
+  .svc-h{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .svc-h .tier{font-size:11px;color:var(--muted);border:1px solid var(--border);border-radius:5px;padding:1px 7px;}
+  .svc dl{margin:0;display:grid;grid-template-columns:62px 1fr;gap:6px 10px;font-size:13.5px;}
+  .svc dt{color:var(--muted);font-weight:700;}
+  .svc dd{margin:0;}
+  .svc dd code{font-size:12.5px;}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--panel2);font-weight:700;}
+  td.c{text-align:center;}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:5px;white-space:nowrap;}
+  .ok{color:var(--green);} .warn{color:var(--orange);} .bad{color:var(--red);}
+  .ask{color:var(--gold);font-weight:700;}
+  ul{margin:8px 0;padding-left:22px;} li{margin:5px 0;}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr;}}
+  .callout{border-left:3px solid var(--blue);background:#0f1620;padding:10px 16px;border-radius:0 8px 8px 0;margin:12px 0;}
+  .callout.gold{border-color:var(--gold);} .callout.gold b{color:var(--gold);}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:8px 2px 0;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  .foot{color:var(--muted);font-size:12.5px;margin-top:40px;text-align:center;}
+  code{background:#0b1117;border:1px solid var(--border);border-radius:5px;padding:1px 6px;font-size:13px;color:var(--teal);}
+  .metric{font-family:"SF Mono",Menlo,monospace;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>即時報表架構整合提案</h1>
+
+  <div class="hero">
+    <div class="line">提案摘要</div>
+    <div class="big">我方規劃以 <span class="badge b-rw">RisingWave</span> 做即時串流增量計算,並導入<b style="color:var(--gold)"> OceanBase OLAP(獨立集群)</b>作為明細查詢與歷史 BI 的服務層;<span class="badge b-redis">Redis</span> 負責秒級即時看板。</div>
+    <div class="line">目標:<b style="color:var(--text)">下注寫入交易庫後約 1～2 秒內報表即可查詢</b>,取代現行批次匯總排程(分鐘~小時延遲)。本文件說明整體架構、<b style="color:var(--text)">各服務職責</b>、與 OceanBase 的整合介面,並列出需貴團隊協助確認的技術事項。</div>
+    <span class="flowtag">OceanBase OLTP →(CDC)→ Kafka → RisingWave(增量 MV)→ SINK → OceanBase OLAP(獨立集群)　;　Kafka ⇢ hotpath ⇢ Redis</span>
+  </div>
+
+  <!-- ============ 總體架構圖 ============ -->
+  <h2>① 總體架構圖(資料持續流動)</h2>
+  <p class="sub">虛線「流動」代表資料持續往下游推送。由左到右分五層:來源 → 攝入 → 串流計算 → 服務 → 應用。</p>
+  <div class="diagram-box">
+    <svg viewBox="0 0 1140 540" xmlns="http://www.w3.org/2000/svg" id="archsvg">
+      <defs>
+        <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L7,3 L0,6 Z" fill="#8b949e"/>
+        </marker>
+      </defs>
+      <g font-size="13" font-weight="700" fill="#8b949e" text-anchor="middle">
+        <text x="105" y="28">來源 (OLTP)</text>
+        <text x="350" y="28">攝入 (CDC)</text>
+        <text x="600" y="28">串流計算</text>
+        <text x="855" y="28">服務層</text>
+        <text x="1065" y="28">應用</text>
+      </g>
+
+      <path class="flow" d="M195,150 L280,150" stroke="var(--purple)" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M425,150 L505,150" stroke="var(--teal)" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M375,178 L375,300 L780,300 L780,360" stroke="var(--red)" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M700,150 L775,150" stroke="var(--gold)" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M640,193 L640,250 L995,250 L995,150 L1018,150" stroke="var(--teal)" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M935,150 L1018,150" stroke="var(--gold)" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M870,390 L995,390 L995,178" stroke="var(--red)" stroke-width="2.5" fill="none" marker-end="url(#arr)"/>
+      <path class="flow" d="M1065,178 L1065,360" stroke="var(--blue)" stroke-width="3" fill="none" marker-end="url(#arr)"/>
+
+      <g class="node" id="n-oltp" color="#58a6ff">
+        <rect class="node-rect" x="20" y="115" width="175" height="70" fill="#11202e" stroke="#58a6ff" stroke-width="1.6"/>
+        <text x="107" y="145" text-anchor="middle" fill="#58a6ff" font-size="15" font-weight="800">OceanBase OLTP</text>
+        <text x="107" y="167" text-anchor="middle" fill="#8b949e" font-size="11.5">交易主庫 · 下注/派彩寫入</text>
+      </g>
+      <g class="node" id="n-kafka" color="#bc8cff">
+        <rect class="node-rect" x="280" y="115" width="145" height="70" fill="#1d1830" stroke="#bc8cff" stroke-width="1.6"/>
+        <text x="352" y="142" text-anchor="middle" fill="#bc8cff" font-size="14" font-weight="800">CDC → Kafka</text>
+        <text x="352" y="163" text-anchor="middle" fill="#8b949e" font-size="11">accounting envelope</text>
+      </g>
+      <g class="node" id="n-rw" color="#39d4c8">
+        <rect class="node-rect" x="505" y="105" width="195" height="90" fill="#0f2422" stroke="#39d4c8" stroke-width="1.8"/>
+        <text x="602" y="133" text-anchor="middle" fill="#39d4c8" font-size="15" font-weight="800">RisingWave</text>
+        <text x="602" y="153" text-anchor="middle" fill="#cfe9e6" font-size="11.5">SOURCE + 增量物化視圖</text>
+        <text x="602" y="172" text-anchor="middle" fill="#8b949e" font-size="10.5">winloss / game / player / minute</text>
+        <text x="602" y="188" text-anchor="middle" fill="#8b949e" font-size="10.5">即時增量計算</text>
+      </g>
+      <g class="node" id="n-olap" color="#d4a017">
+        <rect class="node-rect" x="775" y="105" width="160" height="90" fill="#241d09" stroke="#d4a017" stroke-width="1.8"/>
+        <text x="855" y="133" text-anchor="middle" fill="#d4a017" font-size="15" font-weight="800">OceanBase OLAP</text>
+        <text x="855" y="153" text-anchor="middle" fill="#ecd9a0" font-size="11.5">獨立集群 · 列存 + MV</text>
+        <text x="855" y="172" text-anchor="middle" fill="#8b949e" font-size="10.5">明細點查 · 歷史 BI</text>
+        <text x="855" y="188" text-anchor="middle" fill="#8b949e" font-size="10.5">本提案整合重點</text>
+      </g>
+      <g class="node" id="n-redis" color="#f85149">
+        <rect class="node-rect" x="700" y="360" width="170" height="62" fill="#2a1413" stroke="#f85149" stroke-width="1.6"/>
+        <text x="785" y="386" text-anchor="middle" fill="#f85149" font-size="14" font-weight="800">Redis (hotpath)</text>
+        <text x="785" y="406" text-anchor="middle" fill="#8b949e" font-size="11">秒級桶 · HLL 線上人數</text>
+      </g>
+      <g class="node" id="n-api" color="#58a6ff">
+        <rect class="node-rect" x="1018" y="115" width="100" height="70" fill="#11202e" stroke="#58a6ff" stroke-width="1.6"/>
+        <text x="1068" y="143" text-anchor="middle" fill="#58a6ff" font-size="14" font-weight="800">API</text>
+        <text x="1068" y="164" text-anchor="middle" fill="#8b949e" font-size="10.5">Rust / axum</text>
+        <text x="1068" y="178" text-anchor="middle" fill="#8b949e" font-size="10">查詢路由</text>
+      </g>
+      <g class="node" id="n-fe" color="#58a6ff">
+        <rect class="node-rect" x="1018" y="360" width="100" height="62" fill="#11202e" stroke="#3fb950" stroke-width="1.6"/>
+        <text x="1068" y="386" text-anchor="middle" fill="#3fb950" font-size="14" font-weight="800">總後台前端</text>
+        <text x="1068" y="406" text-anchor="middle" fill="#8b949e" font-size="10.5">報表 / KPI</text>
+      </g>
+      <g font-size="10.5" fill="#6e7681">
+        <text x="237" y="140">binlog</text>
+        <text x="455" y="140">stream</text>
+        <text x="730" y="140">SINK</text>
+        <text x="500" y="243">即時聚合查詢</text>
+        <text x="470" y="293">熱路徑分支</text>
+      </g>
+    </svg>
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--purple)"></i>CDC binlog → Kafka</span>
+    <span><i class="dot" style="background:var(--teal)"></i>RisingWave 串流 / 即時聚合</span>
+    <span><i class="dot" style="background:var(--gold)"></i>OceanBase OLAP 明細</span>
+    <span><i class="dot" style="background:var(--red)"></i>Redis 秒級 live</span>
+    <span><i class="dot" style="background:var(--blue)"></i>API / 前端</span>
+  </div>
+
+  <!-- ============ 端到端時序動畫 ============ -->
+  <h2>② 端到端資料流(逐步播放 · 一筆注單的旅程)</h2>
+  <p class="sub">按「▶ 播放」依先後順序走一遍:從玩家下注到報表可見。右上角顯示延遲累積,上方架構圖對應節點會跟著發亮。</p>
+  <div class="player">
+    <div class="ctrls">
+      <button id="play">▶ 播放</button>
+      <button class="ghost" id="prev">◀ 上一步</button>
+      <button class="ghost" id="next">下一步 ▶</button>
+      <button class="ghost" id="reset">↺ 重置</button>
+      <span class="latency">端到端延遲累積:<b id="lat">0</b> ms</span>
+    </div>
+    <div class="steps" id="steps"></div>
+  </div>
+
+  <!-- ============ 每個服務做什麼事(核心) ============ -->
+  <h2>③ 每個服務做什麼事(職責 · 輸入 · 輸出 · 技術)</h2>
+  <p class="sub">本架構各服務職責單一、邊界清楚。以下逐一說明,OceanBase OLAP 為本提案整合重點(金色框)。</p>
+  <div class="svcgrid">
+
+    <div class="svc">
+      <div class="svc-h"><span class="badge b-ob">OceanBase OLTP</span><span class="tier">來源層 · 沿用既有</span></div>
+      <dl>
+        <dt>職責</dt><dd>交易主庫,承載玩家下注 / 派彩等線上交易,為整條管線的真相來源 (source of truth)。</dd>
+        <dt>輸入</dt><dd>遊戲端的下注 / 派彩請求</dd>
+        <dt>輸出</dt><dd>交易 commit + binlog 變更事件</dd>
+        <dt>技術</dt><dd>OceanBase(現行生產環境,本提案不變更)</dd>
+      </dl>
+    </div>
+
+    <div class="svc">
+      <div class="svc-h"><span class="badge b-kafka">CDC → Kafka</span><span class="tier">攝入層 · 沿用既有</span></div>
+      <dl>
+        <dt>職責</dt><dd>捕捉 OLTP binlog 變更,標準化為 <code>accounting</code> envelope 訊息送入 Kafka;讓多個下游解耦、各自消費同一份變更。</dd>
+        <dt>輸入</dt><dd>OceanBase OLTP binlog</dd>
+        <dt>輸出</dt><dd>Kafka topic(JSON envelope:含金額(分)、幣別、代理路徑、會員、時間等)</dd>
+        <dt>技術</dt><dd>CDC(現行)+ Kafka(KRaft)</dd>
+      </dl>
+    </div>
+
+    <div class="svc">
+      <div class="svc-h"><span class="badge b-rw">RisingWave</span><span class="tier">串流計算層 · 新增</span></div>
+      <dl>
+        <dt>職責</dt><dd>串流計算核心。以 Kafka 為 SOURCE,建立<b>增量物化視圖</b>(輸贏 / 熱門遊戲 / 遊戲績效 / 玩家活躍),來一筆算一筆,不重算全表;即時聚合報表直接查詢 MV。</dd>
+        <dt>輸入</dt><dd>Kafka accounting 訊息流</dd>
+        <dt>輸出</dt><dd>① 即時聚合結果(供 API 查詢)② 經 SINK 寫入 OceanBase OLAP 的明細 / 預匯總</dd>
+        <dt>技術</dt><dd>RisingWave(PostgreSQL 協議);state 落物件儲存,持久化、重啟不掉狀態</dd>
+      </dl>
+    </div>
+
+    <div class="svc hl">
+      <div class="svc-h"><span class="badge b-ob">OceanBase OLAP</span><span class="tier">服務層 · 獨立集群 · 整合重點</span></div>
+      <dl>
+        <dt>職責</dt><dd>明細與歷史查詢的服務層:承接<b>明細點查</b>(依會員 / 交易單號查單筆)、<b>歷史 BI</b> 與跨商戶大範圍掃描;必要時以列存物化視圖加速。</dd>
+        <dt>輸入</dt><dd>RisingWave SINK 寫入(MySQL 協議)</dd>
+        <dt>輸出</dt><dd>明細 / 歷史 / 大範圍查詢結果(供 API)</dd>
+        <dt>技術</dt><dd>OceanBase OLAP(<b>獨立集群部署</b>,與 OLTP 分離);列存 + 主鍵 upsert + (可選) 物化視圖</dd>
+      </dl>
+    </div>
+
+    <div class="svc">
+      <div class="svc-h"><span class="badge b-redis">Redis (hotpath)</span><span class="tier">服務層 · 沿用既有</span></div>
+      <dl>
+        <dt>職責</dt><dd>秒級即時看板。獨立 consumer 從 Kafka 即時累加每秒指標(<code>HINCRBYFLOAT</code>),線上人數以 HyperLogLog 估算。</dd>
+        <dt>輸入</dt><dd>Kafka accounting 訊息流(熱路徑分支)</dd>
+        <dt>輸出</dt><dd>秒級 KPI(供 API,毫秒級讀取)</dd>
+        <dt>技術</dt><dd>Redis(秒級桶 + HLL,TTL 自動過期)</dd>
+      </dl>
+    </div>
+
+    <div class="svc">
+      <div class="svc-h"><span class="badge b-api">API (Rust)</span><span class="tier">應用層 · 沿用/重構</span></div>
+      <dl>
+        <dt>職責</dt><dd>查詢路由器:依查詢型態打到最適引擎 — 即時聚合 → RisingWave、明細點查 → OceanBase OLAP、秒級 live → Redis。對前端提供統一介面。</dd>
+        <dt>輸入</dt><dd>前端查詢請求</dd>
+        <dt>輸出</dt><dd>聚合 / 報表 / KPI 結果</dd>
+        <dt>技術</dt><dd>Rust / axum(低延遲、低資源)</dd>
+      </dl>
+    </div>
+
+  </div>
+  <div class="callout"><b>一句話:</b>RisingWave 算「即時」、OceanBase OLAP 顧「明細與歷史」、Redis 顧「秒級看板」、API 做「智慧路由」,各司其職、邊界清楚。</div>
+
+  <h3>為何串流計算層採用 RisingWave(相較 Apache Flink)</h3>
+  <p class="sub">即時計算層在評估後採用 RisingWave 而非 Flink,主因在維運成本、穩定性與「計算即服務」的查詢便利性。我方本機 PoC 已實證下列差異。</p>
+  <table>
+    <tr><th style="width:130px">面向</th><th>Apache Flink</th><th>RisingWave(本架構採用)</th></tr>
+    <tr><td><b>開發 / 維運</b></td><td>需撰寫 Java / Scala job,並自行打包、維護 Kafka / Sink 連接器 jar</td><td><span class="ok">一份 SQL 即定義即時報表</span>,免額外串流任務與連接器維運</td></tr>
+    <tr><td><b>任務存活</b></td><td>standalone JobManager 重啟易導致 job 中斷(PoC 中曾多次發生)</td><td><span class="ok">物化視圖持久化</span>,服務重啟自動從 checkpoint 續傳,不掉狀態</td></tr>
+    <tr><td><b>狀態儲存</b></td><td>本機 RocksDB + checkpoint,擴容需搬遷狀態</td><td><span class="ok">state 落物件儲存</span>,算 / 存分離,擴容容易</td></tr>
+    <tr><td><b>查詢方式</b></td><td>運算結果須先 sink 至外部儲存才能查詢</td><td><span class="ok">MV 本身即可被 SQL 查詢</span>(計算即服務,PostgreSQL 協議)</td></tr>
+    <tr><td><b>精確去重</b></td><td>count(distinct) 需自行維護狀態</td><td><span class="ok">原生 exact count(distinct)</span>,增量維護</td></tr>
+    <tr><td><b>上手門檻</b></td><td>需熟悉 Flink API / 算子模型</td><td>標準 SQL + PostgreSQL 協議,團隊上手快</td></tr>
+  </table>
+
+  <!-- ============ 查詢路由 ============ -->
+  <h2>④ 查詢路由(各取所長)</h2>
+  <p class="sub">同一後台,不同頁面的查詢打到不同引擎,各取所長 —— 此為混合架構的核心設計。</p>
+  <table>
+    <tr><th>前端頁面 / 查詢類型</th><th class="c" style="width:170px">服務引擎</th><th class="c" style="width:130px">預估延遲</th><th>說明</th></tr>
+    <tr><td>系統總覽即時 KPI(每秒注單、線上人數、即時輸贏)</td><td class="c"><span class="tag b-redis" style="display:inline">Redis</span></td><td class="c metric ok">~1-3 ms</td><td>秒級桶直接讀,免計算</td></tr>
+    <tr><td>輸贏報表 / 熱門遊戲 / 遊戲績效(按日 / 小時聚合)</td><td class="c"><span class="tag b-rw" style="display:inline">RisingWave MV</span></td><td class="c metric ok">~50-150 ms</td><td>增量 MV 已算好,查詢即取結果,與資料量無關</td></tr>
+    <tr><td>會員轉帳紀錄 / 明細查詢(依會員 / 單號查單筆)</td><td class="c"><span class="tag b-ob" style="display:inline">OceanBase OLAP</span></td><td class="c metric warn">待整合測試</td><td>點查 — 由列存 + 索引提供(效能待整合測試驗證)</td></tr>
+    <tr><td>歷史報表 / 跨商戶大範圍 / 自由 BI 探索</td><td class="c"><span class="tag b-ob" style="display:inline">OceanBase OLAP</span></td><td class="c metric warn">待整合測試</td><td>大範圍掃描以列存承載;可在 OB 端建 MV 進一步加速</td></tr>
+  </table>
+
+  <div class="foot">即時報表架構整合提案　·　RisingWave(串流計算)+ OceanBase OLAP(獨立集群 · 服務層)　·　提交 OceanBase 技術團隊評估　·　2026-06-18</div>
+
+</div>
+
+<script>
+const STEPS = [
+  {t:"玩家下注,寫入交易主庫", where:"OceanBase OLTP", node:"n-oltp", color:"#58a6ff",
+   d:"一筆注單 / 派彩 commit 進 OceanBase OLTP — 整條管線的真相來源。", lat:0},
+  {t:"CDC 捕捉變更 → 推進 Kafka", where:"CDC → Kafka", node:"n-kafka", color:"#bc8cff",
+   d:"CDC 讀 binlog,將該筆變更標準化為 accounting envelope 送入 Kafka,下游解耦消費。", lat:50},
+  {t:"分支①:熱路徑進 Redis(秒級看板)", where:"Redis", node:"n-redis", color:"#f85149",
+   d:"hotpath consumer 立即將指標累加進 Redis 秒級桶 + 線上人數 HLL → 即時 KPI 馬上可見。", lat:30},
+  {t:"分支②:RisingWave SOURCE 攝入", where:"RisingWave", node:"n-rw", color:"#39d4c8",
+   d:"同一筆訊息被 RisingWave SOURCE 消費,進入串流計算引擎。", lat:50},
+  {t:"RisingWave 增量更新物化視圖", where:"RisingWave", node:"n-rw", color:"#39d4c8",
+   d:"來一筆算一筆:輸贏 / 熱門遊戲 / 遊戲績效 / 玩家 各維度 MV 增量更新,不重算全表。", lat:100},
+  {t:"SINK 寫入 OceanBase OLAP", where:"OceanBase OLAP", node:"n-olap", color:"#d4a017",
+   d:"RisingWave 透過 MySQL / JDBC Sink 將明細 + 預匯總寫入 OceanBase OLAP(獨立集群),主鍵 upsert 冪等去重。", lat:800},
+  {t:"OLAP 列存就緒(可選 MV 加速)", where:"OceanBase OLAP", node:"n-olap", color:"#d4a017",
+   d:"資料落入列存,明細點查 / 歷史 BI 可查;必要時以 OceanBase MV 再做一層加速。", lat:700},
+  {t:"後台 API 查詢(智慧路由)", where:"API", node:"n-api", color:"#58a6ff",
+   d:"即時聚合 → RisingWave MV;明細點查 → OceanBase OLAP;秒級 live → Redis。各取所長。", lat:100},
+  {t:"前端呈現報表 + 即時 KPI", where:"總後台前端", node:"n-fe", color:"#3fb950",
+   d:"輸贏報表 / 熱門遊戲 / 遊戲績效 / 會員轉帳 + 全系統即時總覽。下注 → 可見 約 1-2 秒。", lat:20},
+];
+
+const stepsEl = document.getElementById('steps');
+const latEl = document.getElementById('lat');
+let cur = -1, timer = null;
+
+STEPS.forEach((s,i)=>{
+  const el = document.createElement('div');
+  el.className='step'; el.id='step'+i;
+  el.innerHTML = `<div class="num">${i+1}</div>
+    <div><div class="t">${s.t}<span class="where" style="background:${s.color}22;color:${s.color}">${s.where}</span></div>
+    <div class="d">${s.d}</div>
+    <div class="lat">+${s.lat} ms</div></div>`;
+  el.onclick=()=>goto(i);
+  stepsEl.appendChild(el);
+});
+
+function clearNodes(){
+  document.querySelectorAll('#archsvg .node').forEach(n=>n.classList.remove('active'));
+}
+function render(){
+  let acc=0;
+  STEPS.forEach((s,i)=>{
+    const el=document.getElementById('step'+i);
+    el.classList.toggle('on', i===cur);
+    el.classList.toggle('done', i<cur);
+    if(i<=cur) acc+=s.lat;
+  });
+  clearNodes();
+  if(cur>=0){
+    const n=document.getElementById(STEPS[cur].node);
+    if(n) n.classList.add('active');
+    document.getElementById('step'+cur).scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  latEl.textContent = acc;
+}
+function goto(i){ stop(); cur=Math.max(-1,Math.min(STEPS.length-1,i)); render(); }
+function next(){ if(cur<STEPS.length-1){cur++;render();} else stop(); }
+function prev(){ if(cur>0){cur--;render();} }
+function reset(){ stop(); cur=-1; render(); }
+function stop(){ if(timer){clearInterval(timer);timer=null;} document.getElementById('play').textContent='▶ 播放'; }
+function play(){
+  if(timer){ stop(); return; }
+  if(cur>=STEPS.length-1) cur=-1;
+  document.getElementById('play').textContent='⏸ 暫停';
+  timer=setInterval(()=>{ if(cur<STEPS.length-1){cur++;render();} else stop(); },1500);
+  next();
+}
+document.getElementById('play').onclick=play;
+document.getElementById('next').onclick=()=>{stop();next();};
+document.getElementById('prev').onclick=()=>{stop();prev();};
+document.getElementById('reset').onclick=reset;
+render();
+</script>
+</body>
+</html>
