@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Ops Agent — Q&A</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --border:#30363d;
+    --text:#e6edf3; --muted:#8b949e;
+    --blue:#58a6ff; --teal:#39d4c8; --green:#3fb950; --orange:#e3a008;
+    --gold:#d4a017; --purple:#bc8cff; --red:#f85149; --pink:#f778ba;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,"PingFang TC","Microsoft JhengHei","Segoe UI",sans-serif;
+    line-height:1.75;}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 22px 80px;}
+  a{color:var(--blue);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+
+  .back{display:inline-block;font-size:13px;color:var(--muted);margin-bottom:18px;}
+  h1{font-size:28px;margin:0 0 6px;font-weight:800;letter-spacing:.5px;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:8px;}
+
+  .toc{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin:20px 0 28px;}
+  .toc ol{margin:6px 0 0;padding-left:20px;}
+  .toc li{margin:5px 0;}
+
+  .qa{background:var(--panel);border:1px solid var(--border);border-radius:14px;
+    padding:22px 24px;margin:18px 0;}
+  .q{font-size:18px;font-weight:800;color:var(--text);margin:0 0 14px;
+    padding-bottom:10px;border-bottom:1px solid var(--border);}
+  .q .num{display:inline-flex;align-items:center;justify-content:center;
+    width:26px;height:26px;border-radius:8px;background:rgba(188,140,255,.15);
+    color:var(--purple);font-size:14px;margin-right:10px;vertical-align:middle;}
+  h3{font-size:15px;margin:18px 0 6px;color:var(--teal);}
+  p{margin:8px 0;}
+  ul{margin:8px 0;padding-left:22px;}
+  li{margin:4px 0;}
+
+  .takeaway{background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.35);
+    border-radius:10px;padding:12px 16px;margin:16px 0 4px;font-size:14.5px;}
+  .takeaway b{color:var(--green);}
+  .note{background:rgba(227,160,8,.08);border:1px solid rgba(227,160,8,.35);
+    border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .note b{color:var(--orange);}
+
+  code{font-family:"SF Mono",Menlo,monospace;font-size:13px;
+    background:#0b1117;border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--teal);}
+  pre{font-family:"SF Mono",Menlo,monospace;font-size:13px;color:var(--text);
+    background:#0a0e14;border:1px solid var(--border);border-radius:10px;padding:14px 16px;overflow-x:auto;line-height:1.6;}
+  pre b{color:var(--gold);}
+  pre .c{color:var(--muted);}
+  pre .hl{color:var(--pink);}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px;}
+  th,td{border:1px solid var(--border);padding:9px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--panel2);font-weight:700;}
+  tr:nth-child(even) td{background:rgba(255,255,255,.018);}
+  .ok{color:var(--green);font-weight:600;}
+  .mono{font-family:"SF Mono",Menlo,monospace;color:var(--teal);}
+
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:12px;font-weight:700;}
+  .b-tempo{background:rgba(88,166,255,.15);color:var(--blue);border:1px solid rgba(88,166,255,.4);}
+  .b-oo{background:rgba(212,160,23,.15);color:var(--gold);border:1px solid rgba(212,160,23,.4);}
+  .b-graf{background:rgba(63,185,80,.15);color:var(--green);border:1px solid rgba(63,185,80,.4);}
+  .b-rum{background:rgba(57,212,200,.15);color:var(--teal);border:1px solid rgba(57,212,200,.4);}
+  .b-git{background:rgba(247,120,186,.13);color:var(--pink);border:1px solid rgba(247,120,186,.4);}
+
+  .footer{margin-top:48px;text-align:center;font-size:12px;color:#484f58;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <a class="back" href="../">← Home</a>
+  <a class="back" href="./index.html" style="margin-left:14px;">← 回到 AI Ops Agent 提案</a>
+  <h1>AI Ops Agent — Q&A</h1>
+  <div class="sub">觀念釐清：RUM · 分散式追蹤（trace_id）· MCP 如何把跨系統資訊組成一份報告</div>
+
+  <div class="toc">
+    <b>目錄</b>
+    <ol>
+      <li><a href="#q1">什麼是「RUM Analyst」？</a></li>
+      <li><a href="#q2">服務都裝了 OpenTelemetry 就會有相同的 trace_id？怎麼傳遞？</a></li>
+      <li><a href="#q3">我們沒有「儲存」trace_id，Tempo 怎麼查得到？</a></li>
+      <li><a href="#q4">log 了 trace_id 後，就能在 OpenObserve 用 trace_id 查詢？</a></li>
+      <li><a href="#q5">完整範例：一個 trace_id，MCP 如何把所有資訊組成一份報告</a></li>
+    </ol>
+  </div>
+
+  <!-- ===== Q1 ===== -->
+  <div class="qa" id="q1">
+    <div class="q"><span class="num">1</span>什麼是「RUM Analyst」？</div>
+    <p><b>RUM = Real User Monitoring（真實使用者監控）</b> —— 從<b>真實使用者的瀏覽器 / App 客戶端</b>收集的效能與錯誤遙測（頁面載入時間、前端 JS 錯誤、使用者「實際感受到」的 API 延遲、崩潰等），對比的是「伺服器端」的指標。</p>
+    <p>在本提案中，<b>RUM Analyst</b> 是五位並行專科代理之一，後端資料源為 <span class="badge b-rum">SigNoz RUM</span>，透過 <b>SigNoz MCP</b> 讀取。它回答的問題是：</p>
+    <div class="takeaway"><b>核心職責：</b>「這次事故<b>是否真的傷到終端使用者</b>？還是只在伺服器端可見？」在產出範本中可看到它的貢獻：<code>RUM (SigNoz): No client impact detected</code> —— 即使伺服器端延遲飆高，RUM Analyst 確認使用者端未受影響，這是與其他四位分析師（Metric / Log / Trace / Code-Change）不同的獨立證據面向。</div>
+  </div>
+
+  <!-- ===== Q2 ===== -->
+  <div class="qa" id="q2">
+    <div class="q"><span class="num">2</span>服務都裝了 OpenTelemetry 就會有相同的 trace_id？怎麼傳遞？</div>
+    <p>是的 —— 一個進來的請求會產生<b>一個 trace_id</b>，並流經所有下游服務。傳遞機制是<b>「透過請求 header 傳播 context」</b>，<b>不是</b>靠共用儲存。</p>
+    <table>
+      <tr><th>步驟</th><th>發生什麼</th></tr>
+      <tr><td><b>① 入口</b></td><td>第一個收到請求的服務（如 gateway）。若請求沒有既有的 trace context，OTel SDK 會<b>產生</b>一個新的 <code>trace_id</code>（128-bit）+ <code>span_id</code>（64-bit）。</td></tr>
+      <tr><td><b>② 對外呼叫（注入 inject）</b></td><td>服務 A 呼叫服務 B 時，OTel 自動把 context <b>注入到 outgoing header</b>。標準為 <b>W3C Trace Context</b> 的 <code>traceparent</code> header。</td></tr>
+      <tr><td><b>③ 接收方（提取 extract）</b></td><td>服務 B 的 OTel <b>提取 <code>traceparent</code></b>，看到已有 trace_id，於是把自己的 span 建成上一個 span 的<b>子節點</b>，並<b>沿用同一個 trace_id</b>。往下逐跳重複。</td></tr>
+    </table>
+<pre><span class="c"># W3C traceparent header 格式</span>
+traceparent: 00-<b>4bf92f3577b34da6a3ce929d0e0e4736</b>-00f067aa0ba902b7-01
+             │  └─ trace_id (32 hex) ─────────────┘ └ parent span_id ┘ └ flags
+             version</pre>
+    <p><b>你實際要做什麼：</b>多數技術棧只要載入了 OTel SDK + 對應框架的 auto-instrumentation，這一切是<b>自動</b>的，不需手動傳 header。</p>
+    <div class="note"><b>唯一要注意：</b>每一跳都必須被 instrument。若服務 B 沒被 instrument，鏈就在這裡斷掉（B 不會轉發 <code>traceparent</code>），其後所有下游會拿到一個<b>全新、斷開的 trace</b>。這正是「所有服務都必須 instrument」背後的真正前提。</div>
+  </div>
+
+  <!-- ===== Q3 ===== -->
+  <div class="qa" id="q3">
+    <div class="q"><span class="num">3</span>我們沒有「儲存」trace_id，Tempo 怎麼查得到？</div>
+    <p>關鍵在於：<b>「傳播」≠「儲存」</b>。inject/extract 只是 trace_id 在服務間<b>旅行</b>的方式；但每個服務<b>另外還會把自己的 span 資料送到 Tempo</b>。OTel SDK 做的是<b>兩件獨立的事</b>：</p>
+<pre><span class="c"># 每個處理請求的服務，OTel SDK 都做兩件事：</span>
+(1) <b>PROPAGATE 傳播</b>  → inject/extract trace_id（傳給下一個服務）
+(2) <b>EXPORT 匯出</b>     → 把本服務的 span 送到 Tempo：
+     { trace_id, span_id, parent_span_id,
+       service, operation, start_time, duration, attributes }</pre>
+    <p>所以你<b>不用手動把 trace_id 存進 Tempo</b> —— OTel SDK 會<b>自動把每個 span 匯出到 Tempo</b>，而每個匯出的 span 本身就<b>帶著它的 trace_id</b>。這個匯出動作就是「儲存」。你只要把 SDK 的 exporter 指向 Tempo（通常經由 OpenTelemetry Collector）。</p>
+    <h3>Tempo 如何用 trace_id 組出一條 trace</h3>
+    <p>Tempo 在 ingest 時<b>依 trace_id 把 span 分組</b>；各 span 的 <code>parent_span_id</code> 則重建出<b>呼叫順序 / 階層</b>（誰呼叫誰）：</p>
+<pre><span class="c">// 來自不同服務、亂序抵達 Tempo 的 span：</span>
+{trace_id: <b>7f3a</b>, span_id: A, parent: -,  service: gateway,  2ms}
+{trace_id: <b>7f3a</b>, span_id: B, parent: A,  service: checkout, 2.4s}
+{trace_id: <b>7f3a</b>, span_id: C, parent: B,  service: wallet,   2.1s}  <span class="hl">← bottleneck</span>
+{trace_id: 9c1d, span_id: X, ...}   <span class="c">← 另一個請求</span>
+
+<span class="c">// Tempo 依 trace_id 分組 → 組出 7f3a 的樹：</span>
+gateway (A)
+  └─ checkout (B)  2.4s
+       └─ wallet (C)  2.1s   <span class="hl">← 瓶頸 span</span></pre>
+    <h3>兩種查詢方式</h3>
+    <table>
+      <tr><th>方式</th><th>用途</th></tr>
+      <tr><td><b>(a) 直接用 ID 查</b><br><code>GET /api/traces/7f3a</code></td><td>已知 trace_id 時的快路徑，回傳整棵 span 樹。trace_id 是它物件儲存的主鍵，所以快。</td></tr>
+      <tr><td><b>(b) TraceQL 搜尋</b><br><code>{ service.name="checkout" && duration&gt;2s }</code></td><td>還沒有 ID 時：Tempo 對少量 span 屬性（service.name / duration / status…）建索引，先搜出符合的 trace_id，再用 (a) 撈完整 trace。</td></tr>
+    </table>
+    <div class="takeaway"><b>一句話：</b>你沒有明確「儲存」trace_id，但 OTel SDK 會<b>把每個 span（內含 trace_id）匯出到 Tempo</b>，那個匯出就是儲存；Tempo 靠<b>把這些 span 依 trace_id 分組</b>來查詢與組樹。傳播與匯出是 SDK 的兩件獨立工作 —— 只想到 inject/extract 就會漏掉「匯出到 Tempo」這另一半。</div>
+  </div>
+
+  <!-- ===== Q4 ===== -->
+  <div class="qa" id="q4">
+    <div class="q"><span class="num">4</span>log 了 trace_id 後，就能在 OpenObserve 用 trace_id 查詢？</div>
+    <p><b>對，這正是重點，也是把整個關聯閉環串起來的關鍵。</b>只要 log 行內含 <code>trace_id</code> 這個結構化欄位，就能在 OpenObserve（SQL 介面）查：</p>
+<pre>SELECT ts, service, account_id, level, message
+FROM logs
+WHERE <b>trace_id = '4bf92f3577b34da6a3ce929d0e0e4736'</b>
+ORDER BY ts</pre>
+    <p>這會回傳<b>屬於同一個請求、跨所有服務的每一行 log</b> —— 即 Log Analyst 的證據，並與 trace 對齊。</p>
+    <h3>trace_id 怎麼進到 log 行裡（前提）</h3>
+    <p>OTel SDK 透過 logging 整合 / MDC（context）暴露當前的 <code>trace_id</code>；你把 log 格式設定成輸出這個欄位即可。多數 logging 設定只需一行 config 就能做到 —— 你不用在程式裡手動穿針引線。</p>
+    <div class="note"><b>注意角色分工：</b>request/response 的<b>順序</b>是由 <span class="badge b-tempo">Tempo</span> 重建（span tree），<b>不是</b>從 OpenObserve 推導。OpenObserve 的角色是<b>關聯（correlation）</b>：「給定這條慢 trace，撈出相同 trace_id 的 log 行」，把 log 證據接到 trace 上。</div>
+  </div>
+
+  <!-- ===== Q5 ===== -->
+  <div class="qa" id="q5">
+    <div class="q"><span class="num">5</span>完整範例：一個 trace_id，MCP 如何把所有資訊組成一份報告</div>
+    <p>情境：使用者 <code>account: user_88231</code> 點「Checkout」。請求變慢並報錯。一個請求 → 一個 <code>trace_id: 7f3a2b</code>。以下看每個 MCP 各貢獻一塊拼圖，全部由這一個 ID 串接。</p>
+
+    <h3>Step 0 — 因為有 instrumentation，才有這個 join key</h3>
+<pre>user_88231 點 Checkout
+  → gateway 產生 trace_id = <b>7f3a2b</b>
+  → 傳播 7f3a2b 到 checkout → wallet         <span class="c">(traceparent header)</span>
+  → 每個服務都把 log 行帶上 trace_id=7f3a2b
+  → 每個服務都把 span 匯出到 Tempo 帶上 trace_id=7f3a2b</pre>
+    <p>現在 <code>7f3a2b</code> 就是把一切綁在一起的唯一字串。</p>
+
+    <h3>Step 1 — <span class="badge b-tempo">Tempo MCP</span>：服務間的 request / response 路徑</h3>
+    <p>Trace Analyst 向 Tempo 要 trace <code>7f3a2b</code>，Tempo 回傳 span 樹：</p>
+<pre>trace <b>7f3a2b</b>   (total 2.4s)
+├─ gateway   POST /checkout        2.40s
+│  └─ checkout   settleOrder()     2.35s
+│     └─ wallet   WalletTransfer   2.10s   <span class="hl">← bottleneck span</span>
+│        └─ OceanBase  UPDATE ...  2.05s   <span class="hl">← 時間實際花在這</span></pre>
+    <p><b>學到什麼：</b>請求流向 gateway → checkout → wallet → DB，且 2.4s 中有 <b>2.1s 花在 <code>wallet.WalletTransfer</code></b>。這是「<b>在哪裡</b>」。</p>
+
+    <h3>Step 2 — <span class="badge b-oo">OpenObserve MCP</span>：哪個帳號 + 錯誤細節</h3>
+    <p>Log Analyst 拿<b>同一個</b> <code>7f3a2b</code> 查 log：</p>
+<pre>SELECT ts, service, account_id, level, message
+FROM logs WHERE <b>trace_id = '7f3a2b'</b> ORDER BY ts</pre>
+    <table>
+      <tr><th>ts</th><th>service</th><th>account_id</th><th>level</th><th>message</th></tr>
+      <tr><td class="mono">14:05:01</td><td>gateway</td><td class="mono">user_88231</td><td>INFO</td><td>POST /checkout received</td></tr>
+      <tr><td class="mono">14:05:01</td><td>checkout</td><td class="mono">user_88231</td><td>INFO</td><td>settleOrder start</td></tr>
+      <tr><td class="mono">14:05:03</td><td>wallet</td><td class="mono">user_88231</td><td style="color:var(--red);font-weight:600">ERROR</td><td>context deadline exceeded on WalletTransfer</td></tr>
+    </table>
+    <p><b>學到什麼：</b>受影響<b>帳號為 <code>user_88231</code></b>，錯誤是 <code>wallet</code> 的 <code>context deadline exceeded</code> —— 與 Step 1 的慢 span 吻合。這是「<b>誰</b> + <b>什麼</b>」。（trace_id 是 join；account_id 是 log 帶的欄位。）</p>
+
+    <h3>Step 3 — 其他 MCP 補上佐證（同時間窗 / 同 trace）</h3>
+    <table>
+      <tr><th>MCP / 分析師</th><th>查詢</th><th>回答</th></tr>
+      <tr><td><span class="badge b-graf">Grafana MCP</span>（Metric）</td><td>14:05 前後 <code>wallet</code> settle p99</td><td>120ms → <b>2.4s</b> 於 14:05 飆高</td></tr>
+      <tr><td><span class="badge b-graf">DB Health MCP</span>（Metric）</td><td>14:05 OceanBase 健康度</td><td>active-session 峰值，該 UPDATE <b>命中 slow-log</b></td></tr>
+      <tr><td><span class="badge b-rum">SigNoz MCP</span>（RUM）</td><td>該流程的 client 影響</td><td><b>無客戶端影響</b>（僅伺服器端）</td></tr>
+      <tr><td><span class="badge b-git">GitHub MCP</span>（Code-Change）</td><td>14:05 前剛部署了什麼</td><td><b>PR #1234</b> "add sync wallet check"，<b>14:03</b> 部署，動到 wallet 路徑</td></tr>
+    </table>
+    <p>每位分析師<b>並行</b>執行，各自只打自己的唯讀 MCP。</p>
+
+    <h3>Step 4 — Reporter（經 Notifications MCP）拼成一張完整圖</h3>
+    <p>Reporter 關聯所有拼圖 —— <b>trace_id 串起 Trace↔Log，時間戳 + 動到的路徑串起 PR</b> —— 產出：</p>
+<pre><span class="hl">[P1] Checkout latency — wallet settlement timing out</span>
+Account impacted: user_88231 (+ ~1,200 similar)   <span class="c">[from logs]</span>
+Where:  wallet.WalletTransfer 2.1s                 <span class="c">[Tempo trace 7f3a2b]</span>
+What:   context deadline exceeded                  <span class="c">[OpenObserve, trace 7f3a2b]</span>
+Metric: settle p99 120ms → 2.4s @14:05             <span class="c">[Grafana]</span>
+DB:     OceanBase slow-log hit on UPDATE           <span class="c">[DB Health]</span>
+User:   no client-side impact                       <span class="c">[SigNoz RUM]</span>
+Suspect: PR #1234 deployed 14:03, touches path      <span class="c">[GitHub] ← correlation, not proof</span>
+Confidence: High → recommend humans review PR #1234</pre>
+
+    <h3>一行心智模型</h3>
+<pre>trace_id <b>7f3a2b</b>  ─┬─ Tempo       → 呼叫路徑 & 時間花在哪
+                  ├─ OpenObserve → 哪個帳號 + 錯誤文字   <span class="c">(用 trace_id join)</span>
+                  ├─ Grafana     → metric 飆高          <span class="c">(用時間窗 join)</span>
+                  ├─ DB Health   → DB slow-log          <span class="c">(用時間窗 join)</span>
+                  ├─ SigNoz RUM  → 使用者是否受影響
+                  └─ GitHub      → 嫌疑 PR              <span class="c">(用時間 + 動到的路徑 join)</span>
+                          ↓
+                  Reporter 合併全部 → 一份 incident report → 人決策</pre>
+    <div class="takeaway"><b>核心洞察：</b><code>trace_id</code> 是<b>精準的 join</b>（Trace ↔ Log，可細到單一請求 / 帳號）；其他（metrics、DB、PR）則以較鬆的<b>時間窗 + 受影響服務 / 路徑</b>來關聯。Agent 的全部工作就是把這些組成一個有證據的故事 —— 它<b>從不動手修</b>。</div>
+  </div>
+
+  <div class="footer">
+    CampaignServer Team · AI Ops Agent Q&A · <a href="./index.html">提案文件</a>
+  </div>
+
+</div>
+</body>
+</html>
