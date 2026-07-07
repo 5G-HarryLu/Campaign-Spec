@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>incident-bot 建置手冊</title>
+<style>
+  :root {
+    /* light — printed field manual */
+    --ground:#eef1f8; --panel:#ffffff; --panel-2:#f5f7fc; --sunk:#e9edf6;
+    --ink:#141b2c; --ink-soft:#495166; --ink-faint:#828da6; --line:#d9deec;
+    --hot:#e8501f; --hot-soft:#fbe4da; --cool:#0f9c8f; --cool-soft:#d6f2ee;
+    --ok:#0f9d53; --warn:#c47a00; --crit:#d92d38; --wire:#c0c8dc;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Noto Sans TC','PingFang TC',sans-serif;
+    --shadow:0 1px 0 rgba(20,27,44,.04),0 12px 32px -18px rgba(20,27,44,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0d1424; --panel:#141d30; --panel-2:#18223a; --sunk:#0f1728;
+      --ink:#e7ecf8; --ink-soft:#a6b2cd; --ink-faint:#6a7794; --line:#25314c;
+      --hot:#ff6d44; --hot-soft:#2c1a16; --cool:#2dd4bf; --cool-soft:#12271f;
+      --ok:#37d180; --warn:#f5a623; --crit:#ff5a5f; --wire:#33415f;
+      --shadow:0 1px 0 rgba(0,0,0,.3),0 20px 46px -22px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f8; --panel:#ffffff; --panel-2:#f5f7fc; --sunk:#e9edf6;
+    --ink:#141b2c; --ink-soft:#495166; --ink-faint:#828da6; --line:#d9deec;
+    --hot:#e8501f; --hot-soft:#fbe4da; --cool:#0f9c8f; --cool-soft:#d6f2ee;
+    --ok:#0f9d53; --warn:#c47a00; --crit:#d92d38; --wire:#c0c8dc;
+    --shadow:0 1px 0 rgba(20,27,44,.04),0 12px 32px -18px rgba(20,27,44,.28);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0d1424; --panel:#141d30; --panel-2:#18223a; --sunk:#0f1728;
+    --ink:#e7ecf8; --ink-soft:#a6b2cd; --ink-faint:#6a7794; --line:#25314c;
+    --hot:#ff6d44; --hot-soft:#2c1a16; --cool:#2dd4bf; --cool-soft:#12271f;
+    --ok:#37d180; --warn:#f5a623; --crit:#ff5a5f; --wire:#33415f;
+    --shadow:0 1px 0 rgba(0,0,0,.3),0 20px 46px -22px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:inherit}
+  h1,h2,h3{text-wrap:balance;margin:0}
+  code,.mono{font-family:var(--mono)}
+
+  /* ---------- top bar ---------- */
+  .topbar{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--ground) 86%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:700;
+    font-size:14px;letter-spacing:.02em}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--hot);
+    box-shadow:0 0 0 4px var(--hot-soft);animation:blip 2.4s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+  .navlinks{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  .navlinks a{font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-decoration:none;
+    padding:6px 10px;border-radius:7px;white-space:nowrap}
+  .navlinks a:hover{background:var(--panel-2);color:var(--ink)}
+  .themebtn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);
+    width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;display:grid;place-items:center}
+  .themebtn:hover{color:var(--ink)}
+  @media (max-width:820px){.navlinks{display:none}}
+
+  /* ---------- hero ---------- */
+  .hero{padding:64px 0 40px;position:relative}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--hot);display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:1.5px;background:var(--hot)}
+  h1.title{font-size:clamp(34px,6vw,60px);font-weight:850;letter-spacing:-.02em;line-height:1.02;
+    margin:18px 0 0}
+  h1.title .g{background:linear-gradient(100deg,var(--hot),var(--cool));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2.2vw,20px);color:var(--ink-soft);max-width:60ch;margin:20px 0 0}
+  .metarow{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+  .chip{font-family:var(--mono);font-size:12px;padding:6px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);display:flex;gap:7px;align-items:center}
+  .chip b{color:var(--ink);font-weight:600}
+
+  /* ---------- hero pipeline svg ---------- */
+  .pipewrap{margin-top:40px;border:1px solid var(--line);border-radius:16px;background:
+    linear-gradient(180deg,var(--panel),var(--panel-2));padding:22px 18px 14px;box-shadow:var(--shadow);
+    overflow-x:auto}
+  .pipewrap svg{display:block;width:100%;min-width:640px;height:auto}
+
+  /* ---------- section ---------- */
+  section{padding:56px 0;border-top:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--hot);font-weight:700}
+  h2{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.01em}
+  .sec-sub{color:var(--ink-soft);max-width:64ch;margin:12px 0 0;font-size:16.5px}
+
+  /* ---------- architecture diagram ---------- */
+  .diagram{margin-top:34px;border:1px solid var(--line);border-radius:16px;background:var(--panel);
+    padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+  .diagram svg{display:block;width:100%;min-width:760px;height:auto}
+
+  /* ---------- flow timeline ---------- */
+  .flow{margin-top:34px;display:grid;grid-template-columns:repeat(5,1fr);gap:0;position:relative}
+  .flow .track{position:absolute;top:34px;left:8%;right:8%;height:3px;border-radius:3px;
+    background:linear-gradient(90deg,var(--hot),var(--warn),var(--cool));opacity:.35}
+  .flow .comet{position:absolute;top:31px;left:8%;width:9px;height:9px;border-radius:50%;
+    background:var(--ink);box-shadow:0 0 12px 3px color-mix(in srgb,var(--cool) 60%,transparent);
+    animation:comet 5.2s cubic-bezier(.6,.02,.3,1) infinite}
+  @keyframes comet{0%{left:8%;background:var(--hot);box-shadow:0 0 12px 3px color-mix(in srgb,var(--hot) 70%,transparent)}
+    100%{left:92%;background:var(--cool);box-shadow:0 0 12px 3px color-mix(in srgb,var(--cool) 70%,transparent)}}
+  .stage{text-align:center;padding:0 8px;position:relative;z-index:2}
+  .stage .bulb{width:70px;height:70px;margin:0 auto;border-radius:16px;background:var(--panel);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:28px;box-shadow:var(--shadow);
+    position:relative}
+  .stage:nth-child(2) .bulb{animation:litHot 5.2s infinite}
+  .stage:nth-child(3) .bulb{animation:lit 5.2s infinite .9s}
+  .stage:nth-child(4) .bulb{animation:lit 5.2s infinite 1.9s}
+  .stage:nth-child(5) .bulb{animation:lit 5.2s infinite 2.9s}
+  .stage:nth-child(6) .bulb{animation:litCool 5.2s infinite 3.9s}
+  @keyframes lit{0%,12%,100%{border-color:var(--line);transform:translateY(0)}
+    5%{border-color:var(--warn);transform:translateY(-4px);box-shadow:0 0 0 5px color-mix(in srgb,var(--warn) 22%,transparent),var(--shadow)}}
+  @keyframes litHot{0%,12%,100%{border-color:var(--line);transform:translateY(0)}
+    5%{border-color:var(--hot);transform:translateY(-4px);box-shadow:0 0 0 5px var(--hot-soft),var(--shadow)}}
+  @keyframes litCool{0%,12%,100%{border-color:var(--line);transform:translateY(0)}
+    5%{border-color:var(--cool);transform:translateY(-4px);box-shadow:0 0 0 5px var(--cool-soft),var(--shadow)}}
+  .stage .t{font-family:var(--mono);font-size:11px;color:var(--hot);margin-top:12px;font-weight:700}
+  .stage .nm{font-weight:700;font-size:13.5px;margin-top:3px}
+  .stage .ds{font-size:12px;color:var(--ink-faint);margin-top:3px;line-height:1.4}
+  @media (max-width:720px){
+    .flow{grid-template-columns:1fr 1fr;gap:24px 8px}
+    .flow .track,.flow .comet{display:none}
+  }
+
+  /* ---------- roadmap ---------- */
+  .roadmap{margin-top:34px;display:flex;flex-direction:column;gap:16px}
+  .phase{display:grid;grid-template-columns:64px 1fr;gap:20px;border:1px solid var(--line);
+    border-radius:14px;background:var(--panel);padding:20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .phase::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--tag,var(--hot))}
+  .phase .pnum{font-family:var(--mono);font-weight:800;font-size:22px;color:var(--tag,var(--hot));
+    text-align:center;line-height:1}
+  .phase .pnum small{display:block;font-size:10px;letter-spacing:.1em;color:var(--ink-faint);margin-top:6px;font-weight:600}
+  .phase h3{font-size:18px}
+  .phase p{margin:8px 0 0;color:var(--ink-soft);font-size:14.5px}
+  .phase ul{margin:10px 0 0;padding-left:18px;color:var(--ink-soft);font-size:14px}
+  .phase ul li{margin:4px 0}
+  .phase .st{font-family:var(--mono);font-size:11px;padding:3px 8px;border-radius:6px;
+    background:var(--cool-soft);color:var(--cool);font-weight:700;display:inline-block;margin-top:12px}
+
+  /* ---------- component cards ---------- */
+  .grid2{margin-top:34px;display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  @media (max-width:780px){.grid2{grid-template-columns:1fr}}
+  .card{border:1px solid var(--line);border-radius:14px;background:var(--panel);padding:22px;
+    box-shadow:var(--shadow);transition:transform .18s ease,border-color .18s ease}
+  .card:hover{transform:translateY(-3px);border-color:color-mix(in srgb,var(--cool) 45%,var(--line))}
+  .card .badge{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--cool);font-weight:700}
+  .card h3{font-size:19px;margin-top:8px;display:flex;align-items:center;gap:9px}
+  .card h3 .ic{font-size:22px}
+  .card p{color:var(--ink-soft);font-size:14.5px;margin:10px 0 0}
+  .kv{margin:14px 0 0;border-top:1px dashed var(--line);padding-top:12px;display:grid;gap:7px}
+  .kv div{display:flex;gap:10px;font-size:13px;align-items:baseline}
+  .kv .k{font-family:var(--mono);color:var(--ink-faint);min-width:112px;flex-shrink:0}
+  .kv .v{color:var(--ink);font-family:var(--mono);font-size:12.5px}
+
+  /* ---------- code ---------- */
+  pre{margin:16px 0 0;background:var(--sunk);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink)}
+  pre .c{color:var(--ink-faint)}
+  pre .k{color:var(--hot)}
+  pre .s{color:var(--cool)}
+  pre .fn{color:var(--warn)}
+  .filetag{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin:18px 0 -8px;
+    display:flex;align-items:center;gap:7px}
+  .filetag::before{content:"▸";color:var(--cool)}
+
+  /* ---------- callout / compare ---------- */
+  .split{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:720px){.split{grid-template-columns:1fr}}
+  .box{border:1px solid var(--line);border-radius:14px;padding:20px;background:var(--panel)}
+  .box.api{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+  .box.sub{border-color:color-mix(in srgb,var(--cool) 50%,var(--line));background:linear-gradient(180deg,var(--panel),var(--cool-soft))}
+  .box h4{margin:0;font-size:16px;display:flex;align-items:center;gap:8px}
+  .box .tag{font-family:var(--mono);font-size:10.5px;padding:2px 7px;border-radius:5px;font-weight:700}
+  .box.api .tag{background:color-mix(in srgb,var(--warn) 18%,transparent);color:var(--warn)}
+  .box.sub .tag{background:color-mix(in srgb,var(--cool) 20%,transparent);color:var(--cool)}
+  .box ul{margin:14px 0 0;padding-left:18px;font-size:14px;color:var(--ink-soft)}
+  .box ul li{margin:6px 0}
+  .box ul li b{color:var(--ink)}
+
+  .note{margin-top:22px;border-left:3px solid var(--cool);background:var(--cool-soft);
+    padding:14px 18px;border-radius:0 12px 12px 0;font-size:14px;color:var(--ink)}
+  .note.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
+  .note b{font-weight:700}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--cool);font-weight:700;display:block;margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)}
+
+  /* steps */
+  .steps{margin-top:22px;counter-reset:s;display:flex;flex-direction:column;gap:2px}
+  .step{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:14px 0;border-bottom:1px dashed var(--line)}
+  .step:last-child{border-bottom:0}
+  .step::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-weight:800;
+    color:var(--cool);background:var(--cool-soft);width:32px;height:32px;border-radius:9px;
+    display:grid;place-items:center;font-size:14px}
+  .step .h{font-weight:700;font-size:15px}
+  .step .b{color:var(--ink-soft);font-size:14px;margin-top:3px}
+  .step code{background:var(--sunk);padding:1px 6px;border-radius:5px;font-size:12.5px;border:1px solid var(--line)}
+
+  footer{padding:48px 0 64px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer .mono{font-family:var(--mono)}
+
+  .two{color:var(--hot)}.two{color:var(--cool)}
+  ::selection{background:color-mix(in srgb,var(--cool) 30%,transparent)}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+    .particles{display:none}
+  }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <a class="brand" href="../" style="text-decoration:none;color:inherit;"><span class="dot"></span>incident-bot / 建置手冊</a>
+    <nav class="navlinks">
+      <a href="../">← Home</a>
+      <a href="#overview">總覽</a>
+      <a href="#flow">資料流</a>
+      <a href="#roadmap">路線圖</a>
+      <a href="#components">元件設定</a>
+      <a href="#trigger">觸發分析</a>
+      <a href="#sub">訂閱型 Claude</a>
+    </nav>
+    <button class="themebtn" id="themebtn" aria-label="切換深淺色">◐</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">On-Call 自動根因分析 · Field Manual</div>
+    <h1 class="title">當警報在半夜響起，<br><span class="g">讓 Claude 先進事故室</span></h1>
+    <p class="lede">這份手冊教你從零打造一條全自動 pipeline：OpenObserve 偵測到生產異常 → Cloudflare Worker 轉信 → GitHub Actions 拉下程式碼 → Claude 跨 repo 找根因 → 回貼 Slack。附上如何把 <b>Claude API 換成訂閱型 Claude Code</b>，以及怎麼調出「有溫度」的回覆。</p>
+
+    <div class="metarow">
+      <span class="chip">🕵️ <b>角色</b> 資深 SRE 偵探</span>
+      <span class="chip">⚡ <b>觸發到回覆</b> 1 秒 dispatch · 10–15 分分析</span>
+      <span class="chip">🧩 <b>元件</b> OpenObserve · CF Worker · GitHub · Claude · Slack</span>
+      <span class="chip">💰 <b>單次</b> ~$0.3 API · 或訂閱吃到飽</span>
+    </div>
+
+    <div class="pipewrap" role="img" aria-label="從 OpenObserve 到 Slack 的五段式資料流動畫">
+      <svg viewBox="0 0 1040 150" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="wire" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="var(--hot)"/>
+            <stop offset="1" stop-color="var(--cool)"/>
+          </linearGradient>
+        </defs>
+        <line x1="80" y1="66" x2="960" y2="66" stroke="url(#wire)" stroke-width="3" stroke-linecap="round" opacity=".5"/>
+        <g class="particles">
+          <circle r="4.5" fill="var(--hot)">
+            <animateMotion path="M80,66 L960,66" dur="4.6s" repeatCount="indefinite"/>
+            <animate attributeName="fill" values="var(--hot);var(--warn);var(--cool)" dur="4.6s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="4.5" fill="var(--hot)">
+            <animateMotion path="M80,66 L960,66" dur="4.6s" begin="1.5s" repeatCount="indefinite"/>
+            <animate attributeName="fill" values="var(--hot);var(--warn);var(--cool)" dur="4.6s" begin="1.5s" repeatCount="indefinite"/>
+          </circle>
+          <circle r="4.5" fill="var(--hot)">
+            <animateMotion path="M80,66 L960,66" dur="4.6s" begin="3s" repeatCount="indefinite"/>
+            <animate attributeName="fill" values="var(--hot);var(--warn);var(--cool)" dur="4.6s" begin="3s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+        <!-- nodes -->
+        <g font-family="var(--mono)" font-size="12" text-anchor="middle">
+          <g>
+            <rect x="42" y="42" width="76" height="48" rx="11" fill="var(--panel)" stroke="var(--hot)" stroke-width="1.5"/>
+            <text x="80" y="70" font-size="20">👁️</text>
+            <text x="80" y="112" fill="var(--ink-soft)">OpenObserve</text>
+            <text x="80" y="128" fill="var(--ink-faint)" font-size="10">偵測</text>
+          </g>
+          <g>
+            <rect x="262" y="42" width="76" height="48" rx="11" fill="var(--panel)" stroke="var(--wire)" stroke-width="1.5"/>
+            <text x="300" y="70" font-size="20">🛡️</text>
+            <text x="300" y="112" fill="var(--ink-soft)">CF Worker</text>
+            <text x="300" y="128" fill="var(--ink-faint)" font-size="10">驗證 · 轉信</text>
+          </g>
+          <g>
+            <rect x="482" y="42" width="76" height="48" rx="11" fill="var(--panel)" stroke="var(--wire)" stroke-width="1.5"/>
+            <text x="520" y="70" font-size="20">🐙</text>
+            <text x="520" y="112" fill="var(--ink-soft)">GitHub</text>
+            <text x="520" y="128" fill="var(--ink-faint)" font-size="10">Actions</text>
+          </g>
+          <g>
+            <rect x="702" y="42" width="76" height="48" rx="11" fill="var(--panel)" stroke="var(--wire)" stroke-width="1.5"/>
+            <text x="740" y="70" font-size="20">🧠</text>
+            <text x="740" y="112" fill="var(--ink-soft)">Claude ×3</text>
+            <text x="740" y="128" fill="var(--ink-faint)" font-size="10">找根因</text>
+          </g>
+          <g>
+            <rect x="922" y="42" width="76" height="48" rx="11" fill="var(--panel)" stroke="var(--cool)" stroke-width="1.5"/>
+            <text x="960" y="70" font-size="20">💬</text>
+            <text x="960" y="112" fill="var(--ink-soft)">Slack</text>
+            <text x="960" y="128" fill="var(--ink-faint)" font-size="10">回貼 thread</text>
+          </g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</header>
+
+<!-- ================= OVERVIEW ================= -->
+<section id="overview">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>系統總覽</h2></div>
+    <p class="sec-sub">五個角色各司其職。把它想成醫院急診：警報器發現病人倒下，警衛驗證身分放行，工廠流水線安排偵探，偵探查完把診斷交給家屬群組。下圖標出每一段實際傳什麼、用什麼認證。</p>
+
+    <div class="diagram" role="img" aria-label="系統架構圖：含認證方式的完整資料流">
+      <svg viewBox="0 0 980 430" xmlns="http://www.w3.org/2000/svg" font-family="var(--sans)">
+        <defs>
+          <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="var(--wire)"/>
+          </marker>
+          <marker id="arrowc" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+            <path d="M0,0 L9,4.5 L0,9 z" fill="var(--cool)"/>
+          </marker>
+        </defs>
+
+        <!-- boxes helper style via inline -->
+        <!-- 1 OpenObserve -->
+        <g>
+          <rect x="30" y="40" width="200" height="92" rx="14" fill="var(--panel-2)" stroke="var(--hot)" stroke-width="1.5"/>
+          <text x="50" y="72" font-size="24">👁️</text>
+          <text x="86" y="70" font-size="15" font-weight="700" fill="var(--ink)">OpenObserve</text>
+          <text x="50" y="98" font-size="12" fill="var(--ink-soft)">每分鐘掃 error log</text>
+          <text x="50" y="116" font-size="12" fill="var(--ink-soft)">SQL 命中門檻 → fire</text>
+        </g>
+        <!-- 2 Slack (top branch) -->
+        <g>
+          <rect x="750" y="20" width="200" height="66" rx="14" fill="var(--panel-2)" stroke="var(--cool)" stroke-width="1.5"/>
+          <text x="770" y="52" font-size="22">💬</text>
+          <text x="804" y="50" font-size="14" font-weight="700" fill="var(--ink)">Slack #incidents</text>
+          <text x="770" y="72" font-size="11.5" fill="var(--ink-soft)">P1 即時告警（webhook）</text>
+        </g>
+        <!-- 3 CF Worker -->
+        <g>
+          <rect x="30" y="188" width="200" height="104" rx="14" fill="var(--panel-2)" stroke="var(--wire)" stroke-width="1.5"/>
+          <text x="50" y="220" font-size="24">🛡️</text>
+          <text x="86" y="218" font-size="15" font-weight="700" fill="var(--ink)">CF Worker</text>
+          <text x="50" y="246" font-size="12" fill="var(--ink-soft)">1 · 驗 shared secret</text>
+          <text x="50" y="264" font-size="12" fill="var(--ink-soft)">2 · App JWT → token</text>
+          <text x="50" y="282" font-size="12" fill="var(--ink-soft)">3 · repository_dispatch</text>
+        </g>
+        <!-- 4 GitHub Actions -->
+        <g>
+          <rect x="390" y="176" width="230" height="128" rx="14" fill="var(--panel-2)" stroke="var(--wire)" stroke-width="1.5"/>
+          <text x="410" y="208" font-size="24">🐙</text>
+          <text x="446" y="206" font-size="15" font-weight="700" fill="var(--ink)">GitHub Actions</text>
+          <text x="410" y="234" font-size="12" fill="var(--ink-soft)">checkout target + upstream</text>
+          <text x="410" y="252" font-size="12" fill="var(--ink-soft)">撈 OpenObserve 聚合</text>
+          <text x="410" y="270" font-size="12" fill="var(--ink-soft)">組 prompt → 跑 Claude</text>
+          <text x="410" y="288" font-size="12" fill="var(--ink-soft)">回貼 Slack thread</text>
+        </g>
+        <!-- 5 Claude -->
+        <g>
+          <rect x="750" y="176" width="200" height="128" rx="14" fill="var(--panel-2)" stroke="var(--cool)" stroke-width="1.5"/>
+          <text x="770" y="208" font-size="24">🧠</text>
+          <text x="806" y="206" font-size="15" font-weight="700" fill="var(--ink)">Claude ×3</text>
+          <text x="770" y="234" font-size="12" fill="var(--ink-soft)">跨 repo Read/Grep</text>
+          <text x="770" y="252" font-size="12" fill="var(--ink-soft)">git show 看真實 diff</text>
+          <text x="770" y="270" font-size="12" fill="var(--ink-soft)">3 份平行 + 綜合</text>
+          <text x="770" y="288" font-size="12" fill="var(--ink-soft)">誠實標信心度</text>
+        </g>
+        <!-- GameServer repo -->
+        <g>
+          <rect x="390" y="356" width="230" height="56" rx="12" fill="var(--sunk)" stroke="var(--line)" stroke-width="1.3" stroke-dasharray="4 3"/>
+          <text x="410" y="390" font-size="20">📂</text>
+          <text x="444" y="382" font-size="13" font-weight="700" fill="var(--ink)">5G-Games/GameServer</text>
+          <text x="444" y="400" font-size="11" fill="var(--ink-faint)">+ 上游 Valhalla（Classic PAT 讀取）</text>
+        </g>
+
+        <!-- arrows -->
+        <!-- OO -> Slack (branch) -->
+        <path d="M230,66 C420,40 560,45 750,50" fill="none" stroke="var(--wire)" stroke-width="1.6" marker-end="url(#arrow)"/>
+        <text x="470" y="30" font-size="10.5" font-family="var(--mono)" fill="var(--ink-faint)">P1 告警分支</text>
+        <!-- OO -> Worker -->
+        <path d="M130,132 L130,184" fill="none" stroke="var(--hot)" stroke-width="1.8" marker-end="url(#arrow)"/>
+        <text x="140" y="164" font-size="10.5" font-family="var(--mono)" fill="var(--hot)">POST + secret</text>
+        <!-- Worker -> GH -->
+        <path d="M230,240 L386,240" fill="none" stroke="var(--wire)" stroke-width="1.8" marker-end="url(#arrow)"/>
+        <text x="250" y="230" font-size="10.5" font-family="var(--mono)" fill="var(--ink-faint)">dispatch</text>
+        <!-- GH -> Claude -->
+        <path d="M620,240 L746,240" fill="none" stroke="var(--wire)" stroke-width="1.8" marker-end="url(#arrow)"/>
+        <text x="636" y="230" font-size="10.5" font-family="var(--mono)" fill="var(--ink-faint)">prompt</text>
+        <!-- Claude -> GH (back) -->
+        <path d="M746,268 L622,268" fill="none" stroke="var(--cool)" stroke-width="1.6" marker-end="url(#arrowc)" stroke-dasharray="5 3"/>
+        <text x="646" y="284" font-size="10.5" font-family="var(--mono)" fill="var(--cool)">報告</text>
+        <!-- GH -> repo -->
+        <path d="M505,304 L505,352" fill="none" stroke="var(--wire)" stroke-width="1.6" marker-end="url(#arrow)"/>
+        <!-- GH -> Slack -->
+        <path d="M620,200 C690,150 720,110 800,88" fill="none" stroke="var(--cool)" stroke-width="1.8" marker-end="url(#arrowc)"/>
+        <text x="690" y="140" font-size="10.5" font-family="var(--mono)" fill="var(--cool)">chat.postMessage</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ================= FLOW ================= -->
+<section id="flow">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>端到端資料流</h2></div>
+    <p class="sec-sub">一顆警報從偵測到變成 Slack 上的繁中報告，實際會經過這五站。前段（橘）是「熱」的告警訊號，後段（青）是「冷」的結構化分析——整條 pipeline 就是把混亂的 log 收斂成一句可行動的結論。</p>
+
+    <div class="flow">
+      <span class="track"></span>
+      <span class="comet"></span>
+      <div class="stage"><div class="bulb">👁️</div><div class="t">T+0s</div><div class="nm">OpenObserve</div><div class="ds">SQL alert 命中門檻，帶事故時間窗發 webhook</div></div>
+      <div class="stage"><div class="bulb">🛡️</div><div class="t">T+10ms</div><div class="nm">CF Worker</div><div class="ds">驗暗號、簽 JWT 換 token、轉 dispatch</div></div>
+      <div class="stage"><div class="bulb">🐙</div><div class="t">T+1s</div><div class="nm">GitHub Actions</div><div class="ds">拉 repo、撈聚合、組 prompt</div></div>
+      <div class="stage"><div class="bulb">🧠</div><div class="t">T+1–14m</div><div class="nm">Claude ×3 + 綜合</div><div class="ds">跨 repo grep、看 diff、投票收斂</div></div>
+      <div class="stage"><div class="bulb">💬</div><div class="t">T+15m</div><div class="nm">Slack thread</div><div class="ds">繁中 TL;DR，CTO 看 3 行就能動</div></div>
+    </div>
+
+    <div class="note">
+      <span class="lbl">為什麼中間要塞一個 Cloudflare Worker</span>
+      OpenObserve 的 direct webhook 打 GitHub 有 bug（送出去石沉大海）。中間插一段 <b>我們自己 100% 控制的 80 行 JS</b>，順便驗 secret、簽 GitHub App JWT、之後還能加 rate-limit / 去重。它不是伺服器，是一段跑在 Cloudflare 邊緣的程式，每天 10 萬次請求內免費。
+    </div>
+  </div>
+</section>
+
+<!-- ================= ROADMAP ================= -->
+<section id="roadmap">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>建置路線圖</h2></div>
+    <p class="sec-sub">不要一次全做。這條 pipeline 是分三階段長出來的——每一階段都能獨立驗證、獨立上線，前一階沒通不要進下一階。</p>
+
+    <div class="roadmap">
+      <div class="phase" style="--tag:var(--hot)">
+        <div class="pnum">P0<small>ANALYZE</small></div>
+        <div>
+          <h3>先搞懂事故長怎樣</h3>
+          <p>拿一次真實 incident 的 15 萬條 error log，反覆迭代聚合 SQL，把 90% 落在「其他」的雜訊，拆成幾個有意義的錯誤桶。這一步不寫任何自動化，純粹是把「什麼訊號代表什麼」搞清楚。</p>
+          <ul>
+            <li>用 DataFusion SQL 的 <code class="mono">LIKE + CASE WHEN</code> 分桶</li>
+            <li>找出 5 條真正該告警的 lane：outage / 錢包 / 欠款 / 連鎖 / 資料完整性</li>
+          </ul>
+          <span class="st">✔ 已定義 5 條 alert lane</span>
+        </div>
+      </div>
+
+      <div class="phase" style="--tag:var(--warn)">
+        <div class="pnum">P1<small>ALERT</small></div>
+        <div>
+          <h3>接上 OpenObserve → Slack 告警</h3>
+          <p>把 P0 找到的 5 條 lane 做成 OpenObserve alert，命中就發 Slack。先讓「有事會叫」這件事跑起來，還不牽扯 Claude。</p>
+          <ul>
+            <li>每條 alert = 一段 SQL + 門檻 + silence + destination</li>
+            <li>P0/P1 分級：財務/資料類 1 筆就叫，規模類要上量</li>
+          </ul>
+          <span class="st">✔ 5 條 alert 上線，Slack 通了</span>
+        </div>
+      </div>
+
+      <div class="phase" style="--tag:var(--cool)">
+        <div class="pnum">P2<small>ANALYZE+</small></div>
+        <div>
+          <h3>接上 Claude 自動根因分析</h3>
+          <p>加 Cloudflare Worker 繞過 OpenObserve 的 webhook bug、建 GitHub App、寫 workflow 讓 Claude 進 repo 找根因，最後回貼 Slack thread。這是整個系統「會思考」的部分。</p>
+          <ul>
+            <li>CF Worker proxy + GitHub App（不綁人、不過期）</li>
+            <li>跨 repo checkout（target + 上游），Claude grep 真實 diff</li>
+            <li>3 份平行分析 + 綜合，誠實標信心度</li>
+          </ul>
+          <span class="st">✔ 端到端跑通，繁中 TL;DR 回貼</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= COMPONENTS ================= -->
+<section id="components">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>元件設定教學</h2></div>
+    <p class="sec-sub">四個要親手設定的元件。每張卡片給你「關鍵參數」加「最小可動程式碼」——照著填就能跑，細節再看官方文件。</p>
+
+    <div class="grid2">
+      <!-- OpenObserve -->
+      <div class="card">
+        <span class="badge">Component · 偵測</span>
+        <h3><span class="ic">👁️</span>OpenObserve Alert</h3>
+        <p>一條 alert 就是「一段 SQL + 三個刻度」。SQL 數某類錯誤的 count，三刻度決定多久看一次、超過多少叫、叫完多久閉嘴。</p>
+        <div class="kv">
+          <div><span class="k">period</span><span class="v">往回看 5 分鐘</span></div>
+          <div><span class="k">frequency</span><span class="v">每 1 分鐘檢查</span></div>
+          <div><span class="k">threshold</span><span class="v">count &gt;= 10 才 fire</span></div>
+          <div><span class="k">silence</span><span class="v">fire 後靜音 30 分</span></div>
+        </div>
+<pre><span class="c">-- 錢包扣款失敗告警</span>
+<span class="k">SELECT</span> COUNT(*) <span class="k">AS</span> cnt
+<span class="k">FROM</span> <span class="s">"log_prod_game_server"</span>
+<span class="k">WHERE</span> loglevel = <span class="s">'Error'</span>
+  <span class="k">AND</span> message <span class="k">LIKE</span> <span class="s">'%Credit fail%'</span></pre>
+        <div class="note" style="margin-top:14px"><span class="lbl">關鍵</span>財務/資料類設 <b>&gt;=1 就叫</b>（1 筆玩家沒收到錢就是糾紛）；規模類設 <b>&gt;1000</b>（低於是雜訊）。門檻不同才分得出「人受害」跟「系統大爆」。</div>
+      </div>
+
+      <!-- CF Worker -->
+      <div class="card">
+        <span class="badge">Component · 轉信</span>
+        <h3><span class="ic">🛡️</span>Cloudflare Worker</h3>
+        <p>接 OpenObserve 的 webhook，驗暗號、用 GitHub App 簽 JWT 換 installation token，再 POST <code class="mono">repository_dispatch</code> 觸發 workflow。</p>
+<pre><span class="k">export default</span> {
+  <span class="k">async</span> <span class="fn">fetch</span>(req, env) {
+    <span class="c">// 1 · 驗 shared secret</span>
+    <span class="k">if</span> (req.headers.<span class="fn">get</span>(<span class="s">'X-OpenObserve-Secret'</span>)
+        !== env.OPENOBSERVE_SECRET)
+      <span class="k">return new</span> <span class="fn">Response</span>(<span class="s">'Forbidden'</span>,{status:<span class="s">403</span>});
+
+    <span class="c">// 2 · App 私鑰簽 JWT → 換 installation token</span>
+    <span class="k">const</span> jwt = <span class="k">await</span> <span class="fn">createJWT</span>(
+      env.GITHUB_APP_ID, env.GITHUB_APP_PRIVATE_KEY);
+    <span class="k">const</span> { token } = <span class="k">await</span> (<span class="k">await</span> <span class="fn">fetch</span>(
+      <span class="s">`https://api.github.com/app/installations/</span>
+<span class="s">      ${env.GITHUB_INSTALLATION_ID}/access_tokens`</span>,
+      { method:<span class="s">'POST'</span>, headers:{
+        Authorization:<span class="s">`Bearer ${jwt}`</span> }})).<span class="fn">json</span>();
+
+    <span class="c">// 3 · 觸發 workflow</span>
+    <span class="k">const</span> gh = <span class="k">await</span> <span class="fn">fetch</span>(
+      <span class="s">`https://api.github.com/repos/</span>
+<span class="s">       ${env.GITHUB_REPO}/dispatches`</span>, {
+      method:<span class="s">'POST'</span>,
+      headers:{ Authorization:<span class="s">`Bearer ${token}`</span> },
+      body: <span class="fn">JSON.stringify</span>({
+        event_type:<span class="s">'incident-detected'</span>,
+        client_payload: (<span class="k">await</span> req.<span class="fn">json</span>()) })});
+
+    <span class="k">return new</span> <span class="fn">Response</span>(<span class="k">null</span>,
+      { status: gh.status===<span class="s">204</span> ? <span class="s">202</span> : <span class="s">502</span> });
+  }
+};</pre>
+        <div class="filetag">部署：npx wrangler deploy（免費層每天 10 萬次）</div>
+      </div>
+
+      <!-- GitHub -->
+      <div class="card">
+        <span class="badge">Component · 編排</span>
+        <h3><span class="ic">🐙</span>GitHub App + Actions</h3>
+        <p>GitHub App 給 Worker 一張「可以進你 repo」的身分證（不綁人、不過期、權限明確）。Workflow 收到 dispatch 後跑分析。</p>
+        <div class="kv">
+          <div><span class="k">App 權限</span><span class="v">Contents R/W · Actions R</span></div>
+          <div><span class="k">觸發</span><span class="v">repository_dispatch</span></div>
+          <div><span class="k">跨 org repo</span><span class="v">Classic PAT 讀取</span></div>
+          <div><span class="k">OIDC</span><span class="v">id-token: write</span></div>
+        </div>
+<pre><span class="k">on:</span>
+  <span class="k">repository_dispatch:</span>
+    <span class="k">types:</span> [incident-detected]
+
+<span class="k">permissions:</span>
+  contents: read
+  id-token: write   <span class="c"># Claude 需要</span>
+
+<span class="k">jobs:</span>
+  <span class="k">analyze:</span>
+    timeout-minutes: <span class="s">35</span>
+    steps:
+      <span class="c"># checkout target + 上游 repo</span>
+      <span class="c"># 撈 OpenObserve 聚合 → 組 prompt</span>
+      <span class="c"># 跑 3 份 Claude + 綜合 → 回貼 Slack</span></pre>
+        <div class="note warn" style="margin-top:14px"><span class="lbl">踩過的雷</span>App 裝不上別人的 org（你不是 admin）→ 跨 org 的 GameServer 改用 <b>Classic PAT</b> 唯讀。權限分工：自己 repo 用 App、別人 repo 用 PAT。</div>
+      </div>
+
+      <!-- Slack -->
+      <div class="card">
+        <span class="badge">Component · 回覆</span>
+        <h3><span class="ic">💬</span>Slack Bot</h3>
+        <p>用 Bot Token（<code class="mono">chat:write</code>）把報告貼回 thread。先發一則「分析中…」拿 <code class="mono">thread_ts</code>，分析完再用它回貼——把告警和分析串成同一串對話。</p>
+        <div class="kv">
+          <div><span class="k">scopes</span><span class="v">chat:write · chat:write.public</span></div>
+          <div><span class="k">token</span><span class="v">xoxb-…</span></div>
+          <div><span class="k">格式</span><span class="v">Slack mrkdwn（非標準 md）</span></div>
+        </div>
+<pre><span class="c"># 先發「分析中」拿 thread_ts</span>
+resp=$(curl -sS -X POST slack.com/api/chat.postMessage \
+  -H <span class="s">"Authorization: Bearer $SLACK_BOT_TOKEN"</span> \
+  -d <span class="s">'{"channel":"C0…","text":":mag: 分析中…"}'</span>)
+ts=$(<span class="k">echo</span> <span class="s">"$resp"</span> | jq -r .ts)
+
+<span class="c"># 分析完回貼同一 thread</span>
+curl -sS -X POST slack.com/api/chat.postMessage \
+  -H <span class="s">"Authorization: Bearer $SLACK_BOT_TOKEN"</span> \
+  -d <span class="s">"{\"channel\":\"C0…\",\"thread_ts\":\"$ts\",</span>
+<span class="s">      \"text\":\"$report\",\"mrkdwn\":true}"</span></pre>
+        <div class="note warn" style="margin-top:14px"><span class="lbl">格式陷阱</span>Slack 用 <b>mrkdwn</b> 不是標準 markdown：粗體是單顆 <code class="mono">*星*</code>、沒有 <code class="mono">##</code> 標題、不吃表格。要在 prompt 裡叫 Claude 直接輸出 mrkdwn，用 emoji 當標題。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TRIGGER ================= -->
+<section id="trigger">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">05</span><h2>Claude 怎麼被觸發、怎麼分析</h2></div>
+    <p class="sec-sub">workflow 不是直接叫 API 問一句話，而是把 Claude 當成「能進 repo 辦案的偵探」。三個設計讓它更準：跨 repo 追溯、強制看真實 diff、跑三次投票收斂。</p>
+
+    <div class="steps">
+      <div class="step"><div><div class="h">組 prompt：餵給偵探的卷宗</div><div class="b">事故時間窗、OpenObserve top 30 錯誤桶、近 7 天 commit、上游服務清單，全部塞進一份 prompt。附上「最容易被 log 漏看的 6 類根因」清單（序列化 tag、schema migration、cache 舊資料…）。</div></div></div>
+      <div class="step"><div><div class="h">跨 repo 追溯：症狀在下游、真因在上游</div><div class="b">GameServer 的 log 大爆，真因常是上游 Valhalla 一個部署。Workflow 把上游 repo 也 clone 下來，用 <code>--add-dir</code> 讓 Claude 能同時 grep 兩邊，並比對「tag 建立時間是否落在事故窗 ±2 小時」。</div></div></div>
+      <div class="step"><div><div class="h">強制看真實 diff：禁止用猜的</div><div class="b">每個嫌疑 commit 都必須跑 <code>git -C repo show &lt;sha&gt;</code> 看真實 diff，禁止根據 commit 標題或「修好後的程式碼」反推。命令失敗就老實寫「無法判定」，不准編造。</div></div></div>
+      <div class="step"><div><div class="h">三份平行 + 綜合：把不確定性攤開</div><div class="b">同一份 prompt 平行跑 3 次（LLM 探索路徑隨機，可能挑不同嫌犯），再用第 4 次 Claude 綜合：3 份一致→信心高；2:1→標多數+附異議；全不同→誠實標「⚠️ 多個 plausible 嫌犯」讓人裁判。</div></div></div>
+    </div>
+
+    <div class="note"><span class="lbl">最終產出</span>一則繁中 Slack 訊息，開頭三行就是 CTO 要的：<b>發生什麼 / 根因（含 file:line）/ 立即做</b>。後面才是證據鏈、真實 diff 摘錄、殘留待處理項。整體壓在 6000 字內，10 秒掃完。</div>
+  </div>
+</section>
+
+<!-- ================= SUBSCRIPTION ================= -->
+<section id="sub">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">06</span><h2>把 Claude API 換成訂閱型 Claude Code</h2></div>
+    <p class="sec-sub">現在 workflow 用 <code class="mono">ANTHROPIC_API_KEY</code>，是按 token 計費。如果你已經有 Claude Pro / Max 訂閱，可以改用「訂閱額度」跑同一支 CLI——寫成一個 Python 服務，就像常見的 slack-claude-bot，只是不吃 API 帳單，改吃訂閱。</p>
+
+    <div class="split">
+      <div class="box api">
+        <h4><span class="tag">現況</span>Claude API（按量計費）</h4>
+        <ul>
+          <li>認證：<b>ANTHROPIC_API_KEY</b></li>
+          <li>計費：每百萬 token 計價，用多少付多少</li>
+          <li>適合：自動化 / 無人值守 / 高併發（官方支援）</li>
+          <li>單次事故約 <b>$0.3–3</b>，量大會累積</li>
+        </ul>
+      </div>
+      <div class="box sub">
+        <h4><span class="tag">目標</span>訂閱型 Claude Code（吃訂閱額度）</h4>
+        <ul>
+          <li>認證：<b>CLAUDE_CODE_OAUTH_TOKEN</b>（<code class="mono">claude setup-token</code> 產生）</li>
+          <li>計費：固定月費，額度內不另計；有用量上限</li>
+          <li>適合：個人 / 小團隊 / 內部工具</li>
+          <li>綁人類帳號、token 會過期要 rotate</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:36px;font-size:20px">① 拿到訂閱 token</h3>
+    <p class="sec-sub" style="margin-top:8px">在你本機（已登入 Claude Pro/Max 的環境）跑一次，產生一個長效 OAuth token。這個 token 讓 CLI 走訂閱額度而不是 API 帳單。</p>
+<pre><span class="c"># 產生訂閱 OAuth token（會開瀏覽器授權）</span>
+$ claude setup-token
+<span class="c"># → 輸出 sk-ant-oat… 這一串就是 CLAUDE_CODE_OAUTH_TOKEN</span>
+
+<span class="c"># 驗證：設了它、且「不」設 ANTHROPIC_API_KEY，CLI 就走訂閱</span>
+$ CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat… claude --print <span class="s">"你好，你在用訂閱嗎"</span></pre>
+
+    <h3 style="margin-top:32px;font-size:20px">② 寫成 Python Slack Bot（訂閱版）</h3>
+    <p class="sec-sub" style="margin-top:8px">跟常見的 slack-claude-bot 一樣用 <code class="mono">slack_bolt</code> 收 Slack 事件，差別只在：分析時用 <code class="mono">subprocess</code> 呼叫 <code class="mono">claude</code> CLI，環境只放 <b>OAuth token、不放 API key</b>——CLI 就自動走訂閱。</p>
+    <div class="filetag">incident_bot.py</div>
+<pre><span class="k">import</span> os, subprocess
+<span class="k">from</span> slack_bolt <span class="k">import</span> App
+
+app = <span class="fn">App</span>(token=os.environ[<span class="s">"SLACK_BOT_TOKEN"</span>])
+OAUTH = os.environ[<span class="s">"CLAUDE_CODE_OAUTH_TOKEN"</span>]  <span class="c"># 來自 claude setup-token</span>
+
+<span class="k">def</span> <span class="fn">analyze</span>(prompt: str, repo: str) -> str:
+    <span class="c"># 關鍵：env 只給 OAuth token，不給 ANTHROPIC_API_KEY</span>
+    <span class="c">#      → claude CLI 走「訂閱額度」，不計 API 費用</span>
+    env = {**os.environ, <span class="s">"CLAUDE_CODE_OAUTH_TOKEN"</span>: OAUTH}
+    env.<span class="fn">pop</span>(<span class="s">"ANTHROPIC_API_KEY"</span>, <span class="k">None</span>)
+    r = subprocess.<span class="fn">run</span>(
+        [<span class="s">"claude"</span>, <span class="s">"--print"</span>,
+         <span class="s">"--add-dir"</span>, repo,
+         <span class="s">"--allowed-tools"</span>, <span class="s">"Read,Grep,Bash(git:*)"</span>],
+        input=prompt, capture_output=<span class="k">True</span>, text=<span class="k">True</span>,
+        env=env, timeout=<span class="s">1800</span>)
+    <span class="k">return</span> r.stdout
+
+<span class="fn">@app.event</span>(<span class="s">"app_mention"</span>)
+<span class="k">def</span> <span class="fn">on_mention</span>(event, say):
+    ts = <span class="fn">say</span>(<span class="s">":mag: 我接手了，先看資料…"</span>)[<span class="s">"ts"</span>]
+    report = <span class="fn">analyze</span>(<span class="fn">build_prompt</span>(event[<span class="s">"text"</span>]),
+                     <span class="s">"/srv/repos/GameServer"</span>)
+    <span class="fn">say</span>(text=report, thread_ts=ts)   <span class="c"># 回貼同一 thread</span>
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    app.<span class="fn">start</span>(port=<span class="s">3000</span>)</pre>
+
+    <div class="note warn"><span class="lbl">用訂閱跑自動化前，先確認這幾件事</span>
+      <b>① 額度上限</b>：訂閱有 usage cap，衝太快會被限流，不適合高併發無人值守。<b>② token 會過期</b>：<code class="mono">setup-token</code> 產的 token 需定期 rotate。<b>③ 服務條款</b>：把個人訂閱拿去跑純自動化服務前，確認符合當前 Anthropic ToS——真的要大量無人值守，API 才是官方路徑。個人 / 小團隊內部工具用訂閱最划算。
+    </div>
+
+    <h3 style="margin-top:32px;font-size:20px">③ 調出「有溫度」的回覆——情緒價值就是 prompt</h3>
+    <p class="sec-sub" style="margin-top:8px">值班同事半夜被叫醒、腎上腺素飆高。同樣的根因，用不同語氣講，感受天差地遠。把「人設 + 語氣規則」寫進 system prompt，Claude 就會用那個口吻回。這段是純文案工程，不用改任何程式。</p>
+    <div class="filetag">persona.txt（注入 prompt 開頭）</div>
+<pre><span class="c"># === 人設 ===</span>
+你是資深 on-call SRE「老偵探」。沉穩、不指責、先安撫再分析。
+你的頭像是個戴眼鏡的白髮老紳士——講話就是那個氣質。
+
+<span class="c"># === 語氣規則 ===</span>
+1. 開頭一句話讓值班同事安心：「我接手了，先看資料」
+   —— 不要一上來就丟一堆錯誤數字砸人。
+2. TL;DR 三行講完：發生什麼 / 根因 / 立即做。
+3. 有把握寫把握，沒把握明講「需人工裁判」——
+   不要用「可能、大概、也許」連續堆疊製造假象。
+4. 絕不指責是誰的 commit 造成的；只講「這個變更 +
+   舊資料 = 這個結果」，對事不對人。
+5. 結尾一定給「下一步」，不要只丟結論讓人自己想。
+6. 全程繁體中文，識別子（file:line / SHA）保留原文。</pre>
+
+    <div class="split" style="margin-top:24px">
+      <div class="box api">
+        <h4 style="color:var(--crit)">🥶 沒調語氣（冷冰冰）</h4>
+        <ul>
+          <li>ERROR count: 15,510. NullReferenceException at line 183. Root cause: commit 2c9d309.</li>
+          <li style="color:var(--ink-faint)">→ 正確但沒溫度，半夜看了更焦慮，也不知道先做什麼。</li>
+        </ul>
+      </div>
+      <div class="box sub">
+        <h4>🕵️ 調過語氣（有溫度）</h4>
+        <ul>
+          <li><b>我接手了，先別慌。</b>這波是上游一個部署帶出的舊資料不相容，範圍清楚、可控。</li>
+          <li><b>立即做：</b>確認 Valhalla 目前版本，其餘我已整理在下面，你先喝口水。</li>
+          <li style="color:var(--cool)">→ 一樣的事實，先接住情緒再給行動。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note"><span class="lbl">一句話總結這節</span>認證換 token（API key → OAuth token）決定<b>誰付錢</b>；persona prompt 決定<b>什麼口吻</b>。兩件事互相獨立——你可以訂閱制 + 冷語氣，也可以 API + 暖語氣，自由組合。</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">incident-bot · OpenObserve → CF Worker → GitHub → Claude → Slack</span>
+    <span class="mono" style="color:var(--cool)">🕵️ 讓 Claude 先進事故室</span>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var btn = document.getElementById('themebtn');
+    var root = document.documentElement;
+    function cur(){
+      var t = root.getAttribute('data-theme');
+      if(t) return t;
+      return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light';
+    }
+    btn.addEventListener('click', function(){
+      var next = cur()==='dark' ? 'light':'dark';
+      root.setAttribute('data-theme', next);
+      btn.textContent = next==='dark' ? '◑':'◐';
+    });
+  })();
+</script>
+</body>
+</html>
