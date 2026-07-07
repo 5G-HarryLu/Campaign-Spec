@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI Ops Agent — Proposal Summary</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --panel: #1a212b;
+    --panel-2: #212a36;
+    --border: #2d3846;
+    --ink: #e6edf3;
+    --muted: #9aa7b4;
+    --accent: #4da3ff;
+    --accent-2: #7c5cff;
+    --green: #3fb950;
+    --amber: #d29922;
+    --red: #f85149;
+    --pink: #db61a2;
+    --cyan: #39c5cf;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", Roboto, sans-serif;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 24px 80px; }
+  header.hero {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px 34px;
+    background: linear-gradient(135deg, #182030 0%, #1a1530 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  header.hero::after {
+    content: "";
+    position: absolute; inset: 0;
+    background: radial-gradient(600px 200px at 90% -20%, rgba(124,92,255,.25), transparent 60%);
+    pointer-events: none;
+  }
+  .tag {
+    display: inline-block;
+    font-size: 12px; font-weight: 600; letter-spacing: .5px;
+    color: var(--accent);
+    background: rgba(77,163,255,.12);
+    border: 1px solid rgba(77,163,255,.3);
+    padding: 4px 12px; border-radius: 999px;
+    margin-bottom: 14px;
+  }
+  h1 { margin: 0 0 8px; font-size: 30px; letter-spacing: -.3px; text-wrap: balance; }
+  .subtitle { color: var(--muted); font-size: 16px; margin: 0; max-width: 760px; }
+  .pills { margin-top: 20px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    font-size: 12.5px; color: var(--ink);
+    background: var(--panel-2); border: 1px solid var(--border);
+    padding: 5px 11px; border-radius: 8px;
+  }
+  .pill b { color: var(--green); }
+  h2 {
+    font-size: 20px; margin: 44px 0 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    font-size: 13px; color: var(--accent-2); font-weight: 700;
+    border: 1px solid var(--border); background: var(--panel);
+    width: 26px; height: 26px; border-radius: 7px;
+    display: inline-flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .lead { color: var(--muted); margin: 4px 0 20px; }
+  .grid { display: grid; gap: 14px; }
+  .cols-2 { grid-template-columns: 1fr 1fr; }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px 20px;
+  }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14px; }
+  .card .k { color: var(--accent); font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  .table-scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+  th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--ink); font-weight: 600; white-space: nowrap; }
+  td { color: var(--muted); }
+  td b { color: var(--ink); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  .figure {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px; margin: 8px 0 4px;
+    overflow-x: auto;
+  }
+  .figure svg { display: block; min-width: 900px; width: 100%; height: auto; }
+  .cap { color: var(--muted); font-size: 12.5px; text-align: center; margin: 6px 0 0; }
+  ul.clean { margin: 8px 0 0; padding-left: 18px; }
+  ul.clean li { margin: 6px 0; color: var(--muted); font-size: 14px; }
+  ul.clean li b { color: var(--ink); }
+  .guard { border-left: 3px solid var(--green); }
+  .risk { border-left: 3px solid var(--amber); }
+  .callout {
+    background: linear-gradient(135deg, rgba(63,185,80,.08), rgba(77,163,255,.06));
+    border: 1px solid var(--border); border-left: 3px solid var(--green);
+    border-radius: 10px; padding: 14px 18px; margin-top: 16px;
+    font-size: 14px; color: var(--ink);
+  }
+  code.inline {
+    background: var(--panel-2); border: 1px solid var(--border);
+    border-radius: 5px; padding: 1px 6px; font-size: 12.5px;
+    font-family: "SF Mono", "JetBrains Mono", Menlo, monospace; color: var(--cyan);
+  }
+  .report {
+    background: #0c1017; border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; font-family: "SF Mono", "JetBrains Mono", Menlo, monospace;
+    font-size: 12.5px; line-height: 1.7; color: var(--muted); overflow-x: auto; white-space: pre;
+  }
+  .report .p1 { color: var(--red); font-weight: 700; }
+  .report .label { color: var(--accent); }
+  .report .hi { color: var(--green); }
+  .report .pr { color: var(--pink); }
+  footer { margin-top: 56px; color: var(--muted); font-size: 12.5px; border-top: 1px solid var(--border); padding-top: 20px; }
+  @media (max-width: 720px) {
+    .cols-2, .cols-3 { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+    .wrap { padding: 32px 16px 60px; }
+  }
+</style>
+
+<div class="wrap">
+
+  <a href="../" style="display:inline-block;margin-bottom:10px;font-size:12px;font-weight:600;letter-spacing:.5px;color:var(--muted);text-decoration:none;">← Home</a>
+
+  <header class="hero">
+    <span class="tag">可觀測性藍圖 · PHASE 5（最終階段）</span>
+    <h1>AI Ops Agent — Production Incident Response</h1>
+    <p class="subtitle">
+      一個<b>唯讀、只通知</b>的多代理協調服務（Python / LangGraph）。當「錯誤在時間窗內持續累積」時自動觸發，
+      並行派出五位專科代理跨後端查詢與關聯，產出含證據與信心度的 incident report 推到團隊頻道 ——
+      並具體回答「是<b>哪個 PR</b>造成的」，而不只是「什麼壞了」。
+    </p>
+    <div class="pills">
+      <span class="pill"><b>Read-only</b> · 絕不自動修復</span>
+      <span class="pill">Trigger → 報告 <b>&lt; 60s</b></span>
+      <span class="pill">每次調查 <b>~$0.06</b></span>
+      <span class="pill">MTTD / MTTR：小時級 → <b>分鐘級</b></span>
+      <span class="pill">不更動任何現有程式碼</span>
+    </div>
+  </header>
+
+  <h2><span class="num">◆</span> 協調與資料流（Orchestration &amp; Flows）</h2>
+  <p class="lead">四種進入點共用同一條 <code class="inline">dedup → orchestrator</code> pipeline，由 LangGraph 狀態機驅動五位 specialist 並行 fan-out。</p>
+
+  <div class="figure">
+    <svg viewBox="0 0 1000 760" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="AI Ops Agent orchestration diagram">
+      <defs>
+        <marker id="arrow" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#5b6b7d"></path>
+        </marker>
+        <marker id="arrowA" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#4da3ff"></path>
+        </marker>
+        <marker id="arrowLoop" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+          <path d="M0,0 L9,4.5 L0,9 z" fill="#d29922"></path>
+        </marker>
+        <lineargradient id="gState" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#1f2a3a"></stop><stop offset="1" stop-color="#1a2230"></stop>
+        </lineargradient>
+        <style>
+          .lbl{font:600 13px -apple-system,"Segoe UI",sans-serif;fill:#e6edf3}
+          .sub{font:11px -apple-system,"Segoe UI",sans-serif;fill:#9aa7b4}
+          .mini{font:10.5px "SF Mono",Menlo,monospace;fill:#9aa7b4}
+          .sect{font:700 11px -apple-system,sans-serif;fill:#6f7f90;letter-spacing:1px}
+          .edge{stroke:#5b6b7d;stroke-width:1.6;fill:none}
+          .edgeA{stroke:#4da3ff;stroke-width:1.8;fill:none}
+          .edgeLoop{stroke:#d29922;stroke-width:1.6;fill:none;stroke-dasharray:5 4}
+        </style>
+      </defs>
+
+      <text x="40" y="34" class="sect">① TRIGGER LAYER</text>
+      <g>
+        <rect x="40" y="44" width="180" height="46" rx="9" fill="#231b2e" stroke="#7c5cff"></rect>
+        <text x="130" y="66" text-anchor="middle" class="lbl">Error-accumulation</text>
+        <text x="130" y="81" text-anchor="middle" class="sub">滑動視窗 · 首要觸發</text>
+
+        <rect x="240" y="44" width="150" height="46" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="315" y="66" text-anchor="middle" class="lbl">Reactive</text>
+        <text x="315" y="81" text-anchor="middle" class="sub">Grafana / SigNoz webhook</text>
+
+        <rect x="410" y="44" width="140" height="46" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="480" y="66" text-anchor="middle" class="lbl">Proactive</text>
+        <text x="480" y="81" text-anchor="middle" class="sub">排程 health scan</text>
+
+        <rect x="570" y="44" width="150" height="46" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="645" y="66" text-anchor="middle" class="lbl">Interactive</text>
+        <text x="645" y="81" text-anchor="middle" class="sub">Telegram bot Q&amp;A</text>
+      </g>
+
+      <path class="edge" d="M130,90 L130,112 L380,112 L380,128" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M315,90 L315,112" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M480,90 L480,112 L380,112"></path>
+      <path class="edge" d="M645,90 L645,112 L380,112"></path>
+
+      <rect x="250" y="128" width="260" height="52" rx="10" fill="#17202b" stroke="#39c5cf"></rect>
+      <text x="380" y="150" text-anchor="middle" class="lbl">Trigger Router + Deduplication</text>
+      <text x="380" y="167" text-anchor="middle" class="mini">5-min 窗 · 最多 3 並行 · circuit breaker</text>
+
+      <path class="edgeA" d="M380,180 L380,206" marker-end="url(#arrowA)"></path>
+
+      <text x="40" y="224" class="sect">② LANGGRAPH 狀態機</text>
+      <rect x="150" y="206" width="700" height="104" rx="12" fill="url(#gState)" stroke="#3a4a5e"></rect>
+
+      <g>
+        <rect x="172" y="234" width="128" height="52" rx="9" fill="#1c2735" stroke="#4da3ff"></rect>
+        <text x="236" y="256" text-anchor="middle" class="lbl">TRIAGE</text>
+        <text x="236" y="272" text-anchor="middle" class="sub">分級 · 定範圍</text>
+
+        <rect x="330" y="234" width="140" height="52" rx="9" fill="#1c2735" stroke="#4da3ff"></rect>
+        <text x="400" y="256" text-anchor="middle" class="lbl">INVESTIGATE</text>
+        <text x="400" y="272" text-anchor="middle" class="sub">五路並行 fan-out</text>
+
+        <rect x="500" y="234" width="140" height="52" rx="9" fill="#1c2735" stroke="#4da3ff"></rect>
+        <text x="570" y="256" text-anchor="middle" class="lbl">CORRELATE</text>
+        <text x="570" y="272" text-anchor="middle" class="sub">跨訊號 · root cause</text>
+
+        <rect x="700" y="234" width="128" height="52" rx="9" fill="#1c2c22" stroke="#3fb950"></rect>
+        <text x="764" y="256" text-anchor="middle" class="lbl">REPORT</text>
+        <text x="764" y="272" text-anchor="middle" class="sub">合成 · 推送</text>
+
+        <path class="edgeA" d="M300,260 L328,260" marker-end="url(#arrowA)"></path>
+        <path class="edgeA" d="M470,260 L498,260" marker-end="url(#arrowA)"></path>
+        <path class="edgeA" d="M640,260 L698,260" marker-end="url(#arrowA)"></path>
+
+        <path class="edgeLoop" d="M540,286 C520,306 440,306 410,286" marker-end="url(#arrowLoop)"></path>
+        <text x="475" y="308" text-anchor="middle" class="mini" fill="#d29922">信心 &lt; Medium → 重查（≤3）</text>
+      </g>
+
+      <path class="edgeA" d="M400,286 L400,326 L155,326 L155,352" marker-end="url(#arrowA)"></path>
+      <path class="edgeA" d="M400,286 L400,326 L320,326 L320,352" marker-end="url(#arrowA)"></path>
+      <path class="edgeA" d="M400,286 L400,326 L485,326 L485,352" marker-end="url(#arrowA)"></path>
+      <path class="edgeA" d="M400,286 L400,326 L650,326 L650,352" marker-end="url(#arrowA)"></path>
+      <path class="edgeA" d="M400,286 L400,326 L815,326 L815,352" marker-end="url(#arrowA)"></path>
+
+      <text x="40" y="346" class="sect">③ SPECIALISTS（並行）</text>
+      <g>
+        <rect x="90" y="352" width="130" height="48" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="155" y="373" text-anchor="middle" class="lbl">Metric Analyst</text>
+        <text x="155" y="389" text-anchor="middle" class="sub">metrics + DB health</text>
+
+        <rect x="255" y="352" width="130" height="48" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="320" y="373" text-anchor="middle" class="lbl">Log Analyst</text>
+        <text x="320" y="389" text-anchor="middle" class="sub">application logs</text>
+
+        <rect x="420" y="352" width="130" height="48" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="485" y="373" text-anchor="middle" class="lbl">Trace Analyst</text>
+        <text x="485" y="389" text-anchor="middle" class="sub">distributed traces</text>
+
+        <rect x="585" y="352" width="130" height="48" rx="9" fill="#1a212b" stroke="#2d3846"></rect>
+        <text x="650" y="373" text-anchor="middle" class="lbl">RUM Analyst</text>
+        <text x="650" y="389" text-anchor="middle" class="sub">client-side RUM</text>
+
+        <rect x="750" y="352" width="140" height="48" rx="9" fill="#2a1e26" stroke="#db61a2"></rect>
+        <text x="820" y="373" text-anchor="middle" class="lbl">Code-Change</text>
+        <text x="820" y="389" text-anchor="middle" class="sub">PR / commit / diff</text>
+      </g>
+
+      <path class="edge" d="M155,400 L155,428" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M320,400 L320,428" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M485,400 L485,428" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M650,400 L650,428" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M820,400 L820,428" marker-end="url(#arrow)"></path>
+
+      <text x="40" y="446" class="sect">④ MCP SERVERS（獨立程序 · 最小權限 · 唯讀）</text>
+      <g>
+        <rect x="90" y="452" width="130" height="44" rx="8" fill="#131a22" stroke="#2d3846"></rect>
+        <text x="155" y="472" text-anchor="middle" class="lbl">Grafana MCP</text>
+        <text x="155" y="487" text-anchor="middle" class="mini">+ DB Health MCP</text>
+
+        <rect x="255" y="452" width="130" height="44" rx="8" fill="#131a22" stroke="#2d3846"></rect>
+        <text x="320" y="477" text-anchor="middle" class="lbl">OpenObserve MCP</text>
+
+        <rect x="420" y="452" width="130" height="44" rx="8" fill="#131a22" stroke="#2d3846"></rect>
+        <text x="485" y="477" text-anchor="middle" class="lbl">Tempo MCP</text>
+
+        <rect x="585" y="452" width="130" height="44" rx="8" fill="#131a22" stroke="#2d3846"></rect>
+        <text x="650" y="477" text-anchor="middle" class="lbl">SigNoz MCP</text>
+
+        <rect x="750" y="452" width="140" height="44" rx="8" fill="#221720" stroke="#db61a2"></rect>
+        <text x="820" y="477" text-anchor="middle" class="lbl">GitHub MCP</text>
+      </g>
+
+      <path class="edge" d="M155,496 L155,524" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M320,496 L320,524" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M485,496 L485,524" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M650,496 L650,524" marker-end="url(#arrow)"></path>
+      <path class="edge" d="M820,496 L820,524" marker-end="url(#arrow)"></path>
+
+      <text x="40" y="542" class="sect">⑤ 後端資料源</text>
+      <g>
+        <rect x="90" y="548" width="130" height="40" rx="8" fill="#0e141b" stroke="#233040"></rect>
+        <text x="155" y="572" text-anchor="middle" class="sub">Prometheus · OB/Mongo/Redis</text>
+
+        <rect x="255" y="548" width="130" height="40" rx="8" fill="#0e141b" stroke="#233040"></rect>
+        <text x="320" y="572" text-anchor="middle" class="sub">OpenObserve logs</text>
+
+        <rect x="420" y="548" width="130" height="40" rx="8" fill="#0e141b" stroke="#233040"></rect>
+        <text x="485" y="572" text-anchor="middle" class="sub">Tempo traces</text>
+
+        <rect x="585" y="548" width="130" height="40" rx="8" fill="#0e141b" stroke="#233040"></rect>
+        <text x="650" y="572" text-anchor="middle" class="sub">SigNoz RUM</text>
+
+        <rect x="750" y="548" width="140" height="40" rx="8" fill="#1c1218" stroke="#5c2b41"></rect>
+        <text x="820" y="572" text-anchor="middle" class="sub">GitHub（deploy timeline）</text>
+      </g>
+
+      <path class="edgeA" d="M764,286 L764,300 L940,300 L940,636 L520,636" marker-end="url(#arrowA)"></path>
+      <text x="40" y="632" class="sect">⑥ REPORTER OUT</text>
+      <rect x="250" y="618" width="260" height="52" rx="10" fill="#17251b" stroke="#3fb950"></rect>
+      <text x="380" y="640" text-anchor="middle" class="lbl">Reporter → Notifications MCP</text>
+      <text x="380" y="657" text-anchor="middle" class="mini">Telegram / Slack / Jira / Notion</text>
+
+      <path class="edgeA" d="M380,670 L380,696" marker-end="url(#arrowA)"></path>
+      <rect x="250" y="696" width="260" height="44" rx="10" fill="#231b2e" stroke="#7c5cff"></rect>
+      <text x="380" y="716" text-anchor="middle" class="lbl">Incident Channel（人員 review）</text>
+      <text x="380" y="732" text-anchor="middle" class="mini">帶證據 · 信心度 · 嫌疑 PR — 人決策</text>
+
+      <rect x="905" y="352" width="86" height="96" rx="9" fill="#131a22" stroke="#39c5cf" stroke-dasharray="4 3"></rect>
+      <text x="948" y="392" text-anchor="middle" class="lbl" font-size="11">KB MCP</text>
+      <text x="948" y="408" text-anchor="middle" class="sub">runbooks</text>
+      <text x="948" y="424" text-anchor="middle" class="sub">餵給全部</text>
+      <text x="948" y="440" text-anchor="middle" class="sub">agent</text>
+    </svg>
+  </div>
+  <p class="cap">圖：從觸發到人員 review 的完整 orchestration。藍線為主控流（LangGraph），灰線為資料查詢路徑，橘色虛線為信心不足時的收斂重查迴圈。</p>
+
+  <h2><span class="num">1</span> 角色與定位</h2>
+  <div class="grid cols-3">
+    <div class="card"><h3>跨系統關聯</h3><p>把散在 Grafana、OpenObserve、Tempo、SigNoz、各 DB、GitHub 的訊號拉在一起關聯。</p></div>
+    <div class="card"><h3>可行動報告</h3><p>產出有<span class="k">證據</span>、有<span class="k">信心度</span>的 incident report，推到 incident channel。</p></div>
+    <div class="card"><h3>明確不做</h3><p>不自動修復 / self-healing、不自動 revert。只「指認嫌疑、附證據」，由人決策。</p></div>
+  </div>
+
+  <h2><span class="num">2</span> 觸發條件</h2>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>Trigger</th><th>說明</th></tr></thead>
+      <tbody>
+        <tr><td><b>Error-accumulation</b><br><span class="k">首要</span></td><td>per-service 滑動視窗（預設 5 分鐘 / 每 30s 評估）。<b>持續累積</b> = 連續 N 次（預設 3）超過門檻且趨勢不下降才觸發，過濾瞬間 spike。門檻由 24h baseline（mean + Kσ）推導。</td></tr>
+        <tr><td><b>Reactive</b></td><td>Grafana / SigNoz alert webhook。</td></tr>
+        <tr><td><b>Proactive</b></td><td>排程 health scan 比對 baseline。</td></tr>
+        <tr><td><b>Interactive</b></td><td>Telegram bot Q&amp;A。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="num">3</span> 資料來源與 MCP</h2>
+  <p class="lead">每個 MCP server 為獨立程序、最小權限憑證（AWS Secrets Manager），無跨 server 共用；所有查詢於 MCP 層驗證為唯讀。</p>
+  <div class="table-scroll">
+    <table>
+      <thead><tr><th>MCP Server</th><th>後端</th><th>消費的 Specialist</th></tr></thead>
+      <tbody>
+        <tr><td><b>Grafana MCP</b></td><td>Prometheus metrics + Grafana alerting</td><td>Metric Analyst</td></tr>
+        <tr><td><b>OpenObserve MCP</b></td><td>application logs（SQL 介面）</td><td>Log Analyst</td></tr>
+        <tr><td><b>Tempo MCP</b></td><td>distributed traces</td><td>Trace Analyst</td></tr>
+        <tr><td><b>SigNoz MCP</b></td><td>client-side RUM</td><td>RUM Analyst</td></tr>
+        <tr><td><b>DB Health MCP</b></td><td>OceanBase / MongoDB / Redis / Kafka（隔離部署）</td><td>Metric Analyst</td></tr>
+        <tr><td><b>GitHub MCP</b></td><td>PR / commit / diff / deploy timeline / blame</td><td><b style="color:var(--pink)">Code-Change Analyst</b></td></tr>
+        <tr><td><b>Notifications MCP</b></td><td>Telegram / Slack / Jira / Notion</td><td>Reporter</td></tr>
+        <tr><td><b>Knowledge Base MCP</b></td><td><code class="inline">/docs/knowledge-base/</code> + runbooks</td><td>全部 agent</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="num">4</span> 產出範本</h2>
+  <p class="lead">固定格式，每一項證據都標註來源後端 —— 這是「答得出哪個 PR」的具體長相。</p>
+  <div class="report"><span class="p1">[P1] Checkout latency spike — spin settlement 逾時累積</span>
+
+<span class="label">Impact:</span>    ~1,200 users / 3 services · 8 min
+<span class="label">Triggered by:</span> error-accumulation（連續 3 窗超標，趨勢未降）
+
+<span class="label">Root Cause:</span>  Sleipnir 結算路徑新增同步 DB 呼叫，尖峰放大延遲
+<span class="label">Confidence:</span> <span class="hi">High</span>
+
+<span class="label">Evidence:</span>
+  Metrics (Grafana):    settle p99 120ms → 2.4s @14:05
+  Logs (OpenObserve):   "ctx deadline exceeded" ×3,410 起 14:04
+  Traces (Tempo):       trace 7f3a… 瓶頸 span = WalletTransfer 2.1s
+  RUM (SigNoz):         No client impact detected
+  DB Health:            OceanBase active-session 峰值，slow log 命中
+  Code Changes (GitHub):<span class="pr">嫌疑 PR #1234</span> "add sync wallet check" by @dev
+                        deployed 14:03 — onset 前 2 分鐘；touched 重疊路徑
+
+<span class="label">Recommendation:</span>
+  1. consider reverting <span class="pr">PR #1234</span>（建議 — 非自動執行）
+  2. 尖峰時段改為非同步結算
+
+<span class="label">Dashboards:</span> Grafana · OpenObserve · Tempo · GitHub（PR 連結）</div>
+
+  <h2><span class="num">5</span> Guardrails &amp; 風險</h2>
+  <div class="grid cols-2">
+    <div class="card guard">
+      <h3 style="color:var(--green)">核心 Guardrails</h3>
+      <ul class="clean">
+        <li><b>唯讀 + 只通知</b>，無寫入生產系統。</li>
+        <li>Code-change 一律標示「<b>correlation 非 causation</b>」；revert 只是建議。</li>
+        <li>每個 claim 必附具體<b>數值 / trace ID / log / PR</b>。</li>
+        <li>dedup 5 分鐘窗 + <b>最多 3 並行</b> + LLM circuit breaker + 120s timeout。</li>
+        <li>後端不可達時 <b>graceful degradation</b>，報告標註哪些後端不可用。</li>
+      </ul>
+    </div>
+    <div class="card risk">
+      <h3 style="color:var(--amber)">主要風險 → 緩解</h3>
+      <ul class="clean">
+        <li><b>誤指無辜 PR</b> → 需「時間鄰近 AND 服務/路徑重疊」+ 信心分數。</li>
+        <li><b>deploy 時間缺失</b> → 優先 Deployments API / release tag；退回 merge time 並標註。</li>
+        <li><b>error-accum 誤報</b> → 持續累積閘（連續 N + 趨勢不降）；per-service 門檻。</li>
+        <li><b>GitHub rate limit</b> → 唯讀最小權限；per-investigation 快取；403 退避降級。</li>
+        <li><b>context 溢位</b> → MCP 回應大小上限；先 summary 再 drill-down。</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="callout">
+    <b>成功衡量：</b> trigger → Telegram 報告 &lt; 60s · 每次調查 ~$0.06（100 次/日 ≈ $6，上限 200 次/日）·
+    10 份人工複審準確度 · code-change 關聯命中率 · proactive 偵測 precision/recall。
+  </div>
+
+  <h2><span class="num">6</span> 待拍板 Open Questions</h2>
+  <div class="grid cols-3">
+    <div class="card"><h3>① Deploy time 權威來源</h3><p>Deployments API / release tag / CI 註記 / ArgoCD sync —— 決定 code-change 關聯的時間精度。</p></div>
+    <div class="card"><h3>② Repo 形態</h3><p>monorepo vs per-service，決定「服務→repo 對應」還是「路徑過濾」。</p></div>
+    <div class="card"><h3>③ Error-accum fire 依據</h3><p>建議：Prometheus 決策、OpenObserve 內部 drill-down。</p></div>
+  </div>
+
+  <footer>
+    本頁為 <code class="inline">build-aiops-agent</code> OpenSpec 變更的簡化 HTML 導讀。規範性內容以
+    <code class="inline">proposal.md</code> · <code class="inline">design.md</code> · <code class="inline">tasks.md</code> ·
+    <code class="inline">specs/aiops-agent/spec.md</code> 為準。定位：可觀測性藍圖 Phase 5（最終階段），不更動任何現有程式碼。
+  </footer>
+
+</div>
+
+</body></html>

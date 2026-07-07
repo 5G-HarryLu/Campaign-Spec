@@ -63,6 +63,10 @@
   .card-olap:hover{border-color:#78510f}
   .card-olap .tag{background:#241a08;color:#fbbf24}
 
+  .card-agent .icon{background:#1a1330;color:#bc8cff}
+  .card-agent:hover{border-color:#4c2f8f}
+  .card-agent .tag{background:#1a1330;color:#bc8cff}
+
   .status{
     display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
     margin-bottom:20px;
@@ -160,6 +164,22 @@
       <span class="tag">OLAP</span>
       <span class="tag">OceanBase</span>
       <span class="tag">Realtime</span>
+    </div>
+    <span class="arrow">→</span>
+  </a>
+
+  <a href="./ai-ops-agent/" class="card card-agent">
+    <div class="icon">🤖</div>
+    <div class="status"><span class="dot dot-wip"></span>Proposal</div>
+    <div class="title">AI Ops Agent</div>
+    <div class="desc">
+      唯讀、只通知的多代理事故應變服務（Python / LangGraph）—
+      並行派出專科代理跨後端關聯錯誤，產出含證據與信心度的 incident report。
+    </div>
+    <div class="tags">
+      <span class="tag">LangGraph</span>
+      <span class="tag">Multi-Agent</span>
+      <span class="tag">Observability</span>
     </div>
     <span class="arrow">→</span>
   </a>
