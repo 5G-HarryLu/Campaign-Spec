@@ -231,6 +231,7 @@
       <a href="#components">元件設定</a>
       <a href="#trigger">觸發分析</a>
       <a href="#sub">訂閱型 Claude</a>
+      <a href="architecture-c-demo.html" style="color:var(--hot);font-weight:700">Demo 實作 ↗</a>
     </nav>
     <button class="themebtn" id="themebtn" aria-label="切換深淺色">◐</button>
   </div>
@@ -621,6 +622,9 @@ curl -sS -X POST slack.com/api/chat.postMessage \
   <div class="wrap">
     <div class="sec-head"><span class="sec-num">06</span><h2>把 Claude API 換成訂閱型 Claude Code</h2></div>
     <p class="sec-sub">現在 workflow 用 <code class="mono">ANTHROPIC_API_KEY</code>，是按 token 計費。如果你已經有 Claude Pro / Max 訂閱，可以改用「訂閱額度」跑同一支 CLI——寫成一個 Python 服務，就像常見的 slack-claude-bot，只是不吃 API 帳單，改吃訂閱。</p>
+
+    <div class="note"><span class="lbl">實作紀錄 · Architecture C</span>
+      這一節的想法已經做成一個可跑的 demo：<b>OpenObserve → Slack → 本地 Python + 訂閱 Claude + GitHub → 回貼 Slack</b>（拉取式、不需 24/7 對外主機）。架構、進度與觸發方式見 <a href="architecture-c-demo.html" style="color:var(--cool);font-weight:700">Architecture C — 訂閱制本地 Demo 實作紀錄 ↗</a>。</div>
 
     <div class="split">
       <div class="box api">

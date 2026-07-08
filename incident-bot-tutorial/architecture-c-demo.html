@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Architecture C — 訂閱制本地 Demo 實作紀錄</title>
+<style>
+  :root {
+    --ground:#eef1f8; --panel:#ffffff; --panel-2:#f5f7fc; --sunk:#e9edf6;
+    --ink:#141b2c; --ink-soft:#495166; --ink-faint:#828da6; --line:#d9deec;
+    --hot:#e8501f; --hot-soft:#fbe4da; --cool:#0f9c8f; --cool-soft:#d6f2ee;
+    --ok:#0f9d53; --warn:#c47a00; --crit:#d92d38; --wire:#c0c8dc;
+    --mono:ui-monospace,'SF Mono','JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,'Noto Sans TC','PingFang TC',sans-serif;
+    --shadow:0 1px 0 rgba(20,27,44,.04),0 12px 32px -18px rgba(20,27,44,.28);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0d1424; --panel:#141d30; --panel-2:#18223a; --sunk:#0f1728;
+      --ink:#e7ecf8; --ink-soft:#a6b2cd; --ink-faint:#6a7794; --line:#25314c;
+      --hot:#ff6d44; --hot-soft:#2c1a16; --cool:#2dd4bf; --cool-soft:#12271f;
+      --ok:#37d180; --warn:#f5a623; --crit:#ff5a5f; --wire:#33415f;
+      --shadow:0 1px 0 rgba(0,0,0,.3),0 20px 46px -22px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#eef1f8; --panel:#ffffff; --panel-2:#f5f7fc; --sunk:#e9edf6;
+    --ink:#141b2c; --ink-soft:#495166; --ink-faint:#828da6; --line:#d9deec;
+    --hot:#e8501f; --hot-soft:#fbe4da; --cool:#0f9c8f; --cool-soft:#d6f2ee;
+    --ok:#0f9d53; --warn:#c47a00; --crit:#d92d38; --wire:#c0c8dc;
+    --shadow:0 1px 0 rgba(20,27,44,.04),0 12px 32px -18px rgba(20,27,44,.28);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0d1424; --panel:#141d30; --panel-2:#18223a; --sunk:#0f1728;
+    --ink:#e7ecf8; --ink-soft:#a6b2cd; --ink-faint:#6a7794; --line:#25314c;
+    --hot:#ff6d44; --hot-soft:#2c1a16; --cool:#2dd4bf; --cool-soft:#12271f;
+    --ok:#37d180; --warn:#f5a623; --crit:#ff5a5f; --wire:#33415f;
+    --shadow:0 1px 0 rgba(0,0,0,.3),0 20px 46px -22px rgba(0,0,0,.7);
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+    line-height:1.65;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  a{color:inherit}
+  h1,h2,h3{text-wrap:balance;margin:0}
+  code,.mono{font-family:var(--mono)}
+
+  .topbar{position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--ground) 86%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;gap:18px;height:58px}
+  .brand{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-weight:700;
+    font-size:14px;letter-spacing:.02em;text-decoration:none;color:inherit}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--hot);
+    box-shadow:0 0 0 4px var(--hot-soft);animation:blip 2.4s ease-in-out infinite}
+  @keyframes blip{0%,100%{opacity:1}50%{opacity:.35}}
+  .navlinks{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+  .navlinks a{font-family:var(--mono);font-size:12px;color:var(--ink-soft);text-decoration:none;
+    padding:6px 10px;border-radius:7px;white-space:nowrap}
+  .navlinks a:hover{background:var(--panel-2);color:var(--ink)}
+  .themebtn{border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);
+    width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:15px;display:grid;place-items:center}
+  .themebtn:hover{color:var(--ink)}
+  @media (max-width:820px){.navlinks{display:none}}
+
+  .hero{padding:64px 0 40px;position:relative}
+  .eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.18em;text-transform:uppercase;
+    color:var(--hot);display:flex;align-items:center;gap:10px}
+  .eyebrow::before{content:"";width:26px;height:1.5px;background:var(--hot)}
+  h1.title{font-size:clamp(34px,6vw,60px);font-weight:850;letter-spacing:-.02em;line-height:1.02;
+    margin:18px 0 0}
+  h1.title .g{background:linear-gradient(100deg,var(--hot),var(--cool));
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+  .lede{font-size:clamp(16px,2.2vw,20px);color:var(--ink-soft);max-width:64ch;margin:20px 0 0}
+  .metarow{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
+  .chip{font-family:var(--mono);font-size:12px;padding:6px 11px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--ink-soft);display:flex;gap:7px;align-items:center}
+  .chip b{color:var(--ink);font-weight:600}
+
+  section{padding:56px 0;border-top:1px solid var(--line)}
+  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px}
+  .sec-num{font-family:var(--mono);font-size:13px;color:var(--hot);font-weight:700}
+  h2{font-size:clamp(24px,3.4vw,34px);font-weight:800;letter-spacing:-.01em}
+  h3{font-size:19px;margin-top:30px}
+  .sec-sub{color:var(--ink-soft);max-width:70ch;margin:12px 0 0;font-size:16.5px}
+
+  .diagram{margin-top:30px;border:1px solid var(--line);border-radius:16px;background:var(--panel);
+    padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+
+  pre{margin:16px 0 0;background:var(--sunk);border:1px solid var(--line);border-radius:12px;
+    padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;color:var(--ink)}
+  .diagram pre{margin:0;background:transparent;border:0;padding:0;font-size:13px;line-height:1.5;white-space:pre}
+  .filetag{font-family:var(--mono);font-size:11px;color:var(--ink-faint);margin:18px 0 -8px;
+    display:flex;align-items:center;gap:7px}
+  .filetag::before{content:"▸";color:var(--cool)}
+  code.inl{background:var(--sunk);padding:1px 6px;border-radius:5px;font-size:12.5px;border:1px solid var(--line)}
+
+  /* tables */
+  .tbl-wrap{overflow-x:auto;margin-top:24px;border:1px solid var(--line);border-radius:12px}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+  th,td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);padding:10px 14px;
+    text-align:left;vertical-align:top}
+  th:last-child,td:last-child{border-right:0}
+  tr:last-child td{border-bottom:0}
+  thead th{background:var(--panel-2);font-weight:700;color:var(--ink);white-space:nowrap}
+  td{color:var(--ink-soft)}
+  td b{color:var(--ink)}
+
+  /* callouts */
+  .note{margin-top:22px;border-left:3px solid var(--cool);background:var(--cool-soft);
+    padding:14px 18px;border-radius:0 12px 12px 0;font-size:14px;color:var(--ink)}
+  .note.warn{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,var(--panel))}
+  .note b{font-weight:700}
+  .note .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--cool);font-weight:700;display:block;margin-bottom:4px}
+  .note.warn .lbl{color:var(--warn)}
+
+  /* status panels */
+  .split{margin-top:30px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:820px){.split{grid-template-columns:1fr}}
+  .box{border:1px solid var(--line);border-radius:14px;padding:22px;background:var(--panel)}
+  .box.done{border-color:color-mix(in srgb,var(--cool) 50%,var(--line));
+    background:linear-gradient(180deg,var(--panel),var(--cool-soft))}
+  .box.todo{border-color:color-mix(in srgb,var(--warn) 40%,var(--line))}
+  .box h4{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px}
+  .clist{list-style:none;margin:14px 0 0;padding:0;font-size:14px;color:var(--ink-soft)}
+  .clist li{margin:9px 0;padding-left:26px;position:relative;line-height:1.55}
+  .clist li::before{position:absolute;left:0;top:0}
+  .clist.ok li::before{content:"✅"}
+  .clist.wait li{padding-left:30px}
+  .clist.wait li::before{content:"⏳"}
+  .clist li b{color:var(--ink)}
+  .clist code{background:var(--sunk);padding:1px 5px;border-radius:5px;font-size:12px;border:1px solid var(--line)}
+
+  /* key-values */
+  .kv{margin:22px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--panel);
+    padding:16px 18px;display:grid;gap:8px;box-shadow:var(--shadow)}
+  .kv div{display:flex;gap:10px;font-size:13px;align-items:baseline}
+  .kv .k{font-family:var(--mono);color:var(--ink-faint);min-width:150px;flex-shrink:0}
+  .kv .v{color:var(--ink);font-family:var(--mono);font-size:12.5px}
+
+  /* steps */
+  .steps{margin-top:26px;counter-reset:s;display:flex;flex-direction:column;gap:2px}
+  .step{display:grid;grid-template-columns:38px 1fr;gap:14px;padding:16px 0;border-bottom:1px dashed var(--line)}
+  .step:last-child{border-bottom:0}
+  .step::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-weight:800;
+    color:var(--cool);background:var(--cool-soft);width:32px;height:32px;border-radius:9px;
+    display:grid;place-items:center;font-size:14px}
+  .step .h{font-weight:700;font-size:15px}
+  .step .b{color:var(--ink-soft);font-size:14px;margin-top:4px}
+  .step ul{margin:8px 0 0;padding-left:18px;color:var(--ink-soft);font-size:13.5px}
+  .step li{margin:4px 0}
+  .step code{background:var(--sunk);padding:1px 6px;border-radius:5px;font-size:12.5px;border:1px solid var(--line)}
+
+  footer{padding:48px 0 64px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:13px}
+  footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+  footer .mono{font-family:var(--mono)}
+  ::selection{background:color-mix(in srgb,var(--cool) 30%,transparent)}
+  @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="dot"></span>incident-bot / Architecture C</a>
+    <nav class="navlinks">
+      <a href="index.html">← 主手冊</a>
+      <a href="#why">架構</a>
+      <a href="#status">進度</a>
+      <a href="#notif">通知內容</a>
+      <a href="#trigger">觸發 Demo</a>
+    </nav>
+    <button class="themebtn" id="themebtn" aria-label="切換深淺色">◐</button>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Architecture C · 訂閱制本地 Demo · 實作紀錄</div>
+    <h1 class="title">不架伺服器，<br><span class="g">讓本地 Claude 去 Slack 撈事故</span></h1>
+    <p class="lede">OpenObserve 告警 → Slack → 本地 Python（拉取）→ 本地 <code class="inl">claude</code>（吃訂閱）＋ GitHub → 回貼 Slack thread。這是主手冊 <a href="index.html">Architecture A（Serverless + API）</a> 之外、專為「沒有 24/7 對外主機、想用訂閱額度」設計的第三條路。本頁記錄實際 demo 的架構、進度與觸發方式。</p>
+    <div class="metarow">
+      <span class="chip">🔌 <b>拉取式</b> 出站輪詢，免對外主機</span>
+      <span class="chip">💳 <b>吃訂閱</b> claude CLI，非 API</span>
+      <span class="chip">🧩 <b>組成</b> OpenObserve · Slack · Python · Claude · GitHub</span>
+      <span class="chip">🔒 <b>與生產隔離</b></span>
+    </div>
+  </div>
+</header>
+
+<!-- ============ 01 WHY ============ -->
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">01</span><h2>這是什麼 / 為什麼是這個架構</h2></div>
+    <p class="sec-sub">主手冊的正式管線（<b>Architecture A</b>）已在生產環境上線：OpenObserve → Cloudflare Worker（harry-lu）→ GitHub Actions → Claude API → Slack。它需要一個對外的 serverless 端點、GitHub App、以及按量計費的 API key。</p>
+    <p class="sec-sub">本 demo 走 <b>Architecture C</b>，因為兩個限制：<b>沒有 24/7、對外的主機</b> 可以接 webhook；想用<b>個人 Claude 訂閱額度</b>而不是 API 帳單。解法是把「推」改成「拉」：<b>本地機器只做對外連線</b>，主動去 Slack 撈告警。Slack 變成一個佇列——OpenObserve 一定送得進 Slack，告警就停在頻道裡等本地 bot 下次執行時撈走。機器關機也不會漏，開機再補跑即可。不需要對外 IP、不需要打洞、不需要常駐伺服器。</p>
+
+    <div class="diagram" role="img" aria-label="Architecture C 資料流">
+<pre>  OpenObserve  ──(alert 命中)──▶  Notification Destination「slack-incident-demo」
+  o2.5gg.win                         │  (Slack incoming webhook)
+                                     ▼
+                              Slack #incident-demo（private）
+                                     ▲   │
+       本地機器（開著時，出站輪詢）─────┘   │  1. conversations.history 撈新告警
+       incident_bot.py                     │  2. 在該告警 thread 回「分析中…」
+         │                                 │  3. 本地 claude -p（訂閱，非 API）
+         │  ── 讀 GitHub repo（commit/PR）──┘     ＋可選：讀 repo、撈 OpenObserve log
+         └── 4. 把繁中根因報告回貼到同一 thread ──▶ Slack #incident-demo</pre>
+    </div>
+
+    <h3>與 Production（Architecture A）的差異</h3>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>面向</th><th>A — Serverless（生產）</th><th>C — 本地拉取（本 demo）</th></tr></thead>
+        <tbody>
+          <tr><td><b>OO → GitHub 之間</b></td><td>Cloudflare Worker 轉信</td><td>不需要；改走 Slack</td></tr>
+          <tr><td><b>觸發方式</b></td><td>Push（webhook / dispatch）</td><td>Pull（本地輪詢 Slack）</td></tr>
+          <tr><td><b>主機需求</b></td><td>邊緣運算（免維運）</td><td>一台開著的機器即可，<b>不用對外</b></td></tr>
+          <tr><td><b>Claude 計費</b></td><td><code class="inl">ANTHROPIC_API_KEY</code>（按量）</td><td><code class="inl">claude</code> CLI <b>訂閱額度</b>（無 API key）</td></tr>
+          <tr><td><b>適合</b></td><td>無人值守、高併發、正式</td><td>個人 / 小團隊 / 內部工具 / demo</td></tr>
+          <tr><td><b>即時性</b></td><td>秒級</td><td>機器開著才處理；關機則排隊等補跑</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note"><span class="lbl">隔離原則</span>本 demo 與生產完全分離。只新增了 <code class="inl">#incident-demo</code> 頻道、<code class="inl">incident-bot</code> app、<code class="inl">slack-incident-demo</code> destination。<b>不動</b> freda 的 6 條 alert、harry-lu 的 CF Worker、以及既有的 9 個 destination。</div>
+  </div>
+</section>
+
+<!-- ============ 02 STATUS ============ -->
+<section id="status">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">02</span><h2>進度：已完成 / 待辦</h2></div>
+    <p class="sec-sub">v1 已端到端跑通：一則告警進 <code class="inl">#incident-demo</code> → bot 撈走 → 本地 claude 分析 → 回貼 thread，全程走訂閱、與生產隔離。</p>
+
+    <div class="split">
+      <div class="box done">
+        <h4>✅ 已完成（v1）</h4>
+        <ul class="clist ok">
+          <li><b>Slack</b>：app <code>incident-bot</code>、私人頻道 <code>#incident-demo</code>、bot 已受邀、incoming webhook 綁定頻道；scopes 含 <code>groups:history</code>、<code>chat:write</code></li>
+          <li><b>OpenObserve</b>：destination <code>slack-incident-demo</code>（Slack 型），<b>Test 回 200、訊息確實進頻道</b>；備用 template <code>slack_incident_demo</code></li>
+          <li><b>本地 Bot</b>（<code>~/github/incident-bot/</code>）：輪詢頻道、辨識新告警（top-level bot 訊息）、在 thread 回覆</li>
+          <li>跑本地 <code>claude -p</code> 走<b>訂閱</b>（主動移除 <code>ANTHROPIC_API_KEY</code>）</li>
+          <li><b>老偵探人設</b>（<code>persona.txt</code>）：繁中、Slack mrkdwn、先安撫再分析、誠實標信心度</li>
+          <li>已在測試告警<b>驗證成功</b>：正確判讀 <code>403</code>、誠實標「需人工裁判」</li>
+        </ul>
+      </div>
+      <div class="box todo">
+        <h4>⏳ 待辦（互相獨立）</h4>
+        <ul class="clist wait">
+          <li><b>(a) 接上 GitHub（commit + PR）</b> — clone <code>GameServer</code> + 上游 <code>Valhalla</code>、填 <code>GITHUB_TOKEN</code>，讓 Claude <code>git show</code> 看真實 diff、<code>gh</code> 撈相關 PR。<b>原始目標的核心。</b></li>
+          <li><b>(b) 建一條真正的 demo alert</b> — clone 一條 game-server alert → 改名 <code>demo-…</code> → destination <b>只留</b> <code>slack-incident-demo</code>（務必移除繼承來的生產 destination）。</li>
+          <li><b>(c) 填真實 OpenObserve API token</b> — 讓 bot 用 <code>_search</code> 撈事故窗內 error log 樣本。端點已驗證可達，只差憑證。</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="kv">
+      <div><span class="k">Slack app</span><span class="v">incident-bot · A0BFE8ZDABZ</span></div>
+      <div><span class="k">頻道</span><span class="v">#incident-demo · C0BFZC16MHS（private）</span></div>
+      <div><span class="k">workspace</span><span class="v">Gemmis · T07VB6F25QC</span></div>
+      <div><span class="k">OpenObserve</span><span class="v">o2.5gg.win · org=default</span></div>
+      <div><span class="k">OO destination</span><span class="v">slack-incident-demo（Slack 型）</span></div>
+      <div><span class="k">bot 專案</span><span class="v">~/github/incident-bot/（incident_bot.py · persona.txt · .env）</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 03 NOTIFICATION CONTENT ============ -->
+<section id="notif">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">03</span><h2>OpenObserve 通知裡放多少內容？</h2></div>
+    <p class="sec-sub">通知內容取決於 destination / template，而且有實際的大小取捨。目前用原生「Slack」型 destination，送出的是<b>很薄</b>的訊息——測試證明整包幾乎只有告警名稱：<code class="inl">🚨 Alert: Test Alert - High CPU Usage</code>，<b>沒有錯誤明細、沒有時間窗、沒有筆數</b>。所以現況下 bot 必須回頭查 OpenObserve 才拿得到細節。</p>
+    <p class="sec-sub">OpenObserve <b>能</b>透過 template 放進更多變數：<code class="inl">alert_name</code>、<code class="inl">stream_name</code>、<code class="inl">alert_count</code>、<code class="inl">alert_operator/threshold</code>、<code class="inl">alert_start_time/end_time</code>、<code class="inl">alert_url</code>…以及最關鍵的 <code class="inl">rows</code>（實際命中的 log 記錄，全部 stream 欄位都是變數）。<code class="inl">rows</code> 可能很大，所以用 <code class="inl">{rows:N}</code>／<code class="inl">{var:N}</code> 限制筆數與字串長度。</p>
+
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr><th>模式</th><th>訊息內容</th><th>優點</th><th>缺點</th></tr></thead>
+        <tbody>
+          <tr><td><b>薄觸發 + bot 查 OO</b><br>（建議）</td><td><code class="inl">alert_name</code> + 時間窗 + 筆數</td><td>Slack 乾淨；bot 依需要抓時間窗／聚合；能吃大事故</td><td>需要 OO <b>API token</b>（待辦 c）</td></tr>
+          <tr><td><b>厚訊息 <code class="inl">{rows:N}</code></b></td><td>直接嵌入命中的 log rows</td><td>自帶內容；免 API token</td><td>被截成 N 筆；洗版；大事故失真</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note"><span class="lbl">建議 · 與主手冊一致</span>採<b>混合式</b>：通知只當<b>輕量觸發</b>，帶足夠資訊（<code class="inl">alert_name</code> + <code class="inl">alert_start_time/end_time</code> + <code class="inl">alert_count</code>），由分析端<b>回頭查 OpenObserve</b> 撈真正的 rows／top 錯誤桶。能吃大事故又不洗版。實務上：(1) 觸發訊息改用含<b>時間窗</b>的 template（我們的 <code class="inl">slack_incident_demo</code> 已含，只是原生 Slack 型不套用它，需改用 Custom 型），(2) 給 bot <b>OO API token</b>（待辦 c）去抓明細。</div>
+  </div>
+</section>
+
+<!-- ============ 04 TRIGGER ============ -->
+<section id="trigger">
+  <div class="wrap">
+    <div class="sec-head"><span class="sec-num">04</span><h2>如何觸發一次 Demo flow</h2></div>
+    <p class="sec-sub">前置：<code class="inl">SLACK_BOT_TOKEN</code> 已填入 <code class="inl">~/github/incident-bot/.env</code>（<code class="inl">xoxb-…</code>），本機 <code class="inl">claude</code> CLI 已登入訂閱帳號。</p>
+
+    <div class="steps">
+      <div class="step">
+        <div>
+          <div class="h">讓一則告警進到 #incident-demo（三選一）</div>
+          <div class="b">
+            <ul>
+              <li><b>最快（測試按鈕）</b>：OpenObserve → Settings → Notification Destinations → <code>slack-incident-demo</code> → <b>Test</b>。送一則 <code>🚨 Alert: …</code> 進頻道。</li>
+              <li><b>接近真實（clone alert）</b>：見待辦 (b)，clone 一條 game-server alert、destination 只留 <code>slack-incident-demo</code>、存檔；條件命中即自動送信。</li>
+              <li><b>手動</b>：對 <code>#incident-demo</code> 的 incoming webhook <code>curl</code> 一則 <code>{"text":"..."}</code>（webhook URL 屬機密，勿外流）。</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <div class="h">跑 bot 撈走並分析</div>
+          <div class="b">
+<pre><span class="c"># 進專案</span>
+cd ~/github/incident-bot
+
+<span class="c"># 處理一次就結束（適合手動 / cron / launchd）</span>
+./.venv/bin/python incident_bot.py --once
+
+<span class="c"># 或機器開著時持續輪詢</span>
+./.venv/bin/python incident_bot.py</pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div>
+          <div class="h">看結果</div>
+          <div class="b">回到 Slack <code>#incident-demo</code>，展開那則告警的 thread：bot 先回「🔍 我接手了，先看資料…」，接著貼上繁中根因報告（TL;DR 三行：發生什麼 / 根因 / 立即做）。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note"><span class="lbl">分析深度取決於資料源</span>只有告警文字時 → 給方向與下一步；接上 (a) repo → 能指到 <code class="inl">file:line</code> / commit <code class="inl">SHA</code> 並看真實 diff；接上 (c) → 帶真實 error log 佐證。</div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span class="mono">Architecture C · OpenObserve → Slack → 本地 Python + Claude + GitHub → Slack</span>
+    <span class="mono" style="color:var(--cool)">🕵️ 讓本地 Claude 去撈事故</span>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    var btn = document.getElementById('themebtn');
+    var root = document.documentElement;
+    function cur(){
+      var t = root.getAttribute('data-theme');
+      if(t) return t;
+      return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light';
+    }
+    btn.addEventListener('click', function(){
+      var next = cur()==='dark' ? 'light':'dark';
+      root.setAttribute('data-theme', next);
+      btn.textContent = next==='dark' ? '◑':'◐';
+    });
+  })();
+</script>
+</body>
+</html>
