@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Gems Jackpot — 服務改動規劃 v4.0</title>
+<style>
+  :root{
+    --bg:#0C1017;
+    --panel:#131926;
+    --panel-2:#182031;
+    --line:#243048;
+    --text:#E9EDF5;
+    --muted:#93A0B4;
+    --faint:#5C6A82;
+    --gold:#E8B44C;
+    --gold-dim:#8a6c2e;
+    --violet:#9B7EDE;
+    --emerald:#3ECF8E;
+    --danger:#E06C5A;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --radius:8px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+    line-height:1.7;
+    min-height:100vh;
+    display:flex;flex-direction:column;
+  }
+  ::selection{background:rgba(232,180,76,.3)}
+
+  /* ---------- header ---------- */
+  header{
+    position:sticky;top:0;z-index:50;
+    display:flex;align-items:center;justify-content:space-between;gap:16px;
+    padding:14px 28px;
+    background:rgba(12,16,23,.88);backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex;align-items:baseline;gap:12px;min-width:0}
+  .brand .home{
+    color:var(--muted);text-decoration:none;font-size:12px;font-weight:600;
+    padding:3px 10px;border:1px solid var(--line);border-radius:6px;
+    white-space:nowrap;transition:border-color .15s,color .15s;align-self:center;
+  }
+  .brand .home:hover{border-color:var(--gold-dim);color:var(--gold)}
+  .brand .gem{color:var(--gold);font-weight:700;letter-spacing:.14em;font-size:13px;white-space:nowrap}
+  .brand .sub{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  nav.chapters{display:flex;gap:6px;flex-wrap:wrap}
+  nav.chapters button{
+    appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);
+    font:inherit;font-size:12px;padding:5px 12px;border-radius:999px;cursor:pointer;
+    transition:all .2s;white-space:nowrap;
+  }
+  nav.chapters button:hover{border-color:var(--gold-dim);color:var(--text)}
+  nav.chapters button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  nav.chapters button.on{background:var(--gold);border-color:var(--gold);color:#181206;font-weight:600}
+  nav.chapters button .n{font-family:var(--mono);margin-right:6px;opacity:.7}
+  nav.chapters button.on .n{opacity:.85}
+
+  /* ---------- page shell ---------- */
+  main{flex:1;width:100%;max-width:1120px;margin:0 auto;padding:40px 28px 120px}
+  section.page{display:none}
+  section.page.active{display:block;animation:pageIn .45s ease both}
+  @keyframes pageIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+  .eyebrow{
+    font-family:var(--mono);font-size:12px;letter-spacing:.22em;color:var(--gold);
+    text-transform:uppercase;margin-bottom:10px;
+  }
+  h1{font-size:clamp(30px,4.6vw,46px);line-height:1.25;letter-spacing:.01em;text-wrap:balance;font-weight:700}
+  h2.page-title{font-size:clamp(24px,3.4vw,34px);line-height:1.3;text-wrap:balance;font-weight:700;margin-bottom:8px}
+  .lede{color:var(--muted);max-width:46em;margin-top:10px;font-size:15px}
+  .divider{height:1px;background:var(--line);margin:30px 0}
+
+  .card{
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:20px 22px;
+  }
+  .k{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .tag{
+    display:inline-block;font-size:11px;font-family:var(--mono);letter-spacing:.05em;
+    padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted);
+  }
+  .tag.gold{color:var(--gold);border-color:rgba(232,180,76,.45)}
+  .tag.violet{color:var(--violet);border-color:rgba(155,126,222,.45)}
+  .tag.green{color:var(--emerald);border-color:rgba(62,207,142,.45)}
+  .tag.red{color:var(--danger);border-color:rgba(224,108,90,.5)}
+
+  /* ---------- P1 hero ---------- */
+  .hero{display:grid;grid-template-columns:1.4fr .9fr;gap:36px;align-items:center;margin-top:16px}
+  @media(max-width:860px){.hero{grid-template-columns:1fr}}
+  .hero-gem{display:flex;justify-content:center}
+  .hero-gem svg{width:min(300px,70%);height:auto}
+  .gem-float{animation:gemFloat 6s ease-in-out infinite}
+  @keyframes gemFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+  .gem-shine{animation:gemShine 4s ease-in-out infinite}
+  @keyframes gemShine{0%,100%{opacity:.25}50%{opacity:.85}}
+
+  .review-badge{
+    display:inline-flex;align-items:center;gap:8px;margin-top:16px;
+    border:1px solid rgba(62,207,142,.45);border-radius:999px;padding:5px 14px;
+    color:var(--emerald);font-size:12.5px;
+  }
+  .review-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--emerald);animation:gemShine 2.6s ease-in-out infinite}
+
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:36px}
+  @media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr)}}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .stat .lbl{font-size:12px;color:var(--muted);letter-spacing:.06em}
+  .stat .val{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:clamp(20px,2.6vw,26px);font-weight:600;margin-top:4px}
+  .stat .note{font-size:11px;color:var(--faint);margin-top:4px}
+  .stat.grand .val{color:var(--gold)}
+  .stat.major .val{color:var(--violet)}
+
+  .toc{margin-top:40px}
+  .toc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;margin-top:14px}
+  .toc-item{
+    display:flex;gap:14px;align-items:flex-start;text-align:left;
+    background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;cursor:pointer;color:var(--text);font:inherit;transition:border-color .2s,transform .2s;
+  }
+  .toc-item:hover{border-color:var(--gold-dim);transform:translateY(-2px)}
+  .toc-item:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .toc-item .num{font-family:var(--mono);color:var(--gold);font-size:13px;padding-top:2px}
+  .toc-item .t{font-weight:600;font-size:14px}
+  .toc-item .d{color:var(--muted);font-size:12px;margin-top:2px}
+
+  /* ---------- diagram ---------- */
+  .diagram-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:radial-gradient(1200px 500px at 50% -10%,#131b2c 0%,var(--panel) 60%)}
+  .diagram-wrap svg{display:block;min-width:1180px;width:100%;height:auto}
+  .legend{display:flex;gap:22px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--muted)}
+  .legend .sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:7px;vertical-align:baseline}
+  .callouts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-top:22px}
+  .callout{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;font-size:13px;color:var(--muted)}
+  .callout b{color:var(--text);display:block;margin-bottom:4px;font-size:13.5px}
+
+  /* ---------- formula ---------- */
+  .formula{
+    background:var(--panel-2);border:1px solid rgba(232,180,76,.4);border-radius:var(--radius);
+    padding:18px 22px;font-family:var(--mono);font-size:clamp(13px,1.9vw,17px);color:var(--gold);
+    overflow-x:auto;white-space:nowrap;text-align:center;
+  }
+  .formula .dim{color:var(--muted)}
+
+  /* ---------- keys table ---------- */
+  .impact{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
+  table.imp{width:100%;border-collapse:collapse;font-size:13px;min-width:640px}
+  table.imp th{
+    text-align:left;padding:11px 16px;background:var(--panel-2);color:var(--muted);
+    font-size:12px;letter-spacing:.06em;border-bottom:1px solid var(--line);white-space:nowrap;
+  }
+  table.imp td{padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:top;background:var(--panel)}
+  table.imp tr:last-child td{border-bottom:none}
+  table.imp td.sys{font-weight:600;white-space:nowrap}
+  table.imp td.desc{color:var(--muted)}
+  table.imp td .k{font-size:12px}
+  .scale{font-family:var(--mono);font-size:11px;padding:2px 10px;border-radius:999px;white-space:nowrap}
+  .scale.l{background:rgba(224,108,90,.14);color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+  .scale.m{background:rgba(232,180,76,.12);color:var(--gold);border:1px solid rgba(232,180,76,.4)}
+  .scale.s{background:rgba(62,207,142,.1);color:var(--emerald);border:1px solid rgba(62,207,142,.35)}
+  .scale.z{background:transparent;color:var(--faint);border:1px solid var(--line)}
+  .scale.v{background:rgba(155,126,222,.12);color:var(--violet);border:1px solid rgba(155,126,222,.4)}
+
+  /* ---------- pipeline ---------- */
+  .pipe{position:relative;margin-top:8px}
+  .pipe-track{position:relative;height:4px;background:var(--line);border-radius:2px;margin:0 40px 26px}
+  .coin{
+    position:absolute;top:50%;width:16px;height:16px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#ffe9b0,var(--gold) 60%,#9c7526);
+    box-shadow:0 0 12px rgba(232,180,76,.7);
+    transform:translate(-50%,-50%);
+    animation:coinRun 6s linear infinite;
+  }
+  @keyframes coinRun{0%{left:0%}96%{left:100%;opacity:1}100%{left:100%;opacity:0}}
+  .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+  @media(max-width:960px){.steps{grid-template-columns:repeat(2,1fr)}}
+  .step-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 15px;position:relative}
+  .step-card .no{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.1em}
+  .step-card .t{font-weight:600;font-size:14px;margin:4px 0 6px}
+  .step-card .d{font-size:12px;color:var(--muted)}
+  .step-card code{font-family:var(--mono);font-size:11px;color:var(--emerald);background:rgba(62,207,142,.08);padding:1px 5px;border-radius:4px}
+
+  .p3-lower{display:grid;grid-template-columns:1.2fr .8fr;gap:22px;margin-top:26px;align-items:stretch}
+  @media(max-width:860px){.p3-lower{grid-template-columns:1fr}}
+  .gauge-box{display:flex;gap:26px;align-items:stretch}
+  .gauge{
+    position:relative;width:74px;flex:none;height:300px;border:1px solid var(--line);
+    border-radius:10px;background:var(--panel-2);overflow:hidden;
+  }
+  .gauge .fill{
+    position:absolute;left:0;right:0;bottom:0;
+    background:linear-gradient(180deg,rgba(232,180,76,.95),rgba(232,180,76,.45));
+    animation:poolFill 9s ease-in-out infinite;
+  }
+  @keyframes poolFill{
+    0%{height:22%}
+    62%{height:80%}
+    66%{height:80%}
+    70%{height:80%;filter:brightness(1.9)}
+    74%{height:80%;filter:brightness(1)}
+    80%{height:22%}
+    100%{height:22%}
+  }
+  .gauge .hitline{
+    position:absolute;left:0;right:0;bottom:80%;border-top:2px dashed var(--gold);
+    animation:hitFlash 9s ease-in-out infinite;
+  }
+  @keyframes hitFlash{0%,60%{opacity:.55}66%,72%{opacity:1}80%,100%{opacity:.55}}
+  .gauge .ceiling{position:absolute;left:0;right:0;top:0;border-top:2px solid var(--danger);opacity:.6}
+  .gauge-labels{display:flex;flex-direction:column;justify-content:space-between;padding:2px 0;font-size:12px;color:var(--muted);height:300px}
+  .gauge-labels .row b{display:block;color:var(--text);font-size:12.5px}
+
+  /* ---------- timeline / modes ---------- */
+  .modes{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px}
+  @media(max-width:900px){.modes{grid-template-columns:1fr}}
+  .mode{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+  .mode.warn{border-color:rgba(224,108,90,.5)}
+  .mode.lead{border-color:rgba(62,207,142,.5);background:linear-gradient(180deg,rgba(62,207,142,.06),var(--panel) 55%)}
+  .mode h4{font-size:15px;margin-bottom:6px;margin-top:10px}
+  .mode p{font-size:13px;color:var(--muted)}
+
+  .timeline{position:relative;margin:10px 0 0 6px;padding-left:30px;border-left:1px solid var(--line)}
+  .tstep{position:relative;padding:0 0 22px 6px;opacity:0;transform:translateX(-8px)}
+  .page.active .tstep{animation:stepIn .5s ease forwards}
+  .page.active .tstep:nth-child(1){animation-delay:.10s}
+  .page.active .tstep:nth-child(2){animation-delay:.28s}
+  .page.active .tstep:nth-child(3){animation-delay:.46s}
+  .page.active .tstep:nth-child(4){animation-delay:.64s}
+  .page.active .tstep:nth-child(5){animation-delay:.82s}
+  .page.active .tstep:nth-child(6){animation-delay:1.0s}
+  @keyframes stepIn{to{opacity:1;transform:none}}
+  .tstep::before{
+    content:"";position:absolute;left:-37px;top:6px;width:12px;height:12px;border-radius:50%;
+    background:var(--panel);border:2px solid var(--gold);
+  }
+  .tstep .t{font-weight:600;font-size:15px}
+  .tstep .t .k{color:var(--gold);margin-right:8px;font-size:13px}
+  .tstep .d{color:var(--muted);font-size:13px;max-width:56em;margin-top:2px}
+  .tstep code{font-family:var(--mono);font-size:12px;color:var(--emerald)}
+
+  /* ---------- p2b end-to-end sequence ---------- */
+  .seq-wrap{display:grid;grid-template-columns:1fr 1fr;gap:34px;margin-top:8px}
+  @media(max-width:900px){.seq-wrap{grid-template-columns:1fr}}
+  .seq-col > .seq-head{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .seq-col .seq-head .role{font-size:16px;font-weight:700}
+  .seq-col .seq-head .role.dal{color:var(--violet)}
+  .seq-col .seq-head .role.svc{color:var(--gold)}
+  .seq-col .seq-head .sub{font-size:12px;color:var(--faint)}
+  .seq-col .seq-lede{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .ph-tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;color:var(--faint);
+    text-transform:uppercase;margin:16px 0 8px;padding-left:6px;border-left:2px solid var(--line)}
+  .seq-col .timeline{margin-top:2px}
+  .seq-col.dal .tstep::before{border-color:var(--violet)}
+  .seq-col.dal .tstep .t .k{color:var(--violet)}
+  .journey-story{margin-top:30px;border:1px solid var(--line);border-left:3px solid var(--gold);
+    border-radius:var(--radius);padding:18px 22px;background:linear-gradient(90deg,rgba(232,180,76,.05),transparent)}
+  .journey-story h3{margin:0 0 10px;font-size:15px}
+  .journey-story p{margin:0 0 10px;font-size:13.5px;color:var(--text);line-height:1.72;max-width:64em}
+  .journey-story p:last-child{margin-bottom:0}
+  .journey-story .hl{color:var(--gold);font-weight:600}
+  .journey-story .hlv{color:var(--violet);font-weight:600}
+  .journey-story code{font-family:var(--mono);font-size:12px;color:var(--emerald)}
+
+  .marquee{
+    margin-top:26px;border:1px solid rgba(232,180,76,.4);border-radius:999px;
+    overflow:hidden;background:linear-gradient(90deg,rgba(232,180,76,.10),rgba(155,126,222,.10));
+    padding:9px 0;position:relative;
+  }
+  .marquee .inner{display:inline-block;white-space:nowrap;animation:marquee 18s linear infinite;font-size:13px;color:var(--gold)}
+  .marquee .inner .v{color:var(--violet)}
+  @keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .marquee-cap{font-size:11.5px;color:var(--faint);margin-top:8px}
+
+  /* ---------- schema ---------- */
+  .db-group{margin-top:26px}
+  .db-group h3{font-size:16px;margin-bottom:4px}
+  .db-group .role{font-size:12.5px;color:var(--muted);margin-bottom:14px}
+  .tables{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+  .tbl{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .tbl .thead{
+    display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--panel-2);
+  }
+  .tbl .thead .name{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
+  .tbl ul{list-style:none;padding:10px 14px}
+  .tbl li{font-family:var(--mono);font-size:12px;color:var(--muted);padding:2.5px 0;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .tbl li .c{color:var(--text)}
+  .badge{
+    font-size:10px;font-family:var(--mono);letter-spacing:.04em;padding:1px 7px;border-radius:999px;flex:none;
+  }
+  .badge.uq{background:rgba(232,180,76,.14);color:var(--gold);border:1px solid rgba(232,180,76,.4)}
+  .badge.ix{background:rgba(62,207,142,.1);color:var(--emerald);border:1px solid rgba(62,207,142,.35)}
+  .badge.new{background:rgba(155,126,222,.12);color:var(--violet);border:1px solid rgba(155,126,222,.4)}
+  .badge.fb{background:rgba(224,108,90,.1);color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+
+  /* ---------- rpc groups ---------- */
+  .rpcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:18px}
+  .rpc{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .rpc .rhead{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--panel-2);border-bottom:1px solid var(--line)}
+  .rpc .rhead .t{font-size:13.5px;font-weight:600}
+  .rpc .rhead .n{font-family:var(--mono);font-size:11px;color:var(--gold)}
+  .rpc ul{list-style:none;padding:10px 14px}
+  .rpc li{font-family:var(--mono);font-size:12px;color:var(--muted);padding:2.5px 0}
+  .rpc li b{color:var(--text);font-weight:600}
+  .rpc li .note{color:var(--faint);font-size:11px}
+
+  /* ---------- phases ---------- */
+  .phases{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+  @media(max-width:860px){.phases{grid-template-columns:1fr}}
+  .phase{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px;position:relative}
+  .phase .ph{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:.14em}
+  .phase h4{font-size:15.5px;margin:6px 0 8px}
+  .phase ul{list-style:none}
+  .phase li{font-size:13px;color:var(--muted);padding:3px 0 3px 16px;position:relative}
+  .phase li::before{content:"";position:absolute;left:0;top:11px;width:6px;height:6px;border-radius:2px;background:var(--gold-dim)}
+  .phase .risk{margin-top:10px;font-size:12px;color:var(--emerald)}
+
+  /* ---------- questions ---------- */
+  .blockers{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
+  @media(max-width:760px){.blockers{grid-template-columns:1fr}}
+  .blocker{
+    border:1px solid rgba(224,108,90,.55);border-radius:var(--radius);padding:18px 20px;
+    background:linear-gradient(180deg,rgba(224,108,90,.09),var(--panel) 55%);
+  }
+  .blocker .q{font-family:var(--mono);font-size:12px;color:var(--danger);letter-spacing:.1em}
+  .blocker h4{font-size:16px;margin:6px 0 6px}
+  .blocker p{font-size:13px;color:var(--muted)}
+  .qgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+  .qitem{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:13px 16px;display:flex;gap:12px}
+  .qitem .q{font-family:var(--mono);color:var(--gold);font-size:12px;padding-top:3px;flex:none}
+  .qitem .t{font-size:13.5px;font-weight:600}
+  .qitem .d{font-size:12px;color:var(--muted);margin-top:2px}
+
+  .journey{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}
+  @media(max-width:760px){.journey{grid-template-columns:1fr}}
+  .round{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .round .r{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.1em}
+  .round .v{font-size:16px;font-weight:700;margin:4px 0}
+  .round .v.rev{color:var(--danger)}
+  .round .v.agr{color:var(--emerald)}
+  .round p{font-size:12px;color:var(--muted)}
+
+
+  /* ---------- full schema tables ---------- */
+  .twrap{overflow-x:auto}
+  table.sch{width:100%;border-collapse:collapse;font-size:12px;min-width:520px}
+  table.sch th{text-align:left;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;color:var(--faint);padding:6px 12px;border-bottom:1px solid var(--line);background:var(--panel-2);white-space:nowrap}
+  table.sch td{padding:5px 12px;border-bottom:1px solid rgba(36,48,72,.55);vertical-align:top}
+  table.sch tr:last-child td{border-bottom:none}
+  table.sch td.f{font-family:var(--mono);color:var(--text);white-space:nowrap;font-size:11.5px}
+  table.sch td.ty{font-family:var(--mono);color:var(--violet);white-space:nowrap;font-size:11px}
+  table.sch td.ds{color:var(--muted);min-width:180px}
+  table.sch td.f .badge{margin-left:6px}
+  .tbl-note{font-size:11.5px;color:var(--faint);padding:8px 14px;border-top:1px solid var(--line)}
+  .tables-full{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:1000px){.tables-full{grid-template-columns:1fr 1fr}}
+  .tables-full .tbl.wide{grid-column:1 / -1}
+  details.rpcd{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;overflow:hidden}
+  details.rpcd summary{cursor:pointer;padding:11px 16px;font-family:var(--mono);font-size:12.5px;color:var(--text);list-style:none;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+  details.rpcd summary::-webkit-details-marker{display:none}
+  details.rpcd summary::before{content:"\25B8";color:var(--gold);flex:none}
+  details.rpcd[open] summary::before{content:"\25BE"}
+  details.rpcd summary .snote{color:var(--faint);font-size:11px;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+  details.rpcd .body{padding:2px 16px 14px;border-top:1px solid var(--line)}
+  .msg-h{font-family:var(--mono);font-size:11px;color:var(--gold);letter-spacing:.06em;margin:12px 0 6px}
+  .grp-h{display:flex;align-items:baseline;gap:12px;margin:28px 0 12px;flex-wrap:wrap}
+  .grp-h h3{font-size:15.5px}
+  .grp-h .cnt{font-family:var(--mono);font-size:11px;color:var(--gold)}
+  .grp-h .gd{font-size:12px;color:var(--faint)}
+
+  /* ---------- footer nav ---------- */
+  .pager{
+    position:fixed;left:0;right:0;bottom:0;z-index:50;
+    background:rgba(12,16,23,.92);backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);
+  }
+  .pager .bar{height:2px;background:var(--line);position:relative}
+  .pager .bar .prog{position:absolute;left:0;top:0;bottom:0;background:var(--gold);transition:width .35s ease}
+  .pager .row{display:flex;align-items:center;justify-content:space-between;gap:14px;max-width:1120px;margin:0 auto;padding:12px 28px}
+  .pager button{
+    appearance:none;font:inherit;font-size:13px;cursor:pointer;border-radius:999px;
+    padding:8px 20px;border:1px solid var(--line);background:transparent;color:var(--text);
+    transition:all .2s;
+  }
+  .pager button:hover:not(:disabled){border-color:var(--gold-dim)}
+  .pager button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .pager button.next{background:var(--gold);border-color:var(--gold);color:#181206;font-weight:600}
+  .pager button:disabled{opacity:.35;cursor:default}
+  .pager .pos{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .pager .pos b{color:var(--text)}
+  .kbd-hint{font-size:11px;color:var(--faint)}
+  @media(max-width:700px){.kbd-hint{display:none}}
+
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation-duration:.001s!important;animation-iteration-count:1!important;transition-duration:.001s!important}
+    .flow-dot{display:none}
+    .coin{display:none}
+    .tstep{opacity:1;transform:none}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <a class="home" href="../">← Home</a>
+    <span class="gem">◆ SUPER GEMS JACKPOT</span>
+    <span class="sub">Global Jackpot System・服務改動規劃 v4.0(GE 判定改版)</span>
+  </div>
+  <nav class="chapters" aria-label="章節導覽"></nav>
+</header>
+
+<main>
+
+<!-- ============ P1 總覽 ============ -->
+<section class="page" id="p1" data-title="總覽">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Chapter 01 — Overview・v4.0</div>
+      <h1>中獎由 GE 數學判定,<br>本服務只滾池、結算、記帳</h1>
+      <p class="lede">
+        每筆下注抽固定比例注入 Grand / Major 兩層 USD 獎池。v4 重大轉向(會議 260610–0715):
+        <b style="color:var(--text)">是否中 jackpot 由 GameServer 端的遊戲數學(GE)算出並直接發送,GS 賠付</b> —
+        本服務<b style="color:var(--text)">不再逐筆抽獎</b>。池值累積由 <b style="color:var(--text)">DAL CDC 逐筆即時計算</b>(兩層開關過濾後 INCRBY Valkey by poolid);
+        本服務做三件事:<span class="k">結算</span>(GE 決定誰中、Pool 原子決定拿多少)、<span class="k">顯示 tick</span>、<span class="k">記帳與對帳</span>。中獎機率由數學以
+        <span class="k">Prob = RTP / Price</span> 計算,RTP 為後台 by operator × 獎項設定值。
+      </p>
+      <div class="review-badge" style="border-color:rgba(232,180,76,.5);color:var(--gold)"><span class="dot" style="background:var(--gold)"></span>v4.0 = 依 4 場會議重整;抽獎搬出本服務 → Ch04 派彩改為「GE 判定 + Pool 原子結算」</div>
+    </div>
+    <div class="hero-gem" aria-hidden="true">
+      <svg viewBox="0 0 220 200" class="gem-float">
+        <defs>
+          <linearGradient id="gGold" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#ffe1a0"/><stop offset="1" stop-color="#b57f22"/>
+          </linearGradient>
+          <linearGradient id="gViolet" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#c9b3f5"/><stop offset="1" stop-color="#5f3fa8"/>
+          </linearGradient>
+        </defs>
+        <g>
+          <polygon points="110,18 158,52 110,150 62,52" fill="url(#gGold)" opacity=".92"/>
+          <polygon points="110,18 134,52 110,150 86,52" fill="#fff" opacity=".14" class="gem-shine"/>
+          <polygon points="62,52 158,52 110,150" fill="#000" opacity=".16"/>
+          <line x1="62" y1="52" x2="158" y2="52" stroke="#fff" stroke-opacity=".35"/>
+        </g>
+        <g transform="translate(158,108) scale(.5)">
+          <polygon points="110,18 158,52 110,150 62,52" fill="url(#gViolet)" opacity=".95"/>
+          <polygon points="110,18 134,52 110,150 86,52" fill="#fff" opacity=".16" class="gem-shine"/>
+        </g>
+        <circle cx="52" cy="132" r="3" fill="#E8B44C" class="gem-shine"/>
+        <circle cx="188" cy="70" r="2.4" fill="#9B7EDE" class="gem-shine"/>
+        <circle cx="30" cy="60" r="2" fill="#3ECF8E" class="gem-shine"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat grand">
+      <div class="lbl">GRAND 獎池(初始)</div>
+      <div class="val">$25,839.40</div>
+      <div class="note">seed $20k・上限 $30k・quota 1</div>
+    </div>
+    <div class="stat major">
+      <div class="lbl">MAJOR 獎池(初始)</div>
+      <div class="val">$2,619.63</div>
+      <div class="note">seed $2k・上限 $5k・quota 100</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">兩個獨立旋鈕</div>
+      <div class="val">累積速率 <span style="color:var(--muted);font-size:.7em">vs</span> RTP</div>
+      <div class="note">入池(contribution)與出池(中獎機率)刻意不校核,營運手動調 → 失衡風險見 Ch03/Ch08</div>
+    </div>
+    <div class="stat">
+      <div class="lbl">中獎判定 / 池歸屬</div>
+      <div class="val">GE 數學 · house 池</div>
+      <div class="note">判定不在本服務;global 共用池、不分 operator,平台共同承擔</div>
+    </div>
+  </div>
+
+  <div class="toc">
+    <div class="eyebrow" style="color:var(--muted)">閱讀順序</div>
+    <div class="toc-grid" id="tocGrid"></div>
+  </div>
+</section>
+
+<!-- ============ P2 三層式架構 ============ -->
+<section class="page" id="p2" data-title="架構(v4)">
+  <div class="eyebrow">Chapter 02 — Architecture(GE 判定・DAL 即時累加)</div>
+  <h2 class="page-title">數學決定輸贏,本服務只滾池與記帳</h2>
+  <p class="lede">v4 拓撲兩件關鍵改變:①<b style="color:var(--text)">中獎判定移到 GE 數學</b>,GS 賠付,本服務不逐筆抽獎;②Contribution 由 <b style="color:var(--text)">DAL CDC 逐筆即時計算</b> — 每筆注單依「game 有開 jackpot?operator 有開?」兩層條件過濾,通過即算貢獻並 INCRBY 進 Valkey 對應 poolid;本服務日終再以昨日 turnover 落帳對帳(min/day floor 補差)。前提仍是單一邏輯 Valkey。</p>
+  <div class="divider"></div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 1300 720" role="img" aria-label="v4 架構圖:GE 判定、DAL 即時累加">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="#3a4763"/>
+        </marker>
+      </defs>
+      <style>
+        .nbox{fill:#182031;stroke:#243048}
+        .ntitle{fill:#E9EDF5;font-size:13px;font-weight:600;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+        .nsub{fill:#93A0B4;font-size:10px;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+        .mod{fill:#131926;stroke:#243048}
+        .modt{fill:#E9EDF5;font-size:11px;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+        .mods{fill:#7d8ba1;font-size:9px;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+        .edge{fill:none;stroke:#3a4763;stroke-width:1.4}
+        .elbl{fill:#7d8ba1;font-size:9.5px;font-family:"PingFang TC","Noto Sans TC",sans-serif}
+        .svcJ{fill:none;stroke:#8a6c2e;stroke-width:1.4;stroke-dasharray:5 4}
+        .svcD{fill:none;stroke:#5f3fa8;stroke-width:1.4;stroke-dasharray:5 4}
+      </style>
+
+      <!-- Kafka -->
+      <rect class="nbox" x="24" y="300" width="140" height="76" rx="8"/>
+      <text class="ntitle" x="42" y="333">Kafka CDC</text>
+      <text class="nsub" x="42" y="353">bet-transactions</text>
+
+      <!-- DAL box -->
+      <rect class="svcD" x="210" y="64" width="254" height="300" rx="12"/>
+      <text class="ntitle" x="228" y="94" style="fill:#9B7EDE">DAL(Valhalla)</text>
+      <text class="nsub" x="228" y="112">Sleipnir・Go・port 6969</text>
+
+      <rect class="mod" x="226" y="126" width="222" height="48" rx="6" style="stroke:#5f3fa8"/>
+      <text class="modt" x="238" y="146" style="fill:#9B7EDE">CDC:逐筆即時算 pool 貢獻</text>
+      <text class="mods" x="238" y="163">game 開?operator 開?→ INCRBY by poolid</text>
+
+      <rect class="mod" x="226" y="182" width="222" height="48" rx="6"/>
+      <text class="modt" x="238" y="202">JackpotService gRPC</text>
+      <text class="mods" x="238" y="219">config・round・win・turnover・snapshot</text>
+
+      <rect class="mod" x="226" y="238" width="222" height="48" rx="6" style="stroke:#8a6c2e"/>
+      <text class="modt" x="238" y="258" style="fill:#E8B44C">GameService.Credit(+jackpot win)</text>
+      <text class="mods" x="238" y="275">GS 賠付路徑・待補 bet_txn_id/win_id</text>
+
+      <rect class="mod" x="226" y="294" width="222" height="48" rx="6"/>
+      <text class="modt" x="238" y="314">DB 存取層</text>
+      <text class="mods" x="238" y="331">唯一直連 DB 的元件</text>
+
+      <!-- DBs -->
+      <rect class="nbox" x="210" y="402" width="120" height="58" rx="8"/>
+      <text class="ntitle" x="224" y="428" style="font-size:12px">MySQL</text>
+      <text class="nsub" x="224" y="446">config 真值</text>
+      <rect class="nbox" x="344" y="402" width="120" height="58" rx="8"/>
+      <text class="ntitle" x="358" y="428" style="font-size:12px">OceanBase</text>
+      <text class="nsub" x="358" y="446">權威帳本</text>
+
+      <!-- Valkey -->
+      <rect class="nbox" x="540" y="64" width="270" height="204" rx="10" style="stroke:#3ECF8E;stroke-opacity:.5"/>
+      <text class="ntitle" x="558" y="94" style="fill:#3ECF8E">Valkey(投影)</text>
+      <text class="nsub" x="558" y="112">DB 可重算・per-key 單寫者</text>
+
+      <rect class="mod" x="556" y="126" width="240" height="42" rx="6"/>
+      <text class="modt" x="568" y="145" style="font-size:11px">config:{pool}</text>
+      <text class="mods" x="568" y="160">config 投影(含 by-op RTP)・本服務寫</text>
+
+      <rect class="mod" x="556" y="174" width="240" height="42" rx="6" style="stroke:#8a6c2e"/>
+      <text class="modt" x="568" y="193" style="font-size:11px;fill:#E8B44C">state:{pool}:{tier}</text>
+      <text class="mods" x="568" y="208">quota・settle marker・本服務寫</text>
+
+      <rect class="mod" x="556" y="222" width="240" height="42" rx="6" style="stroke:#5f3fa8"/>
+      <text class="modt" x="568" y="241" style="font-size:11px;fill:#9B7EDE">input:{pool}:{tier}</text>
+      <text class="mods" x="568" y="256">cum_increment・DAL 逐筆即時 INCRBY</text>
+
+      <!-- Jackpot Service -->
+      <rect class="svcJ" x="540" y="316" width="270" height="356" rx="12"/>
+      <text class="ntitle" x="558" y="346" style="fill:#E8B44C">Jackpot Service</text>
+      <text class="nsub" x="558" y="364">src/Jackpot・不直連 DB・不抽獎</text>
+
+      <rect class="mod" x="556" y="378" width="240" height="48" rx="6"/>
+      <text class="modt" x="568" y="398">DailyReconJob(日終)</text>
+      <text class="mods" x="568" y="415">昨日 turnover 落帳對帳・min/day floor 補差</text>
+
+      <rect class="mod" x="556" y="434" width="240" height="48" rx="6"/>
+      <text class="modt" x="568" y="454">PoolTicker(顯示 tick)</text>
+      <text class="mods" x="568" y="471">讀池值 → tick 交 msg-center・≥5s</text>
+
+      <rect class="mod" x="556" y="490" width="240" height="48" rx="6" style="stroke:#8a6c2e"/>
+      <text class="modt" x="568" y="510" style="fill:#E8B44C">SettleEngine(Lua 原子)</text>
+      <text class="mods" x="568" y="527">讀池→派→reset・溢位補 seed</text>
+
+      <rect class="mod" x="556" y="546" width="240" height="48" rx="6"/>
+      <text class="modt" x="568" y="566">ConfigSync</text>
+      <text class="mods" x="568" y="583">config→Valkey 投影(後台熱更新)</text>
+
+      <rect class="mod" x="556" y="602" width="240" height="48" rx="6"/>
+      <text class="modt" x="568" y="622">記帳・報表・對帳 + Recovery</text>
+      <text class="mods" x="568" y="639">中獎名單・滾動紀錄・卡單掃描</text>
+
+      <!-- Right targets(縮窄欄) -->
+      <rect class="nbox" x="980" y="64" width="230" height="116" rx="8"/>
+      <text class="ntitle" x="996" y="92" style="fill:#E8B44C">GE / GameServer</text>
+      <text class="nsub" x="996" y="112">數學判定 hit・GS 賠付</text>
+      <text class="nsub" x="996" y="130">Price/RTP feed・Prob=RTP/Price</text>
+      <text class="nsub" x="996" y="148">(feed 與計算落在 GS/GE 側)</text>
+
+      <rect class="nbox" x="980" y="224" width="230" height="64" rx="8"/>
+      <text class="ntitle" x="996" y="252">BridgeApi / DAL Credit</text>
+      <text class="nsub" x="996" y="272">錢包派彩(GS 賠付)</text>
+
+      <rect class="nbox" x="980" y="336" width="230" height="80" rx="8"/>
+      <text class="ntitle" x="996" y="364">msg-center</text>
+      <text class="nsub" x="996" y="384">poll outbox_msg 表 → 個人 inbox</text>
+      <text class="nsub" x="996" y="402">SSE → client:池值・跑馬燈</text>
+
+      <rect class="nbox" x="980" y="470" width="230" height="96" rx="8"/>
+      <text class="ntitle" x="996" y="498">GameClient</text>
+      <text class="nsub" x="996" y="518">Jackpot UI(SSE 來自 msg-center)</text>
+      <text class="nsub" x="996" y="536">池值滾動・中獎演出・跑馬燈</text>
+
+      <!-- edges: 資料流(左) -->
+      <path class="edge" d="M164,335 C188,335 190,300 210,296" marker-end="url(#arr)"/>
+      <path class="edge" d="M300,364 L278,402" marker-end="url(#arr)"/>
+      <path class="edge" d="M382,364 L400,402" marker-end="url(#arr)"/>
+      <!-- Service <-> DAL gRPC(短水平,清楚走廊) -->
+      <path class="edge" d="M540,340 L464,340" marker-end="url(#arr)"/>
+      <text class="elbl" x="486" y="332">gRPC</text>
+      <!-- Service -> Valkey(config/state) -->
+      <path class="edge" d="M676,316 L676,268" marker-end="url(#arr)"/>
+      <text class="elbl" x="600" y="296">寫 config/state</text>
+      <!-- DAL -> Valkey(input 即時 INCRBY) -->
+      <path class="edge" d="M448,150 C500,150 500,243 556,243" marker-end="url(#arr)"/>
+      <text class="elbl" x="462" y="196" style="fill:#9B7EDE">逐筆即時 INCRBY input</text>
+
+      <!-- edges: 判定/派彩(右) -->
+      <!-- GS <-> Service:SettleWin 同步 gRPC(request/response,不可掉) -->
+      <path class="edge" d="M980,130 C888,130 888,512 810,512" marker-start="url(#arr)" marker-end="url(#arr)"/>
+      <text class="elbl" x="820" y="282" style="fill:#E06C5A">GS ⇄ 本服務:SettleWin(同步 gRPC)</text>
+      <text class="elbl" x="820" y="300" style="fill:#E06C5A">→ 上報 win_id/bet_txn_id/tier</text>
+      <text class="elbl" x="820" y="318" style="fill:#E06C5A">← 回結算金額(GS 拿到才賠付)</text>
+      <!-- GS -> Credit 賠付 -->
+      <path class="edge" d="M1095,180 L1095,224" marker-end="url(#arr)"/>
+      <text class="elbl" x="1103" y="208">GS 賠付</text>
+      <!-- Service -> msg-center:outbox_msg 表 + 池值 tick pub/sub -->
+      <path class="edge" d="M810,568 C912,568 912,388 980,388" marker-end="url(#arr)"/>
+      <text class="elbl" x="838" y="548">本服務 → msg-center:</text>
+      <text class="elbl" x="838" y="566">inbox = 寫 outbox_msg 表(經 DAL)</text>
+      <text class="elbl" x="838" y="584">池值 tick = Redis pub/sub(可掉,狀態型)</text>
+      <!-- GS -> msg-center:跑馬燈事件(右側外弧) -->
+      <path class="edge" d="M1210,150 C1256,150 1256,368 1210,368" marker-end="url(#arr)"/>
+      <text class="elbl" x="1246" y="262" transform="rotate(90 1246 262)">GS → msg-center 跑馬燈</text>
+      <!-- msg-center -> GameClient:SSE -->
+      <path class="edge" d="M1095,416 L1095,470" marker-end="url(#arr)"/>
+      <text class="elbl" x="1103" y="448">SSE 推 client</text>
+
+      <!-- animated dots(關鍵路徑) -->
+      <circle class="flow-dot" r="4" fill="#9B7EDE">
+        <animateMotion dur="1.8s" repeatCount="indefinite" path="M164,335 C188,335 190,300 210,296"/>
+      </circle>
+      <circle class="flow-dot" r="4" fill="#E8B44C">
+        <animateMotion dur="1.6s" repeatCount="indefinite" path="M676,316 L676,268"/>
+      </circle>
+      <circle class="flow-dot" r="4" fill="#9B7EDE">
+        <animateMotion dur="1.4s" begin=".3s" repeatCount="indefinite" path="M448,150 C500,150 500,243 556,243"/>
+      </circle>
+      <circle class="flow-dot" r="4" fill="#E8B44C">
+        <animateMotion dur="2.4s" begin=".6s" repeatCount="indefinite" path="M540,340 L464,340"/>
+      </circle>
+      <circle class="flow-dot" r="3.6" fill="#E06C5A">
+        <animateMotion dur="2.8s" repeatCount="indefinite" path="M980,130 C888,130 888,512 810,512"/>
+      </circle>
+      <circle class="flow-dot" r="3.4" fill="#9B7EDE" opacity=".8">
+        <animateMotion dur="2.6s" begin="1.2s" repeatCount="indefinite" path="M810,568 C912,568 912,388 980,388"/>
+      </circle>
+      <circle class="flow-dot" r="3.4" fill="#3ECF8E">
+        <animateMotion dur="2s" begin=".5s" repeatCount="indefinite" path="M1095,416 L1095,470"/>
+      </circle>
+      <circle class="flow-dot" r="3.4" fill="#3ECF8E" opacity=".8">
+        <animateMotion dur="2.8s" begin="1s" repeatCount="indefinite" path="M1210,150 C1256,150 1256,368 1210,368"/>
+      </circle>
+    </svg>
+  </div>
+
+  <div class="legend">
+    <span><span class="sw" style="background:var(--violet)"></span>資料流入 / DAL 逐筆即時累加</span>
+    <span><span class="sw" style="background:var(--gold)"></span>本服務單寫 Valkey / gRPC 帳本</span>
+    <span><span class="sw" style="background:var(--emerald)"></span>msg-center SSE → client</span>
+    <span><span class="sw" style="background:var(--danger)"></span>GS → 本服務 win 上報</span>
+  </div>
+</section>
+
+<!-- ============ P2b 端到端序列 ============ -->
+<section class="page" id="p2b" data-title="端到端序列">
+  <div class="eyebrow">Chapter 02 · Sequence — 端到端事件故事(v4)</div>
+  <h2 class="page-title">池值天天長大;中獎那一刻,GE 說「誰中」、Pool 說「多少」</h2>
+  <p class="lede">v4 沒有逐筆抽獎了,所以故事分兩條:左線是<b style="color:var(--text)">池值怎麼長大</b>(DAL 逐筆即時累加,每一注當下進池);右線是<b style="color:var(--text)">一次中獎怎麼處理</b>(GE 數學判定 → GS 同步 SettleWin 拿金額 → 賠付記帳)。兩條線在 GE 的 <span class="k">Prob = RTP / Price</span> 判定處交會(Price/RTP feed 落在 GS/GE 側)。</p>
+  <div class="divider"></div>
+
+  <div class="seq-wrap">
+
+    <!-- ===== 左線:池值長大 ===== -->
+    <div class="seq-col dal">
+      <div class="seq-head"><span class="role dal">左線 · 池值怎麼長大</span><span class="sub">DAL 逐筆即時累加・無輸贏</span></div>
+      <p class="seq-lede">每一筆注單都被 DAL CDC 即時消費:過兩層開關就算貢獻、當下就進池。本服務不碰這條熱路徑,只在日終對帳。</p>
+
+      <div class="ph-tag">A · 每一筆注單(DAL 即時熱路徑)</div>
+      <div class="timeline">
+        <div class="tstep"><div class="t"><span class="k">1</span>CDC 逐筆消費</div><div class="d">注單 binlog 進 Kafka,DAL CDC <b>即時</b>讀到這一筆。</div></div>
+        <div class="tstep"><div class="t"><span class="k">2</span>兩層開關過濾</div><div class="d">①<code>game</code> 有開 jackpot?(game_mapping)②該 <code>operator</code> 有開?(operator_setting)— 兩層都過才計入。</div></div>
+        <div class="tstep"><div class="t"><span class="k">3</span>算貢獻、即時進池</div><div class="d"><code>bet×fx→USD×累積速率</code> → <b>INCRBY Valkey <code>input:{poolid}:{tier}</code></b>。池值當下就長大。<b>累積速率 ≠ RTP</b>(右線用)。</div></div>
+        <div class="tstep"><div class="t"><span class="k">4</span>日終落帳對帳</div><div class="d">本服務 DailyReconJob 以 DAL 的<b>昨日 turnover 彙總</b>(+0 時區)落 <code>daily_increment</code>(PK 冪等,可重算錨點);低於 <code>min/day</code> 以 floor 補差。</div></div>
+      </div>
+
+      <div class="ph-tag">B · 盤中(顯示與供 GE 素材)</div>
+      <div class="timeline">
+        <div class="tstep"><div class="t"><span class="k">5</span>PoolTicker 顯示 tick</div><div class="d">讀 Valkey 池值,tick 交 <b>msg-center</b>,由其 <b>SSE 推 client</b>(前端 ≥5s 更新一次;顯示滾動 range 為前端平滑用)。</div></div>
+        <div class="tstep"><div class="t"><span class="k">6</span>Price / RTP(GE 側)</div><div class="d"><b>Price/RTP feed 與 Prob 計算落在 GS/GE 側</b>:GE 以<b>當下池值(Price)</b>與<b>該 operator 的 RTP</b> 算 <code>Prob = RTP / Price</code>。後台調整接受 1 分鐘延遲。</div></div>
+        <div class="tstep"><div class="t"><span class="k">7</span>撞 cap → 假中獎</div><div class="d">池達 <code>threshold</code> → SettleEngine reset、<b>溢位補進 seed</b>、廣播一位「假中獎者」(<b>不記中獎名單、不動可領數量</b>)。</div></div>
+      </div>
+    </div>
+
+    <!-- ===== 右線:一次中獎 ===== -->
+    <div class="seq-col svc">
+      <div class="seq-head"><span class="role svc">右線 · 一次中獎怎麼處理</span><span class="sub">GE 判定 → Service 結算・錢的決策</span></div>
+      <p class="seq-lede">誰中由數學決定,拿多少由本服務原子結算決定。本服務不判定輸贏,只在被上報中獎時,對池子做一次「讀→派→reset」。</p>
+
+      <div class="ph-tag">A · 判定(GE / GS,外部)</div>
+      <div class="timeline">
+        <div class="tstep"><div class="t"><span class="k">1</span>數學抽中</div><div class="d">GE 每一轉以 <code>Prob = RTP / Price</code> 判定;中了就告訴 GS「玩家中 tier X」。<b>quota&lt;1 時機率趨零</b>(軟限流,不是硬鎖)。</div></div>
+        <div class="tstep"><div class="t"><span class="k">2</span>同步結算(不可掉)</div><div class="d">GS 呼叫本服務 <code>SettleWin</code>(<b>同步 gRPC,deadline 5s</b>;win_id = 決定性推導自 bet_txn_id+tier)→ <b>拿回結算金額才賠付</b>。金額由本服務決定,天然 request/response — <b>不用 pub/sub,失敗即重試(冪等在 Lua 內),真 WAL = 持久化 spin 記錄 + 掃描器</b>。詳細協定見 Ch05。</div></div>
+      </div>
+
+      <div class="ph-tag">B · 結算(SettleEngine,本服務)</div>
+      <div class="timeline">
+        <div class="tstep"><div class="t"><span class="k">3</span>原子結算金額</div><div class="d">對 <code>state:{pool}:{tier}</code> 跑一次 Lua:<b>讀當下池值 = 派彩金額</b> → reset 到 seed(<b>溢位補 seed</b>)→ <code>quota−−</code>(可為負)。金額以此為權威。</div></div>
+        <div class="tstep"><div class="t"><span class="k">4</span>同時中獎的序</div><div class="d">序列化在單一 key:<b>先到者拿滿池、後到者拿 reset 後 seed</b>。兩位 client 都可能顯示滿池,實拿以 server 結算為準(game info 說明)。</div></div>
+      </div>
+
+      <div class="ph-tag">C · 落帳・通知・對帳</div>
+      <div class="timeline">
+        <div class="tstep"><div class="t"><span class="k">5</span>中獎落帳</div><div class="d"><code>InsertJackpotWin</code>:operator/player/tier/amount/win_at + <code>bet_txn_id</code>(<b>連注單號</b>,供會員下注紀錄查詢);win <b>併入 total win</b>。</div></div>
+        <div class="tstep"><div class="t"><span class="k">6</span>通知</div><div class="d">個人 inbox → msg-center outbox;<b>跑馬燈事件由 GS 發到 msg-center,由其 SSE 推 client</b>,僅限該彩金群組的 operator。</div></div>
+        <div class="tstep"><div class="t"><span class="k">7</span>對帳 + 卡單</div><div class="d">ReconciliationJob 比對 Valkey 池值 vs DB 重算;卡單掃描(<code>ListJackpotWins</code> 帶 payout_statuses + stale 閾值)撿回失敗派彩。</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="journey-story">
+    <h3>一筆注單的旅程(v4:即時進池,但不被抽獎)</h3>
+    <p>玩家在某支掛了 jackpot 的遊戲押下一注。這筆注單落進資料庫、由 binlog 進到 <span class="hlv">Kafka</span>,<span class="hlv">DAL 的 CDC</span> <b>即時</b>讀到它,連問兩個問題:「這支 game 有開 jackpot 嗎?這個 operator 有開嗎?」兩關都過,就把注額換算成貢獻、<span class="hlv">當下 INCRBY 進 Valkey 對應 poolid 的池值</span> —— 池值是「當下、這一筆、跳一下」的即時累積。本服務不碰這條熱路徑,只在日終拿昨日 turnover 彙總落帳對帳(低於 min/day 用 floor 補差)。</p>
+    <p>真正決定輸贏的,是<span class="hl">玩家轉動時的遊戲數學(GE)</span>。GE 手上有本服務餵過去的兩個數字:<span class="hl">當下池值(Price)</span> 與<span class="hl">這個 operator 的 RTP</span>,用 <code>Prob = RTP / Price</code> 丟一個不公平的銅板。中了,GE 告訴 GS、GS 賠付,並把中獎<span class="hl">上報本服務</span>。本服務這時才登場:對池子做<span class="hl">一次原子結算</span> —— 讀出當下池值當作派彩金額、把池 reset 回 seed(溢位補進 seed),然後落帳、連上注單號、併入 total win、發通知。</p>
+    <p><b>所以 v4 的分工是三方</b>:<span class="hlv">DAL</span> 逐筆即時把貢獻滾進池、<span class="hl">GE</span> 判定誰中、<span class="hl">本服務</span>原子決定拿多少並記帳。同一筆注單會即時墊高池值,但<b>不會被任何抽獎迴圈掃描</b> —— 它中不中,是玩家轉動那一刻 GE 的事。</p>
+  </div>
+</section>
+
+<!-- ============ P3 池值模型 ============ -->
+<section class="page" id="p3" data-title="池值模型">
+  <div class="eyebrow">Chapter 03 — Pool Model(DAL 即時累加 + 日終對帳)</div>
+  <h2 class="page-title">每一筆注單即時進池;撞頂溢位補回 seed</h2>
+  <p class="lede"><b style="color:var(--text)">每筆注單由 DAL CDC 即時計算進池</b>:依「game 有開、operator 有開」兩層條件過濾,通過即 <code>bet × fx → USD × 累積速率</code> INCRBY 進 Valkey 對應 poolid。累積速率(contribution_rate)跟中獎 RTP 是<b style="color:var(--text)">兩個獨立旋鈕</b>,刻意不校核(已定案:營運手動調)。本服務日終以昨日 turnover 彙總(+0 時區)落帳對帳,低於 <code>min/day</code> 以 floor 補差。池是 global house 池,不分 operator。</p>
+  <div class="divider"></div>
+
+  <div class="formula">
+    pool(t) <span class="dim">=</span> min( seed <span class="dim">+</span> cum_increment(t) <span class="dim">−</span> opened_watermark<span class="dim">,</span> THRESHOLD )<br>
+    <span style="font-size:.78em;color:var(--muted)">撞頂 → reset(seed += overflow) + 廣播假中獎;真中獎 → 讀池值派彩後 reset 到 seed</span>
+  </div>
+
+  <div class="pipe" style="margin-top:26px">
+    <div class="pipe-track"><span class="coin" aria-hidden="true"></span></div>
+    <div class="steps">
+      <div class="step-card">
+        <div class="no">STEP 1・DAL</div>
+        <div class="t">逐筆即時消費</div>
+        <div class="d">CDC 讀到注單,查兩層開關:<br><code>game 有開?operator 有開?</code></div>
+      </div>
+      <div class="step-card">
+        <div class="no">STEP 2・DAL</div>
+        <div class="t">換算貢獻</div>
+        <div class="d"><code>bet × fx(ppb)→ USD</code><br>× <code>contribution_rate_ppm</code>(<b style="color:var(--text)">≠ RTP</b>)</div>
+      </div>
+      <div class="step-card">
+        <div class="no">STEP 3・DAL</div>
+        <div class="t">即時進池</div>
+        <div class="d"><code>INCRBY input:{poolid}:{tier}</code><br><code>cum_increment</code> <b style="color:var(--text)">單調遞增、永不重置</b></div>
+      </div>
+      <div class="step-card">
+        <div class="no">STEP 4・SERVICE</div>
+        <div class="t">日終落帳對帳</div>
+        <div class="d">昨日 turnover 彙總(+0 tz)落 <code>daily_increment</code><br>低於 <code>min/day</code> 以 floor 補差;PK 冪等</div>
+      </div>
+      <div class="step-card">
+        <div class="no">STEP 5・SERVICE</div>
+        <div class="t">顯示 tick</div>
+        <div class="d">PoolTicker 讀池值<br>→ msg-center SSE(≥5s,range 平滑)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="p3-lower">
+    <div class="card">
+      <div class="eyebrow" style="color:var(--muted);margin-bottom:14px">為什麼這樣設計(review 迭代結果)</div>
+      <div style="display:grid;gap:14px">
+        <div style="display:flex;gap:12px">
+          <span class="tag gold" style="flex:none;align-self:flex-start">結算</span>
+          <div style="font-size:13px;color:var(--muted)">真中獎 = <b style="color:var(--text)">SettleEngine 原子讀池→派→reset</b>:GE 決定誰中,本服務讀當下池值當金額、reset 到 seed。同時多人:<b style="color:var(--text)">先到滿池、後到 seed</b>(序列化在單一 state key)。</div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <span class="tag red" style="flex:none;align-self:flex-start">觸頂</span>
+          <div style="font-size:13px;color:var(--muted)">池達 <span class="k" style="color:var(--text)">THRESHOLD</span>:reset 且<b style="color:var(--text)">溢位補進 seed</b>(1499.99 + 0.02、cap 1500 → seed 1000.01)。cap 觸發的 reset <b style="color:var(--text)">必須廣播假中獎者</b>,但不記中獎名單、不動可領數量。</div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <span class="tag violet" style="flex:none;align-self:flex-start">house 池</span>
+          <div style="font-size:13px;color:var(--muted)">global 共用一池、<b style="color:var(--text)">不分 operator</b>。RTP by operator → 高 RTP 營運商由平台補貼,派彩損益<b style="color:var(--text)">平台總池共同承擔</b>(會議定調,不做 operator 分帳)。</div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <span class="tag green" style="flex:none;align-self:flex-start">精度</span>
+          <div style="font-size:13px;color:var(--muted)">累積速率/RTP 存 ppm、FX 存 ppb、池值存 micro-cents — 全整數,除法只出現一次、放最後、向下取整,截斷殘餘在對帳中顯式化。</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="eyebrow" style="color:var(--muted);margin-bottom:14px">Round 生命週期(示意)</div>
+      <div class="gauge-box">
+        <div class="gauge" aria-hidden="true">
+          <div class="ceiling"></div>
+          <div class="hitline"></div>
+          <div class="fill"></div>
+        </div>
+        <div class="gauge-labels">
+          <div class="row"><b style="color:var(--danger)">$30,000</b>THRESHOLD<br>撞頂 → reset + 假中獎廣播<br>溢位補進 seed</div>
+          <div class="row"><b style="color:var(--gold)">GE 判定中獎</b>本服務原子結算:<br>讀池值派彩 → reset<br>先到滿池、後到 seed</div>
+          <div class="row"><b>$20,000</b>RESET_MIN<br>新 round seed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ P4 抽獎與派彩 ============ -->
+<section class="page" id="p4" data-title="判定與派彩">
+  <div class="eyebrow">Chapter 04 — Judge(GE)&amp; Settle(Pool)</div>
+  <h2 class="page-title">GE 判定誰中、Pool 原子結算多少</h2>
+  <p class="lede">v4 定案:<b style="color:var(--text)">中獎判定移到 GameServer 端的遊戲數學(GE)</b>,GS 賠付,本服務不再抽獎。本服務只在被上報中獎時,對 <code>state:{pool}:{tier}</code> 做一次 Lua 原子結算,決定<b style="color:var(--text)">派彩金額</b>並 reset。金額權威在 server,不在 client 顯示。</p>
+  <div class="divider"></div>
+
+  <div class="modes">
+    <div class="mode lead">
+      <span class="tag green">判定 · GE 數學 ★ 定案</span>
+      <h4>Prob = RTP / Price</h4>
+      <p>GE 每一轉以此機率判定中獎。<span class="k">Price</span> = 當下池值、<span class="k">RTP</span> = 後台 by operator × 獎項設定值;<b style="color:var(--text)">Price/RTP feed 與 Prob 計算落在 GS/GE 側</b>。GE 說中,GS 就付。config 調整接受 1 分鐘延遲。</p>
+    </div>
+    <div class="mode">
+      <span class="tag gold">結算 · Pool 原子</span>
+      <h4>讀池 → 派 → reset</h4>
+      <p>被上報中獎時,對單一 state key 跑一次 Lua:讀當下池值當金額 → reset 到 seed(<span class="k">溢位補 seed</span>)→ <span class="k">quota−−</span>。<b style="color:var(--text)">先到者滿池、後到者 seed</b>,序列化在單 key。</p>
+    </div>
+    <div class="mode warn">
+      <span class="tag red">quota · 軟限流</span>
+      <h4>可負、允許同時多中</h4>
+      <p>兩人可同時中(GS 都賠)。<span class="k">quota&lt;1</span> 只讓 GE 機率趨零,不是硬鎖 → <b style="color:var(--text)">quota 可為負</b>。所以「Major 剛好 100 名」<b style="color:var(--text)">不是硬保證</b>,PM 需知悉。</p>
+    </div>
+  </div>
+
+  <div class="timeline">
+    <div class="tstep">
+      <div class="t"><span class="k">01</span>GE 判定 → GS 同步結算(SettleWin v2,不可掉)</div>
+      <div class="d">GE 以 <code>Prob = RTP/Price</code> 判定中獎 → GS 產 <code>win_id</code>(<b>決定性推導 = f(bet_txn_id, tier)</b>,crash 重算永遠同一個 id)、spin 記錄先標 <code>settle_status=pending</code>,再呼叫本服務 <code>SettleWin</code>(<b>同步 gRPC,deadline 5s</b>,立即重試 2 次)→ <b>拿回結算金額才賠付</b>。<b style="color:var(--text)">為何不用 pub/sub</b>(FRB 曾掉通知):GS 必須同步等金額,天然 request/response,失敗顯式可重試。<b style="color:var(--text)">真 WAL = 持久化的 spin 記錄 + 掃描器重入</b>(照 FRB ReconciliationScan 模式);pending-settle Stream 只是加速通道,掉了無所謂 — WAL 不放 Valkey,避免與被保護的依賴共命運。<b style="color:var(--danger)">前置 BLOCKER:wallet Credit 必須以 win_id 做 DB UNIQUE 去重(回應帶 is_duplicate)</b> — 否則 worker 在 credit 後、ACK 前 crash 會雙重派彩,SettleWin 冪等擋不住。</div>
+    </div>
+    <div class="tstep">
+      <div class="t"><span class="k">02</span>SettleEngine 原子結算(冪等在 Lua 內)</div>
+      <div class="d">pre-check:OB 以 win_id / (pool,tier,bet_txn_id) 雙鍵查,命中即回 is_duplicate(<b>並校驗 bet_txn_id/member 歸屬,不符回硬錯誤</b>,擋回錯人金額)。單一 Lua <b>第一個動作 = SETNX <code>settle:{win_id}</code> marker</b>:已存在 → 直接回 marker 內容、不碰池(封掉「insert 進行中被重試 → 二次 reset」的雙結算窗)。否則:讀池值 = <b>派彩金額</b> → reset 到 seed(溢位補 seed)→ <code>quota−−</code>(可負)→ <code>round_seq++</code> → FX 換算一次(記憶體快取),USD/local/fx_version/round_seq 全寫進 marker(<b>TTL 7 天、永不主動清除</b>)。金額恰好決定一次,之後所有路徑只搬運不重算。先到滿池、後到 seed(<b>先到 = 先在本服務執行,非先中獎</b> — 寫進 game info)。Lua 之後的段落跑 detached context,不受 client cancel 中斷。</div>
+    </div>
+    <div class="tstep">
+      <div class="t"><span class="k">03</span>win 落帳(DAL gRPC,連注單)</div>
+      <div class="d"><code>InsertJackpotWin</code>(金額/FX 直接取 marker,不重算)<b>與 InsertOutboxMessage 同一個 OceanBase 交易</b>(同在 five_game_trans)— 錢到了、inbox 通知不會消失。UNIQUE(pool,tier,bet_txn_id) 兼任不變量告警(觸發 = win_id 推導被破壞,page)。<code>RotateJackpotRound</code> 以 round_seq 冪等,失敗交 RecoveryJob 補打。<b style="color:var(--text)">win 併入 total win</b>。</div>
+    </div>
+    <div class="tstep">
+      <div class="t"><span class="k">04</span>派彩(GS 賠付)</div>
+      <div class="d">錢包 credit 由 GS 執行(金額 = 本服務結算值,local 金額/fx_version 取自回應,不重算);<b>wallet 側以 win_id UNIQUE 去重</b>。spin 回應餘額<b>一律用 wallet 實值</b>(不樂觀加值)+ <code>jackpot_credit_status = credited|pending</code> 供前端提示;成功 → <code>member:wallet:refresh</code> 推餘額,離線玩家由 inbox 兜住。</div>
+    </div>
+    <div class="tstep">
+      <div class="t"><span class="k">05</span>通知 + 廣播</div>
+      <div class="d">個人 inbox = 本服務<b>寫 outbox_msg 表</b>(經 DAL <code>SystemService.InsertOutboxMessage</code>,msg-center poll 表處理 — 與 FRB/Tournament 同模式,<b>不是直接送過去</b>,內容設計見下卡);<b>跑馬燈事件由 GS 發到 msg-center、由其 SSE 推 client</b>,僅限該彩金群組 operator。撞 cap 的假中獎只走跑馬燈,<b style="color:var(--text)">不落名單、不寫 outbox</b>。</div>
+    </div>
+    <div class="tstep">
+      <div class="t"><span class="k">06</span>卡單掃描 + 對帳</div>
+      <div class="d">RecoveryJob(每 30s):age&gt;60s 的 marker ⟷ jackpot_win 對帳補寫(<b>只補不刪</b>,marker 靠 TTL 清);win 存在但 round 未 rotate → 補打 Rotate。卡單掃描:payout pending 過久告警。全域對帳:credit(帶 win_id)⟷ jackpot_win 雙向比對(偵測層,期望恆 0,≥1 即 page);ReconciliationJob 比對 Valkey 池值 vs DB 重算。<b style="color:var(--text)">Valkey 全損重建</b>:state = 上一筆 win 的 seed 錨點 + round_seq + input watermark + CDC 重放(純函數,需演練);key 命名用 hash tag <code>{pool:tier}</code> 防未來 cluster CROSSSLOT。</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:22px;border-color:rgba(155,126,222,.4)">
+    <div class="eyebrow" style="color:var(--violet)">outbox_msg 內容設計(對齊 FRB CampaignOutboxMsgPublisher 慣例)</div>
+    <div class="twrap" style="margin-top:10px"><table class="sch" style="min-width:560px"><thead><tr><th>欄位</th><th>值</th><th>說明</th></tr></thead><tbody>
+      <tr><td class="f">rpc</td><td class="ty">SystemService.InsertOutboxMessage</td><td class="ds">經 DAL 寫 OceanBase <code>five_game_trans.outbox_msg</code>;msg-center poll 表消化</td></tr>
+      <tr><td class="f">topic</td><td class="ty">msg-center-events</td><td class="ds">與 FRB/Tournament 共用(D2);msg-center 靠 payload 的 <code>event_type</code> 路由,不靠 topic</td></tr>
+      <tr><td class="f">id</td><td class="ty">ObjectId</td><td class="ds">Mongo ObjectId 字串(campaign 慣例)</td></tr>
+      <tr><td class="f">idempotency_key</td><td class="ty">jackpot-JackpotWinning-{win_id}</td><td class="ds">前綴供 dashboard/dead-letter 辨識(同 frb-/fra- 慣例);win_id 保證同一中獎只一則 inbox</td></tr>
+      <tr><td class="f">partition_key</td><td class="ty">{operator_id}:{member_id}</td><td class="ds">同 FRB CampaignWinning(個人訊息按 operator:member 分區)</td></tr>
+      <tr><td class="f">data(JSON)</td><td class="ty">snake_case</td><td class="ds"><code>type</code>="JackpotWinning"、<code>event_type</code>=新 enum 值(InboxEventType 現用到 8,<b>建議 9,需與 msg-center 定案</b>)、<code>message_type</code>、<code>pool_group_id</code>、<code>tier</code>、<code>win_id</code>、<code>bet_txn_id</code>、<code>game_id</code>、<code>operator_id</code>、<code>member_id</code>、<code>win_amount_usd_cents</code>、<code>currency_sn</code>、<code>win_amount_local_cents</code>、<code>win_at</code>(UTC)、<code>popup</code></td></tr>
+    </tbody></table></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:10px">範圍界定:outbox_msg <b>只送個人 inbox 中獎通知</b>(point-to-point)。跑馬燈是廣播、池值是狀態 — 都不走 outbox,走 Redis pub/sub 給 msg-center-sse。假中獎不寫 outbox(260715-5:不落名單)。</p>
+  </div>
+
+  <div class="marquee" aria-hidden="true">
+    <span class="inner">
+      &nbsp;◆ 恭喜 pin***88 於 Super Gems 贏得 GRAND JACKPOT <b>$27,412.86</b>!&nbsp;&nbsp;&nbsp;◇ <span class="v">wan***23 贏得 MAJOR JACKPOT $3,108.44</span>&nbsp;&nbsp;&nbsp;◆ 恭喜 mia***07 於 Super Gems 贏得 GRAND JACKPOT <b>$25,990.02</b>!&nbsp;&nbsp;&nbsp;◇ <span class="v">leo***51 贏得 MAJOR JACKPOT $2,844.19</span>&nbsp;&nbsp;&nbsp;
+      &nbsp;◆ 恭喜 pin***88 於 Super Gems 贏得 GRAND JACKPOT <b>$27,412.86</b>!&nbsp;&nbsp;&nbsp;◇ <span class="v">wan***23 贏得 MAJOR JACKPOT $3,108.44</span>&nbsp;&nbsp;&nbsp;◆ 恭喜 mia***07 於 Super Gems 贏得 GRAND JACKPOT <b>$25,990.02</b>!&nbsp;&nbsp;&nbsp;◇ <span class="v">leo***51 贏得 MAJOR JACKPOT $2,844.19</span>&nbsp;&nbsp;&nbsp;
+    </span>
+  </div>
+  <div class="marquee-cap">中獎金額以 <b style="color:var(--muted)">server 原子結算</b>為準、前端顯示差異用 game info 條文補充(會議已定調:後到者拿 reset 後 seed);跑馬燈事件由 GS 發到 msg-center、僅限該群組 operator、遮罩規則待 PM 確認。池值與跑馬燈的 SSE long connection 由 <b style="color:var(--muted)">msg-center 承載</b>(頻寬為約束)。</div>
+
+  <div class="card" style="margin-top:22px">
+    <div class="eyebrow" style="color:var(--muted)">msg-center SSE 容量規劃 — 50,000 同時在線(tick 5s,會議定調前端 ≥5s)</div>
+    <div class="stats" style="margin-top:12px">
+      <div class="stat"><div class="lbl">建議配置</div><div class="val">3×(2c/4G)</div><div class="note"><b>獨立 ECS service(msg-center-sse)</b>+ ALB;單 task 承 ~17k、N-1 時 25k 仍安全</div></div>
+      <div class="stat"><div class="lbl">連線記憶體</div><div class="val">~1 GB/task</div><div class="note">每閒置連線 ~30–50KB(TLS 交 ALB);4G 含 .NET 基底與 GC headroom</div></div>
+      <div class="stat"><div class="lbl">出口頻寬</div><div class="val">~12 Mbps</div><div class="note">150B × 50k ÷ 5s;<b>頻寬 = 最大成本槓桿</b>(月流量 ~3.9TB)</div></div>
+      <div class="stat"><div class="lbl">月費毛估</div><div class="val">$650→$480</div><div class="note">Fargate ~$190 + ALB ~$120 + 出口 ~$350;改 10s keyframe+前端插值 → 出口砍半</div></div>
+    </div>
+    <div class="twrap" style="margin-top:14px"><table class="sch" style="min-width:480px"><thead><tr><th>CCU</th><th>tasks(2c/4G)</th><th>穩態頻寬</th><th>備註</th></tr></thead><tbody>
+      <tr><td class="f">10k</td><td class="ty">2(N+1)</td><td class="ds">2.4 Mbps</td><td class="ds">起步</td></tr>
+      <tr><td class="f">50k</td><td class="ty">3</td><td class="ds">12 Mbps</td><td class="ds">基準;autoscale 指標 = ActiveConnectionCount ~15k/task</td></tr>
+      <tr><td class="f">100k</td><td class="ty">5–6</td><td class="ds">24 Mbps</td><td class="ds">autoscale 上限先設此</td></tr>
+      <tr><td class="f">200k</td><td class="ty">10–12 或 6×(4c/8G)</td><td class="ds">48 Mbps</td><td class="ds">開始考慮 per-operator 分片</td></tr>
+    </tbody></table></div>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:14px">
+      <b style="color:var(--text)">漸進式推送 = 分片輪掃 + dirty-flag(定案機制)</b>:事件進來<b style="color:var(--text)">不直接觸發發送</b>,只更新記憶體狀態(池值覆寫 = conflation 免費內建;跑馬燈進每連線有上限的 pending 佇列)。唯一寫出者是恆速掃描器:連線 hash 進 <span class="k">64 shards</span>,每 <span class="k">78ms</span> 掃一個(全體 5s 掃完,~780 條/shard),有 dirty 才寫。效果:輸出恆定 10k writes/s / ~12 Mbps 平線,與事件密度完全解耦;跑馬燈在 1–5s 內波浪式亮起(會議可接受);慢客戶端 buffer 滿即跳過、下輪補最新值。中獎者<b style="color:var(--text)">本人</b>的開獎演出走 GS 遊戲協定即時給,不受此延遲影響。
+      內部扇入:每 task 訂 Redis pub/sub(池值 tick + 跑馬燈頻道),負載趨近零。真正的風險是<b style="color:var(--text)">重連風暴</b>(部署/斷網 → 50k 同時重連):client 重連加 <b style="color:var(--text)">0–30s jitter</b>(寫進 GameClient 驗收)+ <code>Last-Event-ID</code> 續傳、target group 排水 ≥300s、ALB idle timeout ≥120s + 30s 心跳、ulimit nofile ≥100k、.NET Server GC;風暴後 catch-up 由輪掃自然平滑(首次拜訪補最新狀態,不補歷史)。
+      <b style="color:var(--text)">keyframe + increment rate 插值</b>(10s 一個真值,前端平滑滾動 — 即規格 INCREMENT_RATE 的顯示層用途)可把頻寬與費用再降 2–5×。
+      ⚠ 跑馬燈頻道需 <b style="color:var(--text)">rate-limit</b>(每 pool 每分鐘上限 N 則)+ 每連線 pending 佇列上限(如 8 則,滿丟最舊):資金失衡頻繁撞 cap 時(兩旋鈕獨立、無校核的副作用),假中獎廣播會變成風暴源。
+    </p>
+  </div>
+</section>
+
+<!-- ============ P5 資料模型 ============ -->
+<section class="page" id="p5" data-title="資料模型">
+  <div class="eyebrow">Chapter 05 — Data Model(v4)</div>
+  <h2 class="page-title">冪等靠 DB 約束,恢復靠錨點</h2>
+  <p class="lede">二輪精簡後共 <b style="color:var(--text)">10 張表</b>(MySQL 6 + OceanBase 4),tier 依 260701-1 為<b style="color:var(--text)">四層 option</b>(grand/major/minor/mini,Super Gems 首發開前兩層)。核心調整:①<code>jackpot_config</code> 拆「累積速率」與「中獎 RTP」(RTP by operator × 獎項);②<code>jackpot_win</code> 冪等鍵 = <code>win_id</code>、以 <code>bet_txn_id</code> 連注單、併入 total win;③遊戲支援綁 <b style="color:var(--text)">game_math + MathFeatureFlags</b>。已刪欄位:contribution_ledger 整表、round 的 hit_point/rng_evidence/closed_pool_value/operator、win 的 accounting_id/ge_judge_evidence/agent_id/agent_path(260715:代理後台不看)、fx 的 effective_at(只要 fixed rate)、snapshot 的 id/status(自然鍵 PK、quota 可推導)。每個留下的欄位都有明確讀寫方。</p>
+  <div class="divider"></div>
+
+  <div class="db-group">
+    <h3>MySQL <span class="tag" style="margin-left:8px">config 真值・低頻寫・經 DAL</span></h3>
+    <p class="role">pool 為主的設定維度:分別設 operator 與 game,交集才成立(會議定調)。通則:utf8mb4、DATETIME 一律 UTC。</p>
+    <div class="tables-full">
+    <div class="tbl">
+      <div class="thead"><span class="name">jackpot_pool_group</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">ObjectId,與 campaign 慣例一致</td></tr>
+          <tr><td class="f">name</td><td class="ty">VARCHAR(64)</td><td class="ds">pool 顯示名稱</td></tr>
+          <tr><td class="f">status</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">0=disabled、1=active</td></tr>
+          <tr><td class="f">created_at / updated_at</td><td class="ty">DATETIME</td><td class="ds">一律 UTC(全部表通則,含 MySQL)</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">PoolGroupID 主檔 — 規格 Option B:每 game group 一個隔離池</div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">jackpot_game_mapping</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">game_id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(64)</td><td class="ds">一個 game 只屬一個 pool(會議防呆,PK 強制)</td></tr>
+          <tr><td class="f">pool_group_id <span class="badge ix">IX(pool_group_id)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">寫入語意 = full-set replace(UpsertJackpotGameMapping);跨池衝突整批拒絕</div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">jackpot_operator_setting</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">複合主鍵 1</td></tr>
+          <tr><td class="f">operator_id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(64)</td><td class="ds">複合主鍵 2</td></tr>
+          <tr><td class="f">enabled</td><td class="ty">TINYINT(1)</td><td class="ds">per-operator 開關;operator×game 交集才生效</td></tr>
+          <tr><td class="f">rtp_ppm_by_tier_json <span class="badge new">v4 新增</span></td><td class="ty">VARCHAR(128)</td><td class="ds"><b>RTP by operator × 獎項</b>(會議 260715-1):如 {"1":9600,"2":9700}。餵 GE 算 Prob=RTP/Price。量大時設定可能 timeout(260715-記錄 4)</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
+          <tr><td class="f">created_at / updated_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">RTP by operator、不 by game(相同彩金群組不分遊戲);pool 值仍是 global house 池,不因 operator 分池</div>
+    </div>
+    <div class="tbl wide">
+      <div class="thead"><span class="name">jackpot_config</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增主鍵</td></tr>
+          <tr><td class="f">pool_group_id <span class="badge uq">UQ(pool,tier,version)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=grand、2=major、3=minor、4=mini(260701-1:<b>四層皆為 option</b>);pool 啟用哪些 tier = 有寫入該 tier config 者。Super Gems 首發只開 1/2</td></tr>
+          <tr><td class="f">version</td><td class="ty">INT UNSIGNED</td><td class="ds">每次修改遞增;變更軌跡由 jackpot_admin_audit(before/after)涵蓋</td></tr>
+          <tr><td class="f">contribution_rate_ppm <span class="badge new">v4 更名</span></td><td class="ty">INT UNSIGNED</td><td class="ds">累積速率 ppm(入池方向,原 rtp_ppm)。<b>與中獎 RTP 是兩個獨立旋鈕</b>,不校核</td></tr>
+          <tr><td class="f">min_per_day_cents <span class="badge new">v4 新增</span></td><td class="ty">BIGINT UNSIGNED</td><td class="ds">最低每日累積金額(floor):昨日 turnover 低於此則以此計(會議 3-c)</td></tr>
+          <tr><td class="f">reset_min_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">中獎/撞頂後 seed(USD cents):Grand $20k / Major $2k</td></tr>
+          <tr><td class="f">reset_threshold_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">池增長硬上限 cap(USD cents):撞頂 reset + 溢位補 seed + 假中獎廣播</td></tr>
+          <tr><td class="f">roll_range_json <span class="badge new">v4 新增</span></td><td class="ty">VARCHAR(64) NULL</td><td class="ds">PoolTicker 盤中滾動 range(min/max step),供顯示用</td></tr>
+          <tr><td class="f">win_count_quota</td><td class="ty">INT UNSIGNED</td><td class="ds">中獎名額:Grand 1 / Major 100。<b>軟限流</b>:quota&lt;1 機率趨零但可為負,非硬上限</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl wide">
+      <div class="thead"><span class="name">jackpot_fx_rate</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">currency_sn <span class="badge uq">PK</span></td><td class="ty">INT</td><td class="ds">幣別代碼(複合主鍵 1)</td></tr>
+          <tr><td class="f">version <span class="badge uq">PK</span></td><td class="ty">INT UNSIGNED</td><td class="ds">版本(複合主鍵 2);latest = max(version),寫入即生效(需求只要 fixed rate,無排程生效)</td></tr>
+          <tr><td class="f">rate_local_to_usd_ppb</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">貢獻方向匯率,ppb 精度(IDR 等高面額幣別必需)</td></tr>
+          <tr><td class="f">rate_usd_to_local_ppb</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">派彩方向匯率 — 雙向分開存,不得倒數推算(有損)</td></tr>
+          <tr><td class="f">created_by / created_at</td><td class="ty">VARCHAR(64) / DATETIME</td><td class="ds">維護者 / 建立時間(UTC)</td></tr>
+        </tbody></table></div>
+    </div>
+<div class="tbl">
+      <div class="thead"><span class="name">jackpot_admin_audit</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">稽核識別</td></tr>
+          <tr><td class="f">action</td><td class="ty">VARCHAR(32)</td><td class="ds">rpc 名(7 個受稽核 rpc);v1.3.1 位於 MySQL,與 config 寫入同交易原子</td></tr>
+          <tr><td class="f">pool_group_id / tier <span class="badge ix">IX(pool,created_at)</span></td><td class="ty">VARCHAR(24) NULL / TINYINT NULL</td><td class="ds">範圍(可空)</td></tr>
+          <tr><td class="f">before_json / after_json</td><td class="ty">TEXT</td><td class="ds">變更前後值</td></tr>
+          <tr><td class="f">operator</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:22px;border-color:rgba(155,126,222,.4)">
+    <div class="eyebrow" style="color:var(--violet)">GameServer 側 · game_math + MathFeatureFlags(schema 討論定案)</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">
+      「遊戲是否支援 jackpot」<b style="color:var(--text)">不再記在 <code class="k">game_feature_support</code></b>(那裡存與數學無關的功能:Blitz、FRA、FRB、Tournament),改記在 <b style="color:var(--text)"><code class="k">game_math</code></b> 的 <b style="color:var(--text)"><code class="k">MathFeatureFlags</code></b>(bitwise flags)。<code class="k">extra_bet</code> 也一起搬(都是數學決定的);未來 feature buy / super feature buy 同理。命名以 <code class="k">Flags</code> 結尾,標示 bitwise。
+    </p>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">
+      <b style="color:var(--text)">分階段遷移(Eric 定案)</b>:先在 <code class="k">game_math</code> 加欄位、所有遊戲補齊,確定都轉移後才移除 <code class="k">game_feature_support</code> 舊資料。⚠ 遷移期 <code class="k">extra_bet</code> 兩邊並存 → 需定義單一真值來源(帶回會議);後台「支援 jackpot 遊戲」下拉要讀 <code class="k">game_math</code>,且一個遊戲只能對一個彩金群組(全域唯一,非 per-operator)。
+    </p>
+  </div>
+
+  <div class="db-group">
+    <h3>OceanBase <span class="tag" style="margin-left:8px">權威帳本・高頻寫・經 DAL</span></h3>
+    <p class="role">Valkey 是投影;真相在這裡,恢復與稽核都從這裡出發。<code class="k" style="color:var(--emerald)">created_at</code> 一律顯式 UTC。</p>
+    <div class="tables-full">
+    <div class="tbl wide">
+      <div class="thead"><span class="name">jackpot_round</span><span> <span class="badge new">恢復錨點</span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">round 識別(ObjectId)</td></tr>
+          <tr><td class="f">pool_group_id <span class="badge uq">UQ(pool,tier,round_seq)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=grand、2=major、3=minor、4=mini</td></tr>
+          <tr><td class="f">round_seq</td><td class="ty">INT UNSIGNED</td><td class="ds">回合序號;UNIQUE 防重開</td></tr>
+          <tr><td class="f">config_version</td><td class="ty">INT UNSIGNED</td><td class="ds">開啟當下生效的 config 版本</td></tr>
+          <tr><td class="f">seed_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">本回合 seed(micro-cents = USD cent × 10⁻⁶)</td></tr>
+          <tr><td class="f">opened_increment_watermark_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">開啟當下 cum_increment 錨點 — 池值合成公式用</td></tr>
+          <tr><td class="f">quota_remaining_at_open</td><td class="ty">INT</td><td class="ds">開啟當下 quota;Valkey 遺失時 quota = 此值 − count(wins in round)</td></tr>
+          <tr><td class="f">status</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=open、2=hit(含撞頂 reset)、3=closed(manual reset)</td></tr>
+          <tr><td class="f">clamp_overflow_microcents</td><td class="ty">BIGINT UNSIGNED NULL</td><td class="ds">觸頂溢出累計(對帳公式顯式項,唯一記錄點)</td></tr>
+          <tr><td class="f">opened_at / closed_at</td><td class="ty">DATETIME / NULL</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl wide">
+      <div class="thead"><span class="name">jackpot_win</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">win_id;GE 上報的冪等鍵、亦是派彩全鏈冪等鍵</td></tr>
+          <tr><td class="f">bet_txn_id <span class="badge uq">UQ(pool,tier,bet_txn_id)</span></td><td class="ty">VARCHAR(64)</td><td class="ds"><b>觸發中獎的注單號</b>(GE 上報帶入);供會員下注紀錄查詢(會議 260715-3);同筆注單同 tier 不可重複中</td></tr>
+          <tr><td class="f">pool_group_id / tier / round_id <span class="badge ix">IX(round_id)</span></td><td class="ty">VARCHAR(24) ×2 / TINYINT</td><td class="ds">所屬池、層、回合</td></tr>
+          <tr><td class="f">config_version</td><td class="ty">INT UNSIGNED</td><td class="ds">結算當下生效 config</td></tr>
+          <tr><td class="f">operator_id / member_id / member_account / game_id</td><td class="ty">VARCHAR ×4</td><td class="ds">中獎者身分與觸發遊戲(中獎名單欄位)</td></tr>
+          <tr><td class="f">win_amount_usd_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">中獎金額(USD)= <b>本服務原子結算值</b>(server 為準);須併入 total win</td></tr>
+          <tr><td class="f">pool_value_at_hit_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">結算當下池值(micro-cents 精度來源;對帳 Σ = sum_win,win_amount = 此值 ÷1e6 floor)</td></tr>
+          <tr><td class="f">currency_sn / fx_rate_version / win_amount_local_cents</td><td class="ty">INT / INT UNSIGNED / BIGINT</td><td class="ds">派彩幣別、使用的 FX 版本(可回查)、當地幣別金額</td></tr>
+          <tr><td class="f">payout_status <span class="badge ix">IX(status,updated_at)</span></td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=pending、2=credited、3=notified、4=failed</td></tr>
+          <tr><td class="f">failure_reason / retry_count</td><td class="ty">VARCHAR(255) NULL / INT UNSIGNED</td><td class="ds">派彩失敗原因與重試次數(卡單診斷)</td></tr>
+          <tr><td class="f">created_at / credited_at / notified_at / updated_at <span class="badge ix">IX(operator,member,created_at)</span></td><td class="ty">DATETIME(部分 NULL)</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">jackpot_daily_increment</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id / tier / rate_date <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24) / TINYINT / DATE</td><td class="ds">複合主鍵;rate_date 為 UTC 日界</td></tr>
+          <tr><td class="f">source_turnover_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">前一日 turnover(USD cents);本服務自 per-currency × 自有 FX 換算</td></tr>
+          <tr><td class="f">increment_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">當日總增量 = turnover × 累積速率(contribution_rate)</td></tr>
+          <tr><td class="f">config_version</td><td class="ty">INT UNSIGNED</td><td class="ds">計算當下 config 版本</td></tr>
+          <tr><td class="f">fx_versions_json</td><td class="ty">VARCHAR(1024)</td><td class="ds">各幣別使用的 FX 版本,如 {"156":3,"360":2}</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">v4:本服務 DailyReconJob 日終落帳(對帳錨點,PK 冪等);Valkey input 由 DAL 即時維護,本表不再驅動池值</div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">jackpot_pool_snapshot</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id / tier / snapshot_at <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24) / TINYINT / DATETIME</td><td class="ds">自然鍵複合主鍵(本身即冪等,免 ObjectId)</td></tr>
+          <tr><td class="f">round_id</td><td class="ty">VARCHAR(24)</td><td class="ds">所屬回合</td></tr>
+          <tr><td class="f">value_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">合成池值(exhausted 可由 quota_remaining ≤ 0 推導,不另存 status)</td></tr>
+          <tr><td class="f">quota_remaining</td><td class="ty">INT</td><td class="ds">當下剩餘名額</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">兼作後台「彩金滾動紀錄」頁(會議 260701-3,每分鐘一筆 GRAND/MAJOR 值 ≈ 每 pool×tier 每日 1,440 筆,需訂保留期)+ 恢復加速;權威仍是 round / daily_increment / win。⚠ 存的是合成真值 — 若 PM 要核對「玩家看到的滾動顯示值」需另存,帶回會議確認</div>
+    </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ P6 gRPC 契約 ============ -->
+<section class="page" id="p6" data-title="gRPC 契約">
+  <div class="eyebrow">Chapter 06 — DAL Contract(jackpot.proto・v4)</div>
+  <h2 class="page-title">19 個 rpc,外加一項跨服務 credit 契約缺口</h2>
+  <p class="lede">二輪精簡後 <b style="color:var(--text)">19 rpc</b>(慣例對齊 campaign.proto:<span class="k">proto.v1</span>、寫入帶 <span class="k">idempotency_key</span>、CAS、分頁)。已刪/已併:<code>InsertJackpotContributionBatch</code>(per-bet 死)、<code>ListJackpotConfigVersions</code>(audit 已涵蓋)、<code>Create+CloseJackpotRound</code> 併為 <code>RotateJackpotRound</code>(關舊開新單交易,消滅中間態)、<code>GetLatestSnapshot</code> 併入 <code>ListJackpotPoolSnapshots</code>(順手補上滾動紀錄頁原本缺的讀取)。<b style="color:var(--danger)">另需 GS↔DAL 的 credit 事件補「bet_txn_id + win_id + tier」欄位</b>(非本契約、屬 GameService.Credit,待 GS/DAL 確認)。</p>
+  <div class="divider"></div>
+
+  <div class="grp-h"><h3>Config 讀</h3><span class="cnt">2 rpc</span><span class="gd">同步與查詢,無副作用</span></div>
+  <details class="rpcd">
+    <summary>SyncJackpotPools <span class="snote">pool 完整設定一次同步;operator_settings 含 disabled 列(v1.3 吸收 ListJackpotOperatorSettings)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">statuses</td><td class="ty">repeated uint32</td><td class="ds">過濾 pool 狀態;空 = 全部</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pools</td><td class="ty">repeated JackpotPoolItem</td><td class="ds">pool + games + operator_settings(含 enabled flag)+ 各 tier 最新 config。⚠ operator 數大時全量內嵌會撞 timeout(260715-記錄 4)→ operator_settings 需支援 page_token 分段拉取</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>GetJackpotFxRates <span class="snote">latest 或指定版本(v1.3 合併原 GetJackpotFxRateByVersion)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">keys</td><td class="ty">repeated JackpotFxRateKey</td><td class="ds">空 = 全部幣別各取 latest;key.version 指定 = 歷史版本定址(派彩重試/爭議/稽核)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">rates</td><td class="ty">repeated JackpotFxRate</td><td class="ds">查無的 key 不回傳,呼叫端以 currency_sn+version 對照</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <div class="grp-h"><h3>Config 寫</h3><span class="cnt">5 rpc</span><span class="gd">Backoffice → 本服務 → DAL;皆帶 idempotency_key;稽核由 DAL 原子附帶</span></div>
+  <details class="rpcd">
+    <summary>UpsertJackpotPoolGroup <span class="snote">建池 / 改名 / CAS 狀態(v1.3 合併 Create + UpdateStatus)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">client 端產 ObjectId(campaign 慣例)</td></tr>
+          <tr><td class="f">name</td><td class="ty">optional string</td><td class="ds">建立時必填;既有池提供 = 改名</td></tr>
+          <tr><td class="f">to_status</td><td class="ty">optional uint32</td><td class="ds">提供 = CAS 狀態轉移</td></tr>
+          <tr><td class="f">expected_status</td><td class="ty">optional uint32</td><td class="ds">CAS 預期現值</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">稽核歸屬(v1.3.1)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">true = 新建</td></tr>
+          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 已達目標或 CAS 失敗(非 error);<b style="color:var(--text)">全有全無</b>:CAS 失敗連改名都不套用。建立路徑 status = to_status ?? 0</td></tr>
+          <tr><td class="f">current_status</td><td class="ty">uint32</td><td class="ds">當前狀態</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpsertJackpotGameMapping <span class="snote">full-set replace;跨池衝突整批拒絕</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
+          <tr><td class="f">game_ids</td><td class="ty">repeated string</td><td class="ds">完整集合 — 未列出的既有對應將被刪除</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">稽核歸屬(v1.3.1)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">upserted_count</td><td class="ty">int32</td><td class="ds">新增/維持筆數</td></tr>
+          <tr><td class="f">removed_count</td><td class="ty">int32</td><td class="ds">移除筆數</td></tr>
+          <tr><td class="f">conflicted_game_ids</td><td class="ty">repeated string</td><td class="ds">已屬其他 pool 的 game;非空 = 整批拒絕</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>SetJackpotOperatorEnabled <span class="snote">per-operator 開關</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
+          <tr><td class="f">operator_id</td><td class="ty">string</td><td class="ds">operator</td></tr>
+          <tr><td class="f">enabled</td><td class="ty">bool</td><td class="ds">開/關</td></tr>
+          <tr><td class="f">rtp_ppm_by_tier</td><td class="ty">map&lt;uint32,uint32&gt;</td><td class="ds">v4:RTP by operator×獎項(餵 GE)。批次設定量大時注意 timeout</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">後台操作者(稽核歸屬)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 已是目標值</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpsertJackpotConfig <span class="snote">開新版 config(server 端 allowlist 驗證)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">JackpotTier</td><td class="ds">層</td></tr>
+          <tr><td class="f">contribution_rate_ppm</td><td class="ty">uint32</td><td class="ds">累積速率 ppm(入池;原 rtp_ppm)</td></tr>
+          <tr><td class="f">min_per_day_cents</td><td class="ty">uint64</td><td class="ds">最低每日累積 floor</td></tr>
+          <tr><td class="f">roll_range_json</td><td class="ty">optional string</td><td class="ds">PoolTicker 盤中滾動 range</td></tr>
+          <tr><td class="f">reset_min_cents</td><td class="ty">uint64</td><td class="ds">seed</td></tr>
+          <tr><td class="f">reset_threshold_cents</td><td class="ty">uint64</td><td class="ds">硬上限 cap</td></tr>
+          <tr><td class="f">win_count_quota</td><td class="ty">uint32</td><td class="ds">中獎名額(軟限流)。server 端驗證:<b>不可 &lt; 現行剩餘 n</b>(260715-5c 定案,後台下拉同步限制)。<b>RTP 不在此</b> → SetJackpotOperatorEnabled(by operator×tier)</td></tr>
+          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">後台操作者</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">new_version</td><td class="ty">uint32</td><td class="ds">新版本號;重複呼叫回相同值</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpsertJackpotFxRate <span class="snote">FX 開新版</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">currency_sn</td><td class="ty">int32</td><td class="ds">幣別</td></tr>
+          <tr><td class="f">rate_local_to_usd_ppb</td><td class="ty">uint64</td><td class="ds">貢獻方向</td></tr>
+          <tr><td class="f">rate_usd_to_local_ppb</td><td class="ty">uint64</td><td class="ds">派彩方向(分開存)</td></tr>
+          <tr><td class="f">created_by</td><td class="ty">string</td><td class="ds">維護者。寫入即生效;新增特殊幣別時後台以標準幣別比例換算<b>預設帶入</b>(260715-記錄 2),仍經人工確認送出</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">new_version</td><td class="ty">uint32</td><td class="ds">新版本號</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <div class="grp-h"><h3>Audit</h3><span class="cnt">1 rpc</span><span class="gd">v1.3.1:僅 7 個 rpc 受稽核(config 5 寫同交易原子;round 2 rpc 帶 operator 時跨庫 best-effort);data-plane 排除;僅於狀態實際變更時寫入</span></div>
+  <details class="rpcd">
+    <summary>ListJackpotAdminAudits <span class="snote">稽核檢視(唯一的 audit rpc)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">空 = 全部(含 fx_update 等 pool 無關列)</td></tr>
+          <tr><td class="f">action</td><td class="ty">optional string</td><td class="ds">動作過濾(= rpc 名)</td></tr>
+          <tr><td class="f">from / to</td><td class="ty">optional Timestamp</td><td class="ds">時間範圍</td></tr>
+          <tr><td class="f">page_token</td><td class="ty">string</td><td class="ds">分頁游標</td></tr>
+          <tr><td class="f">page_size</td><td class="ty">uint32</td><td class="ds">每頁筆數</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">items</td><td class="ty">repeated JackpotAdminAudit</td><td class="ds">稽核列表</td></tr>
+          <tr><td class="f">next_page_token</td><td class="ty">string</td><td class="ds">下一頁游標</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <div class="grp-h"><h3>Round 狀態機</h3><span class="cnt">2 rpc</span><span class="gd">Jackpot service 專用;關舊 + 開新併為單交易(消滅「關了沒開」中間態)</span></div>
+  <details class="rpcd">
+    <summary>RotateJackpotRound <span class="snote">關舊回合 + 開新回合,單 DB 交易原子(併原 Create + Close);真中獎 / 撞頂 / 手動 reset 三情境共用</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">close_round_id</td><td class="ty">optional string</td><td class="ds">要關閉的回合;<b>空 = 首次開局</b>(無舊回合)</td></tr>
+          <tr><td class="f">close_to_status</td><td class="ty">optional uint32</td><td class="ds">2=hit(含撞頂)、3=closed(manual reset);CAS expected = 1(open)</td></tr>
+          <tr><td class="f">clamp_overflow_microcents</td><td class="ty">optional uint64</td><td class="ds">撞頂溢出(對帳項,記在被關回合)</td></tr>
+          <tr><td class="f">new_round_id</td><td class="ty">string</td><td class="ds">新回合 ObjectId</td></tr>
+          <tr><td class="f">pool_group_id / tier</td><td class="ty">string / JackpotTier</td><td class="ds">池與層</td></tr>
+          <tr><td class="f">round_seq</td><td class="ty">uint32</td><td class="ds">新回合序號;UNIQUE(pool,tier,seq) 防重</td></tr>
+          <tr><td class="f">config_version / seed_microcents</td><td class="ty">uint32 / uint64</td><td class="ds">生效 config / 新回合 seed(撞頂含溢位)</td></tr>
+          <tr><td class="f">opened_increment_watermark_microcents</td><td class="ty">uint64</td><td class="ds">池值合成錨點</td></tr>
+          <tr><td class="f">quota_remaining_at_open</td><td class="ty">int32</td><td class="ds">quota 重算錨點;manual reset 帶指定值(server 驗證不可 &gt; 設定 count,260715-5c)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 舊回合已非 open 或 seq 已存在(重試/重複呼叫,視為成功)</td></tr>
+          <tr><td class="f">round_id</td><td class="ty">string</td><td class="ds">恆為當前有效 open 回合 id(新建或既有)</td></tr>
+        </tbody></table></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">稽核:manual reset 情境由 DAL 於同交易寫 admin_audit(操作者從 audit 讀,round 表不另存 operator)。</p>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>GetOpenJackpotRounds <span class="snote">恢復/啟動時取開放回合</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">空 = 全部池</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">rounds</td><td class="ty">repeated JackpotRound</td><td class="ds">開放中的回合</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <div class="grp-h"><h3>Win / 派彩</h3><span class="cnt">3 rpc</span><span class="gd">冪等鍵 = win_id;卡單掃描已併入 List(v1.3)</span></div>
+  <details class="rpcd">
+    <summary>InsertJackpotWin <span class="snote">v4:GE 上報中獎落帳(帶 bet_txn_id/win_id);併入 total win;UNIQUE 防重上報</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">win</td><td class="ty">JackpotWin</td><td class="ds">完整中獎記錄</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">false = win_id 或 UNIQUE(pool,tier,bet_txn_id) 已存在(重複上報)</td></tr>
+          <tr><td class="f">win_id</td><td class="ty">string</td><td class="ds">已存在時回既有 id — 派彩鏈續用</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpdateJackpotWinPayoutStatus <span class="snote">CAS 派彩狀態轉移</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">win_id</td><td class="ty">string</td><td class="ds">目標 win</td></tr>
+          <tr><td class="f">to_status</td><td class="ty">uint32</td><td class="ds">1=pending→2=credited→3=notified;4=failed</td></tr>
+          <tr><td class="f">expected_status</td><td class="ty">optional uint32</td><td class="ds">CAS 預期</td></tr>
+          <tr><td class="f">credited_at</td><td class="ty">optional Timestamp</td><td class="ds">入帳時間</td></tr>
+          <tr><td class="f">notified_at</td><td class="ty">optional Timestamp</td><td class="ds">通知時間</td></tr>
+          <tr><td class="f">failure_reason</td><td class="ty">optional string</td><td class="ds">to_status=4 必填</td></tr>
+          <tr><td class="f">retry_count</td><td class="ty">optional uint32</td><td class="ds">重試次數</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 已達目標(視為成功)</td></tr>
+          <tr><td class="f">current_status</td><td class="ty">uint32</td><td class="ds">當前狀態</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>ListJackpotWins <span class="snote">後台查詢 + 卡單掃描(v1.3 合併 ListStuckJackpotWins)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">卡單掃描可空 = 跨池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">optional JackpotTier</td><td class="ds">層</td></tr>
+          <tr><td class="f">round_id</td><td class="ty">optional string</td><td class="ds">回合(quota 重算)</td></tr>
+          <tr><td class="f">operator_id / member_id</td><td class="ty">optional string ×2</td><td class="ds">身分過濾</td></tr>
+          <tr><td class="f">payout_statuses</td><td class="ty">repeated uint32</td><td class="ds">空 = 全部;卡單掃描 = {1,4},含 2 = 通知補償</td></tr>
+          <tr><td class="f">stale_threshold_seconds</td><td class="ty">optional uint32</td><td class="ds">提供 = 只回 updated_at ≤ now−N,按 updated_at 升冪;後台分支按 created_at 降冪。member_id 過濾需搭配 operator_id(索引前導)</td></tr>
+          <tr><td class="f">from / to</td><td class="ty">optional Timestamp</td><td class="ds">時間範圍</td></tr>
+          <tr><td class="f">page_token / page_size</td><td class="ty">string / uint32</td><td class="ds">分頁</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">items</td><td class="ty">repeated JackpotWin</td><td class="ds">中獎列表</td></tr>
+          <tr><td class="f">next_page_token</td><td class="ty">string</td><td class="ds">下一頁游標</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <div class="grp-h"><h3>素材 / 快照 / 對帳</h3><span class="cnt">6 rpc</span><span class="gd">DailyReconJob(日終)/ Reconciliation / Snapshot</span></div>
+  <details class="rpcd">
+    <summary>GetJackpotPoolDailyTurnover <span class="snote">昨日 turnover 彙總 — 日終對帳素材(池值已由 DAL 即時累加,本 rpc 不驅動池值)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池(DAL 依 game×operator 交集聚合)</td></tr>
+          <tr><td class="f">date</td><td class="ty">string</td><td class="ds">YYYY-MM-DD(UTC 日界)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">items</td><td class="ty">repeated CurrencyTurnover</td><td class="ds">各幣別彙總;FX 換算由本服務以自有版本執行</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpsertJackpotDailyIncrement <span class="snote">v1.2 新增 — service 每日落帳</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
+          <tr><td class="f">item</td><td class="ty">JackpotDailyIncrement</td><td class="ds">當日增量(PK(pool,tier,rate_date) 冪等)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">false = 該日已寫(PK 冪等,重跑無害)</td></tr>
+        </tbody></table></div>
+        <p class="rpc-note" style="font-size:12px;color:var(--muted);margin-top:8px">v4:此 rpc <b>僅落 DB</b>(日終對帳錨點)— Valkey <code class="k" style="color:var(--emerald)">input</code> 由 DAL 逐筆即時 INCRBY,本服務不再寫 input key。first-write-wins:遲到 CDC 不回溯。</p>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>GetJackpotDailyIncrements <span class="snote">日增量區間查詢(重算/對帳)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
+          <tr><td class="f">from_date / to_date</td><td class="ty">string ×2</td><td class="ds">日期區間</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">items</td><td class="ty">repeated JackpotDailyIncrement</td><td class="ds">日增量列表</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>UpsertJackpotPoolSnapshot <span class="snote">合成視圖快照(service 定期寫)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵;真正防重 = 自然鍵 PK(pool,tier,snapshot_at),不另帶 snapshot_id</td></tr>
+          <tr><td class="f">pool_group_id / tier / round_id</td><td class="ty">string / JackpotTier / string</td><td class="ds">歸屬</td></tr>
+          <tr><td class="f">value_microcents</td><td class="ty">uint64</td><td class="ds">合成池值</td></tr>
+          <tr><td class="f">quota_remaining</td><td class="ty">int32</td><td class="ds">剩餘名額(≤0 即 exhausted,不另帶 status)</td></tr>
+          <tr><td class="f">snapshot_at</td><td class="ty">Timestamp</td><td class="ds">快照時間(PK 之一)</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">false = 已存在</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>ListJackpotPoolSnapshots <span class="snote">併原 GetLatest;同時是後台「彩金滾動紀錄」頁(260701-3)的讀取來源</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">optional JackpotTier</td><td class="ds">空 = 全 tier(滾動紀錄頁一次列 GRAND/MAJOR)</td></tr>
+          <tr><td class="f">from / to</td><td class="ty">optional Timestamp</td><td class="ds">時間區間(滾動紀錄頁);空 + page_size=1 = 取最新(恢復加速,原 GetLatest 用法)</td></tr>
+          <tr><td class="f">page_token / page_size</td><td class="ty">string / uint32</td><td class="ds">分頁;固定 snapshot_at 降冪</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">items</td><td class="ty">repeated JackpotPoolSnapshot</td><td class="ds">pool/tier/round_id/value/quota_remaining/snapshot_at</td></tr>
+          <tr><td class="f">next_page_token</td><td class="ty">string</td><td class="ds">下一頁游標</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary>GetJackpotReconciliationSums <span class="snote">對帳不變量的 DB 側加總(全 microcents)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
+          <tr><td class="f">tier</td><td class="ty">JackpotTier</td><td class="ds">層</td></tr>
+          <tr><td class="f">round_id</td><td class="ty">optional string</td><td class="ds">空 = 全期間</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">sum_increment_microcents</td><td class="ty">uint64</td><td class="ds">Σ daily_increment</td></tr>
+          <tr><td class="f">sum_seed_microcents</td><td class="ty">uint64</td><td class="ds">Σ round seeds</td></tr>
+          <tr><td class="f">sum_win_microcents</td><td class="ty">uint64</td><td class="ds">Σ pool_value_at_hit</td></tr>
+          <tr><td class="f">sum_win_truncation_microcents</td><td class="ty">uint64</td><td class="ds">微分截斷殘餘</td></tr>
+          <tr><td class="f">sum_clamp_overflow_microcents</td><td class="ty">uint64</td><td class="ds">Σ clamp_overflow;open round 即時溢出由對帳 job 補項</td></tr>
+        </tbody></table></div>
+    </div>
+  </details>
+
+  <div class="grp-h"><h3>共用 Message / Enum</h3><span class="gd">實體定義,rpc 間共用;欄位編號 gap-free,寫入 rpc 的 idempotency_key 固定為 field 1</span></div>
+  <div class="tables-full">
+    <div class="tbl">
+      <div class="thead"><span class="name">enum JackpotTier</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">JACKPOT_TIER_UNSPECIFIED</td><td class="ty">= 0</td><td class="ds">未指定(proto3 預設保留)</td></tr>
+          <tr><td class="f">JACKPOT_TIER_GRAND</td><td class="ty">= 1</td><td class="ds">Grand 層</td></tr>
+          <tr><td class="f">JACKPOT_TIER_MAJOR</td><td class="ty">= 2</td><td class="ds">Major 層</td></tr>
+          <tr><td class="f">JACKPOT_TIER_MINOR / _MINI</td><td class="ty">= 3 / = 4</td><td class="ds">260701-1:四層皆為 option,per-pool 啟用 = 有該 tier config;Super Gems 首發只開 1/2</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotPoolItem</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id / name / status</td><td class="ty">string ×2 / uint32</td><td class="ds">pool 基本資料</td></tr>
+          <tr><td class="f">game_ids</td><td class="ty">repeated string</td><td class="ds">交集條件之一</td></tr>
+          <tr><td class="f">operator_settings</td><td class="ty">repeated JackpotOperatorSetting</td><td class="ds">交集條件之二;含 disabled 列(v1.3)</td></tr>
+          <tr><td class="f">tier_configs</td><td class="ty">repeated JackpotTierConfig</td><td class="ds">每 tier 最新版 config</td></tr>
+          <tr><td class="f">updated_at</td><td class="ty">Timestamp</td><td class="ds">最後更新</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotFxRateKey / JackpotFxRate</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">JackpotFxRateKey</td><td class="ty">message</td><td class="ds">currency_sn int32・version optional uint32(空 = latest)</td></tr>
+          <tr><td class="f">JackpotFxRate</td><td class="ty">message</td><td class="ds">currency_sn・version・rate_local_to_usd_ppb・rate_usd_to_local_ppb(寫入即生效)</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotTierConfig</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">tier / version</td><td class="ty">JackpotTier / uint32</td><td class="ds">層與版本</td></tr>
+          <tr><td class="f">contribution_rate_ppm</td><td class="ty">uint32</td><td class="ds">累積速率 ppm(入池;RTP 移至 operator setting)</td></tr>
+          <tr><td class="f">min_per_day_cents / roll_range_json</td><td class="ty">uint64 / string</td><td class="ds">每日 floor / 盤中滾動 range</td></tr>
+          <tr><td class="f">reset_min_cents / reset_threshold_cents</td><td class="ty">uint64 ×2</td><td class="ds">seed / 硬上限 cap</td></tr>
+          <tr><td class="f">win_count_quota</td><td class="ty">uint32</td><td class="ds">中獎名額(軟限流)</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotRound</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id / pool_group_id / tier / round_seq</td><td class="ty">string ×2 / JackpotTier / uint32</td><td class="ds">回合識別</td></tr>
+          <tr><td class="f">config_version / seed_microcents</td><td class="ty">uint32 / uint64</td><td class="ds">生效 config / seed</td></tr>
+          <tr><td class="f">opened_increment_watermark_microcents</td><td class="ty">uint64</td><td class="ds">合成錨點</td></tr>
+          <tr><td class="f">quota_remaining_at_open</td><td class="ty">int32</td><td class="ds">quota 錨點</td></tr>
+          <tr><td class="f">status</td><td class="ty">uint32</td><td class="ds">1=open、2=hit(含撞頂)、3=closed(manual reset)</td></tr>
+          <tr><td class="f">clamp_overflow_microcents</td><td class="ty">optional uint64</td><td class="ds">觸頂溢出(對帳項)</td></tr>
+          <tr><td class="f">opened_at / closed_at</td><td class="ty">Timestamp ×2</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotWin(25 欄)</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">id(win_id)/ pool_group_id / tier / round_id</td><td class="ty">string ×3 / JackpotTier</td><td class="ds">識別與歸屬;id = 冪等鍵</td></tr>
+          <tr><td class="f">bet_txn_id / game_id</td><td class="ty">string ×2</td><td class="ds">觸發注單號(連下注紀錄)與遊戲</td></tr>
+          <tr><td class="f">config_version / operator_id / member_id / member_account</td><td class="ty">uint32 / string ×3</td><td class="ds">結算當下 config + 中獎者身分</td></tr>
+          <tr><td class="f">win_amount_usd_cents / pool_value_at_hit_microcents</td><td class="ty">uint64 ×2</td><td class="ds">派彩金額(USD)+ micro-cents 精度來源(對帳)</td></tr>
+          <tr><td class="f">currency_sn / fx_rate_version / win_amount_local_cents</td><td class="ty">int32 / uint32 / uint64</td><td class="ds">派彩幣別換算</td></tr>
+          <tr><td class="f">payout_status / failure_reason / retry_count</td><td class="ty">uint32 / optional string / uint32</td><td class="ds">派彩狀態 + 卡單診斷</td></tr>
+          <tr><td class="f">created_at / credited_at / notified_at / updated_at</td><td class="ty">Timestamp ×4</td><td class="ds">UTC</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">JackpotDailyIncrement</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">pool_group_id / tier / rate_date</td><td class="ty">string / JackpotTier / string</td><td class="ds">冪等主鍵(rate_date = YYYY-MM-DD)</td></tr>
+          <tr><td class="f">source_turnover_cents</td><td class="ty">uint64</td><td class="ds">昨日 turnover(USD cents,service 換算)</td></tr>
+          <tr><td class="f">increment_microcents</td><td class="ty">uint64</td><td class="ds">當日總增量</td></tr>
+          <tr><td class="f">config_version / fx_versions_json</td><td class="ty">uint32 / string</td><td class="ds">計算脈絡</td></tr>
+        </tbody></table></div>
+    </div>
+    <div class="tbl">
+      <div class="thead"><span class="name">CurrencyTurnover / JackpotOperatorSetting / 其他</span><span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">CurrencyTurnover</td><td class="ty">message</td><td class="ds">currency_sn int32・turnover_local_cents uint64・bet_count uint64</td></tr>
+          <tr><td class="f">JackpotOperatorSetting</td><td class="ty">message</td><td class="ds">pool_group_id・operator_id・enabled bool・rtp_ppm_by_tier map・updated_by・updated_at</td></tr>
+          <tr><td class="f">JackpotAdminAudit</td><td class="ty">message</td><td class="ds">id・action・pool_group_id・tier?・before_json・after_json・operator・created_at</td></tr>
+        </tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <div class="eyebrow" style="color:var(--muted)">對帳不變量(ReconciliationJob 每小時)</div>
+    <div class="formula" style="margin-top:10px;border-color:var(--line)">
+      Σseed <span class="dim">+</span> Σincrement <span class="dim">−</span> Σwin <span class="dim">−</span> Σclamp_overflow <span class="dim">=</span> 現值 <span class="dim">(±0,截斷已顯式化)</span>
+    </div>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:10px">超差 → 告警並凍結結算(池照滾、停派彩)。撞頂溢位補進 seed 顯式記錄。另監控:池值倒退/為負、<b style="color:var(--text)">quota 過度為負</b>(軟限流失效)、Valkey↔snapshot 漂移、hit 頻率異常、payout 積壓、<b style="color:var(--text)">撞 cap 頻率</b>(資金失衡的早期訊號)、假中獎廣播次數;<b style="color:var(--text)">SettleWin 面</b>:settle 成功/duplicate/error(分 code)、marker 數量與最大 age(&gt;60s 告警)、GS pending 佇列深度(&gt;1 = 即將產生一批 seed 級派彩)、credit⟷win 日對帳差異(≥1 即 page)、win_id 撞鍵計數(≥1 即 page)。</p>
+  </div>
+
+  <div class="card" style="margin-top:14px;border-color:rgba(155,126,222,.4)">
+    <div class="eyebrow" style="color:var(--violet)">待 Sleipnir(DAL 團隊)+ GS 確認 — v4</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">
+      ① CDC 承接:<b style="color:var(--text)">逐筆即時算 pool 貢獻並 INCRBY Valkey input(兩層開關過濾:game 開/operator 開)</b>+ 昨日 turnover 彙總供日終對帳(+0 tz)&nbsp;
+      ② daily turnover 聚合成本(是否需預聚合表)&nbsp;
+      ③ 寫入 rpc idempotency 複用 + mutating rpc 交易內原子寫 audit&nbsp;
+      ④ <b style="color:var(--danger)">GS↔DAL:GameService.Credit 補「bet_txn_id + win_id + tier」欄位</b>,並把 jackpot win 併入 total win;GE→本服務的中獎上報介面(誰呼叫誰、金額由誰定)
+    </p>
+  </div>
+</section>
+
+
+
+</main>
+
+<div class="pager">
+  <div class="bar"><div class="prog" id="prog"></div></div>
+  <div class="row">
+    <button id="btnPrev" type="button">‹ 上一章</button>
+    <div style="display:flex;align-items:center;gap:16px">
+      <span class="pos" id="pos"></span>
+      <span class="kbd-hint">← → 鍵盤翻頁</span>
+    </div>
+    <button id="btnNext" class="next" type="button">下一章 ›</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  var pages = Array.prototype.slice.call(document.querySelectorAll('section.page'));
+  var nav = document.querySelector('nav.chapters');
+  var toc = document.getElementById('tocGrid');
+  var prog = document.getElementById('prog');
+  var pos = document.getElementById('pos');
+  var btnPrev = document.getElementById('btnPrev');
+  var btnNext = document.getElementById('btnNext');
+  var cur = 0;
+
+  var tocDesc = [
+    'v4.0:GE 判定改版、兩個獨立旋鈕、house 池',
+    'GE 判定 + DAL 即時累加的 v4 拓撲動畫圖',
+    '兩條線:池值怎麼長大、一次中獎怎麼處理',
+    '每日增量(累積速率)+ 盤中滾動 + 撞頂補 seed',
+    'GE 判定誰中、Pool 原子結算多少',
+    '10 表:四層 tier option、拆兩旋鈕、win 連注單',
+    '19 rpc:Rotate 併關開、Snapshot 補讀取 + credit 缺口'
+  ];
+
+  pages.forEach(function(p, i){
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = '<span class="n">' + (i+1) + '</span>' + p.dataset.title;
+    b.addEventListener('click', function(){ go(i); });
+    nav.appendChild(b);
+
+    if (toc){
+      var t = document.createElement('button');
+      t.type = 'button';
+      t.className = 'toc-item';
+      t.innerHTML = '<span class="num">0' + (i+1) + '</span><span><span class="t">' + p.dataset.title + '</span><br><span class="d">' + tocDesc[i] + '</span></span>';
+      t.addEventListener('click', function(){ go(i); });
+      toc.appendChild(t);
+    }
+  });
+
+  var navBtns = Array.prototype.slice.call(nav.children);
+
+  function go(i){
+    if (i < 0 || i >= pages.length) return;
+    cur = i;
+    pages.forEach(function(p, j){ p.classList.toggle('active', j === i); });
+    navBtns.forEach(function(b, j){ b.classList.toggle('on', j === i); });
+    prog.style.width = ((i+1) / pages.length * 100) + '%';
+    pos.innerHTML = '<b>' + (i+1) + '</b> / ' + pages.length + '・' + pages[i].dataset.title;
+    btnPrev.disabled = (i === 0);
+    btnNext.disabled = (i === pages.length - 1);
+    btnNext.textContent = (i === pages.length - 1) ? '完' : '下一章 ›';
+    window.scrollTo({top:0, behavior:'auto'});
+    if (history.replaceState) history.replaceState(null, '', '#p' + (i+1));
+  }
+
+  btnPrev.addEventListener('click', function(){ go(cur - 1); });
+  btnNext.addEventListener('click', function(){ go(cur + 1); });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'ArrowRight') go(cur + 1);
+    if (e.key === 'ArrowLeft') go(cur - 1);
+  });
+
+  var h = parseInt((location.hash || '').replace('#p',''), 10);
+  go(isNaN(h) ? 0 : Math.min(Math.max(h-1,0), pages.length-1));
+})();
+</script>
+</body>
+</html>
