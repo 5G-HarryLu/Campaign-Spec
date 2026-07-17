@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Gems Jackpot — 開發任務清單</title>
+<style>
+  :root{
+    --bg:#0C1017;
+    --panel:#131926;
+    --panel-2:#182031;
+    --line:#243048;
+    --text:#E9EDF5;
+    --muted:#93A0B4;
+    --faint:#5C6A82;
+    --gold:#E8B44C;
+    --gold-dim:#8a6c2e;
+    --violet:#9B7EDE;
+    --emerald:#3ECF8E;
+    --danger:#E06C5A;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+    line-height:1.7;}
+  ::selection{background:rgba(232,180,76,.3)}
+  .wrap{max-width:1040px;margin:0 auto;padding:32px 22px 90px;}
+  a{color:var(--gold);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  code{font-family:var(--mono);font-size:.86em;
+    background:#0b111c;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--gold);}
+
+  .nav{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .nav a{font-size:13px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:6px;transition:border-color .15s,color .15s}
+  .nav a:hover{border-color:var(--gold-dim);color:var(--gold);text-decoration:none}
+
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:8px}
+  h1{font-size:30px;margin:0 0 6px;font-weight:800;letter-spacing:.4px;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:6px;}
+  .lede{color:var(--muted);font-size:13.5px;margin:10px 0 4px;line-height:1.7}
+  .lede b{color:var(--text)}
+
+  /* progress bar */
+  .prog{display:flex;align-items:center;gap:12px;margin:22px 0 6px;font-size:13px;color:var(--muted)}
+  .prog .bar{flex:1;height:8px;background:var(--panel-2);border:1px solid var(--line);border-radius:20px;overflow:hidden}
+  .prog .fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--emerald));width:0%;transition:width .3s}
+  .prog .pct{font-family:var(--mono);color:var(--text);font-weight:700;min-width:88px;text-align:right}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;margin:16px 0 24px;font-size:12px;color:var(--muted)}
+  .legend .chip{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:11px;height:11px;border-radius:3px;display:inline-block}
+
+  .group{margin:28px 0}
+  .group > h2{font-size:17px;font-weight:800;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  .group > h2 .idx{font-family:var(--mono);font-size:13px;color:var(--gold);background:rgba(232,180,76,.12);border-radius:7px;padding:2px 9px}
+  .group > .gdesc{font-size:12.5px;color:var(--faint);margin:0 0 12px}
+
+  .task{background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px 14px 14px;margin:10px 0;display:flex;gap:12px;align-items:flex-start;transition:border-color .15s}
+  .task:hover{border-color:var(--gold-dim)}
+  .task input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:none;
+    width:20px;height:20px;margin-top:2px;border:1.6px solid var(--line);border-radius:6px;
+    cursor:pointer;position:relative;background:var(--panel-2);transition:all .15s}
+  .task input[type=checkbox]:hover{border-color:var(--gold)}
+  .task input[type=checkbox]:checked{background:var(--emerald);border-color:var(--emerald)}
+  .task input[type=checkbox]:checked::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;
+    border:solid #0b1a12;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+  .task .body{flex:1;min-width:0}
+  .task .tt{font-size:14.5px;font-weight:700;color:var(--text);line-height:1.5}
+  .task input:checked ~ .body .tt{text-decoration:line-through;color:var(--muted)}
+  .task .td{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.6}
+  .task .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+
+  .tag{font-size:10.5px;font-weight:700;letter-spacing:.03em;padding:2px 8px;border-radius:5px;font-family:var(--mono)}
+  .t-rpc{background:rgba(155,126,222,.14);color:var(--violet);border:1px solid rgba(155,126,222,.35)}
+  .t-tbl{background:rgba(62,207,142,.12);color:var(--emerald);border:1px solid rgba(62,207,142,.35)}
+  .t-key{background:rgba(232,180,76,.13);color:var(--gold);border:1px solid rgba(232,180,76,.35)}
+  .t-ref{background:rgba(147,160,180,.12);color:var(--muted);border:1px solid var(--line)}
+  .t-block{background:rgba(224,108,90,.14);color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+
+  .blocker{background:rgba(224,108,90,.07);border:1px solid rgba(224,108,90,.3);border-radius:8px;
+    padding:10px 14px;margin-top:8px;font-size:12.5px;color:var(--muted)}
+  .blocker b{color:var(--danger)}
+
+  .note{background:rgba(232,180,76,.07);border:1px solid rgba(232,180,76,.3);border-radius:10px;
+    padding:14px 18px;margin:24px 0;font-size:13px;color:var(--muted)}
+  .note b{color:var(--gold)}
+
+  .footer{margin-top:52px;text-align:center;font-size:12px;color:var(--faint);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a href="../">← Home</a>
+    <a href="./index.html">← 回到 Super Gems Jackpot 規劃</a>
+    <a href="./qa.html">Q&amp;A</a>
+  </nav>
+
+  <div class="eyebrow">Dev Task List · v4.0</div>
+  <h1>Jackpot Service — 開發任務清單</h1>
+  <div class="sub">依 v4.0 規劃拆解「本服務(Jackpot Service)需實作」的工作項</div>
+  <p class="lede">
+    範圍 = <b>Jackpot service 自己要寫的東西</b>;跨團隊工作(DAL rpc 實作、GS SettleWin caller / 賠付、msg-center 路由)僅以 <span class="tag t-block">BLOCKER</span> 標記依賴,不展開。
+    DB 模型已在 <a href="./index.html#p5">Ch05</a> 定義,任務直接引用表名(<span class="tag t-tbl">table</span>)、消費的 DAL rpc(<span class="tag t-rpc">rpc</span>)與 Valkey key(<span class="tag t-key">key</span>)。
+    勾選狀態存於瀏覽器 localStorage,可用於自我追蹤。
+  </p>
+
+  <div class="prog">
+    <span>進度</span>
+    <div class="bar"><div class="fill" id="progFill"></div></div>
+    <span class="pct" id="progPct">0 / 0</span>
+  </div>
+
+  <div class="legend">
+    <span class="chip"><span class="sw t-rpc" style="background:var(--violet)"></span>消費的 DAL rpc(DAL 提供)</span>
+    <span class="chip"><span class="sw" style="background:var(--emerald)"></span>Ch05 DB 表</span>
+    <span class="chip"><span class="sw" style="background:var(--gold)"></span>Valkey key</span>
+    <span class="chip"><span class="sw" style="background:var(--danger)"></span>跨團隊 BLOCKER</span>
+  </div>
+
+  <!-- ============ 0 基礎 ============ -->
+  <div class="group">
+    <h2><span class="idx">M0</span>服務骨架與契約</h2>
+    <p class="gdesc">建立服務、產 client stub、確立 Valkey 單寫者拓撲。所有 DB 存取一律經 DAL,本服務不直連 DB。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">建立 Jackpot service 專案骨架(src/Jackpot)</div>
+        <div class="td">.NET 服務;對齊 campaign 慣例(proto.v1、寫入帶 idempotency_key、CAS、分頁)。不直連 DB、不抽獎。</div>
+        <div class="meta"><span class="tag t-ref">Ch02 · Ch06</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">產生 / 引入 jackpot.proto 的 DAL client(19 rpc)</div>
+        <div class="td">本服務作為 caller 消費 DAL 的 19 個 rpc;確認欄位編號 gap-free、idempotency_key 固定 field 1。</div>
+        <div class="meta"><span class="tag t-rpc">jackpot.proto ×19</span><span class="tag t-ref">Ch06</span></div>
+        <div class="blocker"><b>BLOCKER:</b>19 個 rpc 由 <b>DAL 團隊</b>實作提供;本服務只負責 client 端串接。</div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">確立 Valkey key 拓撲與單寫者規則</div>
+        <div class="td"><code>config:{pool}</code>(本服務寫)、<code>state:{pool}:{tier}</code>(本服務寫)、<code>input:{pool}:{tier}</code>(<b>只讀,DAL 寫</b>)。key 命名用 hash tag <code>{pool:tier}</code> 防未來 cluster CROSSSLOT。</div>
+        <div class="meta"><span class="tag t-key">config / state / input</span><span class="tag t-ref">Ch02 · Ch04-06</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 1 Config 同步 ============ -->
+  <div class="group">
+    <h2><span class="idx">M1</span>ConfigSync — 設定投影</h2>
+    <p class="gdesc">後台改動 → 本服務把 config / operator RTP 投影進 Valkey,供 PoolTicker 顯示與 GE(RTP)取用。接受 1 分鐘延遲。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">ConfigSync:拉 config 投影到 <code>config:{pool}</code></div>
+        <div class="td">呼叫 <code>SyncJackpotPools</code> 取 pool + games + operator_settings(含 disabled)+ 各 tier 最新 config,寫進 Valkey。⚠ operator 量大時以 page_token 分段拉取避免 timeout。</div>
+        <div class="meta"><span class="tag t-rpc">SyncJackpotPools</span><span class="tag t-key">config:{pool}</span><span class="tag t-tbl">jackpot_pool_group / _game_mapping / _operator_setting / _config</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">投影 by-operator×tier RTP(餵 GE 的 Prob=RTP/Price)</div>
+        <div class="td">將 <code>rtp_ppm_by_tier</code> 一併投影;RTP 存 ppm 整數。config 熱更新(後台改 → 投影刷新)。</div>
+        <div class="meta"><span class="tag t-tbl">jackpot_operator_setting.rtp_ppm_by_tier_json</span><span class="tag t-ref">Ch04 · Ch05</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">後台寫入代理:Backoffice → 本服務 → DAL(5 個 config 寫 rpc)</div>
+        <div class="td">代理 <code>UpsertJackpotPoolGroup</code> / <code>UpsertJackpotGameMapping</code> / <code>SetJackpotOperatorEnabled</code> / <code>UpsertJackpotConfig</code> / <code>UpsertJackpotFxRate</code>;皆帶 idempotency_key、CAS。server 端 allowlist 驗證(如 win_count_quota 不可 &lt; 現行剩餘 n)。</div>
+        <div class="meta"><span class="tag t-rpc">Upsert*/Set* ×5</span><span class="tag t-ref">Ch06 · 260715-5c</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">FX 快取:載入並快取 fx rate(記憶體)</div>
+        <div class="td">呼叫 <code>GetJackpotFxRates</code> 取 latest / 指定版本;結算與日終換算共用,雙向匯率分開存不得倒數推算。</div>
+        <div class="meta"><span class="tag t-rpc">GetJackpotFxRates</span><span class="tag t-tbl">jackpot_fx_rate</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 2 池值顯示 ============ -->
+  <div class="group">
+    <h2><span class="idx">M2</span>PoolTicker — 池值合成與顯示 tick</h2>
+    <p class="gdesc">DAL 逐筆 INCRBY <code>input</code>;本服務讀池值、合成、以 ≥5s 節奏交 msg-center 由其 SSE 推 client。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">實作池值合成公式</div>
+        <div class="td"><code>pool(t) = min(seed + cum_increment(t) − opened_watermark, THRESHOLD)</code>;全整數運算(ppm/ppb/micro-cents),除法只出現一次、放最後、向下取整。</div>
+        <div class="meta"><span class="tag t-key">input(讀) + state</span><span class="tag t-ref">Ch03</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">PoolTicker:讀池值 → tick 交 msg-center(≥5s)</div>
+        <div class="td">依 <code>roll_range_json</code> 提供盤中滾動 range(顯示平滑用);tick 走 Redis pub/sub(狀態型、可掉)。前端 ≥5s 更新一次。</div>
+        <div class="meta"><span class="tag t-tbl">jackpot_config.roll_range_json</span><span class="tag t-ref">Ch02 · Ch04</span></div>
+        <div class="blocker"><b>BLOCKER:</b>SSE long connection 與跑馬燈由 <b>msg-center / msg-center-sse</b> 承載(見 Ch04 容量規劃)。</div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">撞頂(cap)處理:reset + 溢位補 seed + 廣播假中獎</div>
+        <div class="td">池達 <code>reset_threshold_cents</code> → reset、溢位補進 seed、廣播一位假中獎者。<b>不記中獎名單、不動 quota、不寫 outbox</b>(260715-5)。以 <code>RotateJackpotRound</code>(status=2 hit,帶 clamp_overflow)落錨。</div>
+        <div class="meta"><span class="tag t-rpc">RotateJackpotRound</span><span class="tag t-tbl">jackpot_round.clamp_overflow_microcents</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 3 結算派彩 ============ -->
+  <div class="group">
+    <h2><span class="idx">M3</span>SettleEngine — 中獎結算(核心)</h2>
+    <p class="gdesc">GE 判定誰中、本服務原子決定拿多少。此為本服務唯一對外(GS)提供的 gRPC + Lua 原子結算 + 落帳。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">提供 <code>SettleWin</code> gRPC(本服務對 GS 的入口)</div>
+        <div class="td"><b>本服務提供的 gRPC</b>,GS 呼叫。同步 request/response,deadline 5s;req 帶 win_id / bet_txn_id / tier,resp 回結算金額(USD + local + fx_version)。<b>非 jackpot.proto(DAL 契約),屬本服務自有介面。</b></div>
+        <div class="meta"><span class="tag t-key">state:{pool}:{tier}</span><span class="tag t-ref">Ch04 step01-02</span></div>
+        <div class="blocker"><b>BLOCKER:</b>caller(重試 2 次、win_id = f(bet_txn_id,tier) 推導、spin pending 標記)在 <b>GS 側</b>;本服務只需保證冪等回應。</div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">OB pre-check:雙鍵查重(win_id / (pool,tier,bet_txn_id))</div>
+        <div class="td">命中即回 is_duplicate,並校驗 bet_txn_id/member 歸屬,不符回硬錯誤(擋回錯人金額)。經 <code>ListJackpotWins</code> / InsertJackpotWin 的 UNIQUE。</div>
+        <div class="meta"><span class="tag t-rpc">InsertJackpotWin / ListJackpotWins</span><span class="tag t-tbl">jackpot_win UNIQUE(pool,tier,bet_txn_id)</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">Lua 原子結算腳本(冪等在 Lua 內)</div>
+        <div class="td">第一動作 = <code>SETNX settle:{win_id}</code> marker(已存在 → 回 marker 不碰池);否則:讀池值 = 派彩金額 → reset 到 seed(溢位補 seed）→ <code>quota−−</code>(可負)→ <code>round_seq++</code> → FX 換算一次 → USD/local/fx_version/round_seq 寫進 marker(TTL 7 天、永不主動清)。金額恰好決定一次。</div>
+        <div class="meta"><span class="tag t-key">state:{pool}:{tier} · settle:{win_id}</span><span class="tag t-ref">Ch04 step02</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">Lua 後段跑 detached context(不受 client cancel 中斷)</div>
+        <div class="td">同時中獎序列化在單一 state key:先到滿池、後到 reset 後 seed(先到 = 先在本服務執行,非先中獎)。</div>
+        <div class="meta"><span class="tag t-ref">Ch04 step02</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">win 落帳:<code>InsertJackpotWin</code> + <code>InsertOutboxMessage</code> 同一 OB 交易</div>
+        <div class="td">金額/FX 直接取 marker 不重算;帶 bet_txn_id(連注單)、併入 total win。同交易確保「錢到了、inbox 通知不會消失」。</div>
+        <div class="meta"><span class="tag t-rpc">InsertJackpotWin · SystemService.InsertOutboxMessage</span><span class="tag t-tbl">jackpot_win + outbox_msg</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">中獎後 round 輪替:<code>RotateJackpotRound</code>(以 round_seq 冪等)</div>
+        <div class="td">關舊開新單交易。失敗交 RecoveryJob 補打。新 round 帶 seed / opened_watermark / quota_remaining_at_open 錨點。</div>
+        <div class="meta"><span class="tag t-rpc">RotateJackpotRound</span><span class="tag t-tbl">jackpot_round</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">派彩狀態機:<code>UpdateJackpotWinPayoutStatus</code>(CAS)</div>
+        <div class="td">1=pending→2=credited→3=notified;4=failed(帶 failure_reason/retry_count)。credit 由 GS 執行,本服務更新狀態。</div>
+        <div class="meta"><span class="tag t-rpc">UpdateJackpotWinPayoutStatus</span><span class="tag t-tbl">jackpot_win.payout_status</span></div>
+        <div class="blocker"><b>BLOCKER:</b>wallet credit 由 <b>GS</b> 執行且須以 win_id DB UNIQUE 去重(前置 blocker);GS↔DAL credit 事件需補 bet_txn_id+win_id+tier(<b>GameService.Credit,非本契約</b>)。</div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 4 通知 ============ -->
+  <div class="group">
+    <h2><span class="idx">M4</span>通知 — 個人 inbox outbox</h2>
+    <p class="gdesc">中獎個人通知 = 本服務寫 outbox_msg 表(經 DAL),msg-center poll 表處理。跑馬燈由 GS 發、不走 outbox。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">組 outbox_msg payload(對齊 FRB CampaignOutboxMsgPublisher 慣例)</div>
+        <div class="td">idempotency_key = <code>jackpot-JackpotWinning-{win_id}</code>、partition_key = <code>{operator_id}:{member_id}</code>、data 為 snake_case(type/event_type/pool_group_id/tier/win_id/bet_txn_id/金額/win_at/popup…)。只送個人 inbox(point-to-point)。假中獎不寫 outbox。</div>
+        <div class="meta"><span class="tag t-rpc">SystemService.InsertOutboxMessage</span><span class="tag t-tbl">outbox_msg</span><span class="tag t-ref">Ch04 outbox 卡</span></div>
+        <div class="blocker"><b>BLOCKER:</b><code>event_type</code> 新 enum 值(建議 9)需與 <b>msg-center</b> 定案;跑馬燈事件由 <b>GS</b> 發到 msg-center。</div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 5 日終對帳 ============ -->
+  <div class="group">
+    <h2><span class="idx">M5</span>DailyReconJob — 日終落帳</h2>
+    <p class="gdesc">DAL 即時維護 input 池值;本服務日終以昨日 turnover 落帳做對帳錨點(不驅動池值)。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">DailyReconJob:取昨日 turnover(+0 tz)並換 USD</div>
+        <div class="td">呼叫 <code>GetJackpotPoolDailyTurnover</code> 取各幣別彙總 → <b>本服務以自有 FX 版本換 USD</b> → × contribution_rate 得 increment。低於 <code>min_per_day_cents</code> 以 floor 補差。</div>
+        <div class="meta"><span class="tag t-rpc">GetJackpotPoolDailyTurnover</span><span class="tag t-tbl">jackpot_fx_rate · jackpot_config.min_per_day_cents</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">落 <code>daily_increment</code>:<code>UpsertJackpotDailyIncrement</code>(PK 冪等)</div>
+        <div class="td">PK(pool,tier,rate_date) 冪等、可重跑;記 source_turnover / increment / fx_versions_json。first-write-wins,遲到 CDC 不回溯。<b>僅落 DB,不寫 Valkey input</b>。</div>
+        <div class="meta"><span class="tag t-rpc">UpsertJackpotDailyIncrement</span><span class="tag t-tbl">jackpot_daily_increment</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 6 快照 ============ -->
+  <div class="group">
+    <h2><span class="idx">M6</span>Snapshot — 彩金滾動紀錄</h2>
+    <p class="gdesc">每分鐘寫合成池值快照,兼作後台「彩金滾動紀錄」頁與恢復加速。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">定期(每分鐘)寫 <code>UpsertJackpotPoolSnapshot</code></div>
+        <div class="td">寫合成 value_microcents + quota_remaining;PK(pool,tier,snapshot_at) 自然鍵冪等。每 pool×tier 每日 ~1,440 筆 → 需訂保留期。</div>
+        <div class="meta"><span class="tag t-rpc">UpsertJackpotPoolSnapshot</span><span class="tag t-tbl">jackpot_pool_snapshot</span></div>
+        <div class="blocker"><b>待確認:</b>「哪個 job 每分鐘寫」規格未明確指名(見 <a href="./qa.html#q9">Q9</a>);顯示值 vs 合成真值差異需 PM 確認。</div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">滾動紀錄讀取:<code>ListJackpotPoolSnapshots</code></div>
+        <div class="td">後台頁一次列 GRAND/MAJOR;空+page_size=1 = 取最新(恢復加速)。固定 snapshot_at 降冪、分頁。</div>
+        <div class="meta"><span class="tag t-rpc">ListJackpotPoolSnapshots</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 7 恢復對帳 ============ -->
+  <div class="group">
+    <h2><span class="idx">M7</span>Recovery / Reconciliation — 恢復與對帳</h2>
+    <p class="gdesc">卡單掃描補寫、round 補打、全域對帳偵測、Valkey 全損重建。照 FRB ReconciliationScan 模式(WAL = 持久 spin 記錄 + 掃描器)。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">RecoveryJob(每 30s):marker ⟷ jackpot_win 對帳補寫</div>
+        <div class="td">age&gt;60s 的 marker ⟷ win 對帳補寫(<b>只補不刪</b>,marker 靠 TTL 清);win 存在但 round 未 rotate → 補打 <code>RotateJackpotRound</code>。</div>
+        <div class="meta"><span class="tag t-rpc">InsertJackpotWin / RotateJackpotRound</span><span class="tag t-key">settle:{win_id}</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">卡單掃描:payout pending / failed 過久告警</div>
+        <div class="td"><code>ListJackpotWins</code> 帶 payout_statuses={1,4} + stale_threshold_seconds,撿回失敗派彩;含 2 = 通知補償。</div>
+        <div class="meta"><span class="tag t-rpc">ListJackpotWins</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">全域對帳(偵測層):credit(帶 win_id)⟷ jackpot_win 雙向比對</div>
+        <div class="td">期望恆 0,≥1 即 page。ReconciliationJob 比對 Valkey 池值 vs DB 重算(<code>GetJackpotReconciliationSums</code>:Σincrement/Σseed/Σwin/截斷/溢位)。</div>
+        <div class="meta"><span class="tag t-rpc">GetJackpotReconciliationSums</span><span class="tag t-tbl">jackpot_round / _win / _daily_increment</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">Valkey 全損重建(純函數,需演練)</div>
+        <div class="td">state = 上一筆 win 的 seed 錨點 + round_seq + input watermark + CDC 重放;啟動時以 <code>GetOpenJackpotRounds</code> 取開放回合、quota = quota_remaining_at_open − count(wins in round)。</div>
+        <div class="meta"><span class="tag t-rpc">GetOpenJackpotRounds / GetJackpotDailyIncrements</span><span class="tag t-key">state / input</span></div>
+      </div>
+    </label>
+  </div>
+
+  <!-- ============ 8 稽核/報表 ============ -->
+  <div class="group">
+    <h2><span class="idx">M8</span>報表 / 稽核</h2>
+    <p class="gdesc">中獎名單、稽核檢視的讀取代理。</p>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">中獎名單 / 會員下注紀錄查詢:<code>ListJackpotWins</code></div>
+        <div class="td">後台分支按 created_at 降冪;member_id 過濾需搭配 operator_id(索引前導)。以 bet_txn_id 連注單供會員下注紀錄查詢。</div>
+        <div class="meta"><span class="tag t-rpc">ListJackpotWins</span></div>
+      </div>
+    </label>
+
+    <label class="task"><input type="checkbox">
+      <div class="body">
+        <div class="tt">稽核檢視:<code>ListJackpotAdminAudits</code></div>
+        <div class="td">7 個受稽核 rpc 的變更軌跡(before/after);config 5 寫由 DAL 同交易原子附帶,本服務僅提供讀取查詢。</div>
+        <div class="meta"><span class="tag t-rpc">ListJackpotAdminAudits</span><span class="tag t-tbl">jackpot_admin_audit</span></div>
+      </div>
+    </label>
+  </div>
+
+  <div class="note">
+    <b>不在本服務範圍(跨團隊,僅依賴):</b>① DAL 團隊實作 jackpot.proto 全 19 rpc(本服務為 caller);② GS 實作 SettleWin caller、win_id 推導、spin pending 標記、錢包 credit(win_id UNIQUE 去重)、跑馬燈事件發送;③ GS↔DAL 補 GameService.Credit 欄位(bet_txn_id+win_id+tier);④ msg-center 定案 event_type enum 值、poll outbox_msg、承載 SSE / msg-center-sse 分片輪掃;⑤ GE 側 Price/RTP feed 與 Prob=RTP/Price 計算;⑥ GameServer 側 game_math + MathFeatureFlags 遷移。細節見 <a href="./index.html">規格</a>與 <a href="./qa.html">Q&amp;A</a>。
+  </div>
+
+  <div class="footer">
+    Super Gems Jackpot · 開發任務清單 · 依 <a href="./index.html">v4.0 規劃</a> · DB 模型見 <a href="./index.html#p5">Ch05</a>
+  </div>
+
+<script>
+  (function(){
+    var KEY = 'jackpot-tasks-v4';
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('.task input[type=checkbox]'));
+    var fill = document.getElementById('progFill');
+    var pct = document.getElementById('progPct');
+    // assign stable index-based ids
+    boxes.forEach(function(b,i){ b.dataset.k = 't'+i; });
+    var saved = {};
+    try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){}
+    boxes.forEach(function(b){ if(saved[b.dataset.k]) b.checked = true; });
+    function update(){
+      var done = boxes.filter(function(b){return b.checked;}).length;
+      var total = boxes.length;
+      var p = total ? Math.round(done/total*100) : 0;
+      fill.style.width = p + '%';
+      pct.textContent = done + ' / ' + total + '  (' + p + '%)';
+    }
+    function save(){
+      var o = {};
+      boxes.forEach(function(b){ if(b.checked) o[b.dataset.k] = 1; });
+      try { localStorage.setItem(KEY, JSON.stringify(o)); } catch(e){}
+    }
+    boxes.forEach(function(b){ b.addEventListener('change', function(){ save(); update(); }); });
+    update();
+  })();
+</script>
+
+</div>
+</body>
+</html>
