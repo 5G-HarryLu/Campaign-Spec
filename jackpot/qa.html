@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Gems Jackpot — Q&A</title>
+<style>
+  :root{
+    --bg:#0C1017;
+    --panel:#131926;
+    --panel-2:#182031;
+    --line:#243048;
+    --text:#E9EDF5;
+    --muted:#93A0B4;
+    --faint:#5C6A82;
+    --gold:#E8B44C;
+    --gold-dim:#8a6c2e;
+    --violet:#9B7EDE;
+    --emerald:#3ECF8E;
+    --danger:#E06C5A;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,-apple-system,sans-serif;
+    line-height:1.75;}
+  ::selection{background:rgba(232,180,76,.3)}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 22px 90px;}
+  a{color:var(--gold);text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  code{font-family:var(--mono);font-size:.88em;
+    background:#0b111c;border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--gold);}
+
+  .nav{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+  .nav a{font-size:13px;color:var(--muted);padding:3px 10px;border:1px solid var(--line);border-radius:6px;transition:border-color .15s,color .15s}
+  .nav a:hover{border-color:var(--gold-dim);color:var(--gold);text-decoration:none}
+
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700;margin-bottom:8px}
+  h1{font-size:30px;margin:0 0 6px;font-weight:800;letter-spacing:.4px;}
+  .sub{color:var(--muted);font-size:14px;margin-bottom:6px;}
+  .lede{color:var(--muted);font-size:13.5px;margin:10px 0 4px;line-height:1.7}
+  .lede b{color:var(--text)}
+
+  .toc{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin:22px 0 30px;}
+  .toc b{font-size:13px;color:var(--muted);letter-spacing:.05em}
+  .toc ol{margin:8px 0 0;padding-left:22px;}
+  .toc li{margin:6px 0;font-size:14px}
+
+  .qa{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    padding:22px 26px;margin:18px 0;}
+  .qa.author{border-color:rgba(155,126,222,.4)}
+  .q{font-size:18px;font-weight:800;color:var(--text);margin:0 0 16px;
+    padding-bottom:12px;border-bottom:1px solid var(--line);line-height:1.5}
+  .q .num{display:inline-flex;align-items:center;justify-content:center;
+    min-width:30px;height:26px;padding:0 8px;border-radius:8px;background:rgba(232,180,76,.15);
+    color:var(--gold);font-size:13px;font-weight:700;margin-right:10px;vertical-align:middle;font-family:var(--mono)}
+  .q.author .num{background:rgba(155,126,222,.15);color:var(--violet)}
+  h3{font-size:14.5px;margin:18px 0 6px;color:var(--emerald);}
+  p{margin:9px 0;font-size:14.5px}
+
+  .verdict{display:inline-block;font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;margin-left:6px;vertical-align:middle}
+  .v-yes{background:rgba(62,207,142,.14);color:var(--emerald);border:1px solid rgba(62,207,142,.4)}
+  .v-no{background:rgba(224,108,90,.14);color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+  .v-ask{background:rgba(155,126,222,.14);color:var(--violet);border:1px solid rgba(155,126,222,.4)}
+
+  .takeaway{background:rgba(62,207,142,.08);border:1px solid rgba(62,207,142,.35);
+    border-radius:10px;padding:12px 16px;margin:16px 0 4px;font-size:14px;}
+  .takeaway b{color:var(--emerald);}
+  .note{background:rgba(232,180,76,.08);border:1px solid rgba(232,180,76,.35);
+    border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .note b{color:var(--gold);}
+  .warn{background:rgba(224,108,90,.08);border:1px solid rgba(224,108,90,.35);
+    border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .warn b{color:var(--danger);}
+  .ask{background:rgba(155,126,222,.08);border:1px solid rgba(155,126,222,.35);
+    border-radius:10px;padding:12px 16px;margin:14px 0;font-size:14px;}
+  .ask b{color:var(--violet);}
+
+  ul{margin:10px 0;padding-left:22px}
+  li{margin:6px 0;font-size:14.5px}
+  .ref{color:var(--faint);font-size:12px;font-family:var(--mono)}
+
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:13.5px;}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+  th{background:var(--panel-2);font-weight:700;}
+  tr:nth-child(even) td{background:rgba(255,255,255,.015);}
+
+  .divider{height:1px;background:var(--line);margin:34px 0 10px}
+  .section-tag{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--violet);font-weight:700;margin:8px 0}
+
+  .footer{margin-top:52px;text-align:center;font-size:12px;color:var(--faint);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <nav class="nav">
+    <a href="../">← Home</a>
+    <a href="./index.html">← 回到 Super Gems Jackpot 規劃</a>
+  </nav>
+
+  <div class="eyebrow">Q&A · v4.0 規劃釐清</div>
+  <h1>Super Gems Jackpot — Q&A</h1>
+  <div class="sub">針對「GE 判定改版」規劃(v4.0)的觀念釐清與待作者確認事項</div>
+  <p class="lede">
+    以下問答以 <a href="./index.html">jackpot/index.html</a> 規格內容為依據。
+    <b>綠色 = 規格明載可答</b>;<b style="color:var(--violet)">紫色 = 規格未明講、需向作者確認</b>。
+    引用位置以 <span class="ref">index.html:行號</span> 標示。
+  </p>
+
+  <div class="toc">
+    <b>目錄</b>
+    <ol>
+      <li><a href="#q0">WAL 是什麼意思?</a></li>
+      <li><a href="#q1">Q1 · 三把 Valkey key 各做什麼?</a></li>
+      <li><a href="#q2">Q2 · GS 同步呼叫 SettleEngine,有無更鬆耦合方式?</a></li>
+      <li><a href="#q3">Q3 · 金額回傳後,由 GS 寫 accounting/ledger?</a></li>
+      <li><a href="#q4">Q4 · 池值公式各變數是否為設定值?turnover = cum_increment?</a></li>
+      <li><a href="#q5">Q5 · 日終彙總寫進現有表、Jackpot 讀取 + 換匯?</a></li>
+      <li><a href="#q6">Q6 · GE 判定 + 同步 SettleWin + Lua 冪等,有無問題?</a></li>
+      <li><a href="#q7">Q7 · ReconciliationJob 從 jackpot_round 判斷?</a></li>
+      <li><a href="#q8">Q8 · 分片輪掃的「記憶體」是 Jackpot service?3 個 task 會不一致?</a></li>
+      <li><a href="#q9">Q9 · jackpot_pool_snapshot 目的 / 誰寫 / 何時 / 依什麼值?</a></li>
+    </ol>
+    <div class="divider"></div>
+    <b>待向作者確認(第二輪)</b>
+    <ol style="counter-reset:none">
+      <li><a href="#a1">A-Q1 · input key 永不重置可以拿來做什麼?</a></li>
+      <li><a href="#a41">A-Q4.1 · opened_increment_watermark 是派彩門檻嗎?</a></li>
+      <li><a href="#a42">A-Q4.2 · cum_increment 中獎 / cap reset 也不重置?</a></li>
+    </ol>
+  </div>
+
+  <!-- ===== WAL ===== -->
+  <div class="qa" id="q0">
+    <div class="q"><span class="num">WAL</span>WAL 是什麼意思?</div>
+    <p><b>WAL = Write-Ahead Log(預寫日誌)。</b>資料庫/儲存系統的經典耐久性技術:在真正執行操作<b>之前</b>,先把「我打算做這件事」持久化寫進只追加(append-only)的日誌。系統中途 crash,重啟後讀日誌即可知道哪些操作沒做完 → 重放(replay)補做,保證不遺失、不重複。</p>
+    <p>本規格是<b>借用 WAL 概念作類比</b>,不是實體 log 檔:</p>
+    <ul>
+      <li>「真中獎/結算」的權威記錄(WAL)= <b>持久化的 spin 記錄</b>(GS 端先把 spin 標 <code>settle_status=pending</code> 再呼叫 SettleWin)。</li>
+      <li>SettleWin gRPC 或 pending-settle Stream 掉了都沒關係,<b>掃描器</b>會回頭掃 pending spin、重新驅動結算(重入)—— 等同 replay WAL。</li>
+      <li>「<b>WAL 不放 Valkey</b>」= 這份耐久記錄刻意不存在 Valkey(可能會掉/重建),避免救命 log 與被保護的依賴「共命運」。</li>
+    </ul>
+    <div class="takeaway"><b>一句話:</b>這裡的 WAL 是設計比喻 —— 用持久化 spin 記錄當不會遺失的真相來源,靠掃描器重入補做失敗結算,而非傳統 DB 引擎的實體 WAL 檔。 <span class="ref">index.html:724, 863</span></div>
+  </div>
+
+  <!-- ===== Q1 ===== -->
+  <div class="qa" id="q1">
+    <div class="q"><span class="num">Q1</span>三把 Valkey key(config / state / input)各做什麼?</div>
+    <table>
+      <thead><tr><th>Key</th><th>內容</th><th>寫入者</th></tr></thead>
+      <tbody>
+        <tr><td><code>config:{pool}</code></td><td>config 投影(含 by-operator RTP)</td><td>本服務(ConfigSync 熱更新)</td></tr>
+        <tr><td><code>state:{pool}:{tier}</code></td><td>quota、settle marker(<code>settle:{win_id}</code>);SettleEngine 讀池→派→reset→quota−− 都在此</td><td>本服務</td></tr>
+        <tr><td><code>input:{pool}:{tier}</code></td><td><code>cum_increment</code>,單調遞增、永不重置</td><td>DAL CDC 逐筆即時 INCRBY</td></tr>
+      </tbody>
+    </table>
+    <p>池值再由公式 <code>min(seed + cum_increment − opened_watermark, THRESHOLD)</code> 合成。</p>
+    <div class="takeaway"><b>一句話:</b><code>config</code> = 設定投影(本服務寫)、<code>state</code> = 出池/結算狀態(本服務寫)、<code>input</code> = 入池累積(DAL 寫)。 <span class="ref">index.html:556-567, 759</span></div>
+  </div>
+
+  <!-- ===== Q2 ===== -->
+  <div class="qa" id="q2">
+    <div class="q"><span class="num">Q2</span>GS 直接呼叫 SettleEngine,有沒有更 loosely coupling 的方式?</div>
+    <p>規格<b>已明確選擇同步 gRPC,並解釋為何不採更鬆耦合的 pub/sub</b>:</p>
+    <ul>
+      <li>「為何不用 pub/sub(FRB 曾掉通知):GS 必須<b>同步等金額</b>,天然 request/response,失敗顯式可重試。」</li>
+      <li>retry 已定義:<code>SettleWin</code> 同步 gRPC、<b>deadline 5s、立即重試 2 次</b>;<code>win_id = f(bet_txn_id, tier)</code> 決定性推導,冪等在 Lua 內。</li>
+      <li>耐久性不靠 pub/sub,而是「持久化 spin 記錄 + 掃描器重入」(WAL 類比)。</li>
+    </ul>
+    <div class="note"><b>結論:</b>因金額決策權在本服務、GS 必須同步拿到金額才賠付,規格判定這是本質同步的 request/response,pub/sub 反而更差。規格<b>未</b>提出比同步 gRPC 更鬆耦合的替代。 <span class="ref">index.html:724, 863</span></div>
+    <div class="ask"><b>需問作者:</b>是否曾考慮「GS 先預估、事後對帳」等異步方案?此點規格未涵蓋。</div>
+  </div>
+
+  <!-- ===== Q3 ===== -->
+  <div class="qa" id="q3">
+    <div class="q"><span class="num">Q3</span>是否回傳金額,但由 GameServer 呼叫 DAL 寫 accounting / ledger(原本方式)?<span class="verdict v-no">否</span></div>
+    <p><b>不是。</b>規格明確把落帳留在本服務,只有派彩(wallet credit)才由 GS 做:</p>
+    <ul>
+      <li><b>落帳(win 記錄)由本服務寫</b>:<code>InsertJackpotWin</code> 與 <code>InsertOutboxMessage</code> <b>同一個 OceanBase 交易</b>(經 DAL gRPC),非 GS 寫。</li>
+      <li><b>派彩由 GS 執行</b>:錢包 credit 由 GS 做,金額 = 本服務結算值,wallet 側以 <code>win_id</code> UNIQUE 去重。</li>
+      <li>資料模型已<b>刪除 win 表的 <code>accounting_id</code></b>(「260715:代理後台不看」)—— 沒有「GS 寫 accounting/ledger」路徑。</li>
+    </ul>
+    <div class="takeaway"><b>分工:</b>本服務原子決定金額 + 寫 <code>jackpot_win</code>(同交易寫 outbox);GS 只做 wallet credit 派彩。與「GS 寫 ledger」相反。 <span class="ref">index.html:871, 875, 935</span></div>
+  </div>
+
+  <!-- ===== Q4 ===== -->
+  <div class="qa" id="q4">
+    <div class="q"><span class="num">Q4</span>公式各變數是否為設定值?「昨日 turnover」= cum_increment(t)?</div>
+    <p>公式:<code>pool(t) = min(seed + cum_increment(t) − opened_watermark, THRESHOLD)</code></p>
+    <table>
+      <thead><tr><th>變數</th><th>是否設定值</th><th>來源</th></tr></thead>
+      <tbody>
+        <tr><td><code>seed</code></td><td class="ok">是(設定值)</td><td><code>jackpot_config.reset_min_cents</code>(Grand $20k/Major $2k);每回合寫進 <code>jackpot_round.seed_microcents</code></td></tr>
+        <tr><td><code>THRESHOLD</code></td><td class="ok">是(設定值)</td><td><code>jackpot_config.reset_threshold_cents</code>(硬上限 cap)</td></tr>
+        <tr><td><code>opened_watermark</code></td><td>否 · 執行期錨點</td><td><code>jackpot_round.opened_increment_watermark_microcents</code></td></tr>
+        <tr><td><code>cum_increment(t)</code></td><td>否 · 即時累積量</td><td>DAL 逐筆 INCRBY <code>input:{pool}:{tier}</code>,單調遞增</td></tr>
+      </tbody>
+    </table>
+    <h3>「昨日 turnover」= cum_increment(t)?</h3>
+    <div class="warn"><b>不相等,是兩條路:</b>
+      <ul style="margin-bottom:0">
+        <li><code>cum_increment(t)</code> = Valkey <code>input</code> key 上 DAL <b>即時、逐筆</b> 累加的池貢獻(已換算後 micro-cents),驅動當下池值。</li>
+        <li>「昨日 turnover」= <b>日終對帳</b>用:落 <code>jackpot_daily_increment.source_turnover_cents</code>,再 × 累積速率。規格明講「本表<b>不再驅動池值</b>」。</li>
+      </ul>
+    </div>
+    <p>兩者量綱與時機都不同:turnover 是注單流水,cum_increment 是換算後累積的池貢獻。 <span class="ref">index.html:759, 982-983, 1037, 566-567, 1064-1070</span></p>
+  </div>
+
+  <!-- ===== Q5 ===== -->
+  <div class="qa" id="q5">
+    <div class="q"><span class="num">Q5</span>排程彙總是否寫進「現有的表」,由 Jackpot 讀取 + USD 換算?</div>
+    <p>大致對,但要精確區分誰算 turnover、誰換匯:</p>
+    <ul>
+      <li>寫入的表是 <code>jackpot_daily_increment</code>(列於本專案 10 張表內)。<b>「是否沿用現有表」規格未明講。</b></li>
+      <li>寫入者 = <b>本服務的 DailyReconJob</b>(不是 DAL):「日終落帳(對帳錨點,PK 冪等)」。</li>
+      <li><b>USD 換算由本服務做</b>:<code>source_turnover_cents</code>「本服務自 per-currency × 自有 FX 換算」,FX 版本記在 <code>fx_versions_json</code>。</li>
+      <li>低於 <code>min_per_day_cents</code> 以 floor 補差。</li>
+    </ul>
+    <div class="note"><b>修正描述:</b>不是「Jackpot 讀別人算好的彙總再換匯」,而是本服務向 DAL 取昨日 turnover(per-currency)→ 本服務自己用自有 FX 換 USD → 寫進 <code>jackpot_daily_increment</code>。此表 v4 只當對帳錨點,不驅動池值。 <span class="ref">index.html:705, 981, 995, 1060-1070</span></div>
+    <div class="ask"><b>需問作者:</b><code>jackpot_daily_increment</code> 是否沿用某張既有表,或為本專案新表?</div>
+  </div>
+
+  <!-- ===== Q6 ===== -->
+  <div class="qa" id="q6">
+    <div class="q"><span class="num">Q6</span>GE 判定 + 同步 SettleWin(不可掉)+ Lua 冪等,有沒有問題?</div>
+    <h3>規格自己標出的 BLOCKER / 風險</h3>
+    <ul>
+      <li><b>wallet Credit 必須以 <code>win_id</code> DB UNIQUE 去重</b>(規格標紅「前置 BLOCKER」):否則 worker credit 後、ACK 前 crash 會<b>雙重派彩</b>,SettleWin 冪等擋不住。← 最關鍵。</li>
+      <li><b>雙結算窗</b>:Lua 第一動作須 <code>SETNX settle:{win_id}</code>,否則「insert 進行中被重試 → 二次 reset」。規格已用 SETNX 封掉。</li>
+      <li><b>GS↔DAL credit 契約缺口</b>:credit 事件需補 <code>bet_txn_id + win_id + tier</code>,屬 GameService.Credit、非本契約、待 GS/DAL 確認。</li>
+      <li><b>WAL 不放 Valkey</b>:避免與被保護依賴共命運。</li>
+    </ul>
+    <h3>補充觀察(非規格,供判斷)</h3>
+    <ul>
+      <li>SettleWin 逾時 + 2 次重試皆失敗後,GS 側的 UX / 回補細節不在本規格,可能要 GS 團隊定義。</li>
+      <li>「先到滿池、後到 seed」是執行序非中獎序,屬產品/客訴面已知取捨(已要求寫進 game info),非技術 bug。</li>
+    </ul>
+    <div class="takeaway"><b>結論:</b>核心冪等設計(win_id 決定性推導 + Lua SETNX + OB 雙鍵 pre-check + 同交易寫 win/outbox)自洽。最大未關閉風險是 #1 wallet UNIQUE 去重與 #3 GS/DAL credit 契約 —— 兩者皆跨團隊,建議確認落實方與時程。 <span class="ref">index.html:863, 867, 1090, 538</span></div>
+  </div>
+
+  <!-- ===== Q7 ===== -->
+  <div class="qa" id="q7">
+    <div class="q"><span class="num">Q7</span>ReconciliationJob 比對 Valkey vs DB 重算,是從 jackpot_round 判斷?<span class="verdict v-yes">是(為主錨點)</span></div>
+    <p>以 <code>jackpot_round</code> 為恢復錨點,配合 input watermark + win 重算。規格寫的重算公式來源:</p>
+    <p style="padding-left:14px;border-left:2px solid var(--gold-dim);color:var(--muted)">「state = 上一筆 win 的 seed 錨點 + round_seq + input watermark + CDC 重放(純函數,需演練)」</p>
+    <p>對應 <code>jackpot_round</code> 欄位:</p>
+    <ul>
+      <li><code>seed_microcents</code> — 本回合 seed</li>
+      <li><code>opened_increment_watermark_microcents</code> — cum_increment 錨點,池值合成公式用</li>
+      <li><code>round_seq</code> / <code>quota_remaining_at_open</code>(Valkey 遺失時 quota = 此值 − count(wins in round))</li>
+      <li><code>clamp_overflow_microcents</code> — 觸頂溢出累計,對帳公式顯式項、唯一記錄點</li>
+    </ul>
+    <div class="takeaway"><b>結論:</b>不是只看 round —— round 提供錨點,其餘由 <code>input</code> watermark + <code>jackpot_win</code> 補齊,用池值公式復算後與 Valkey 比對。 <span class="ref">index.html:883, 1028-1042</span></div>
+  </div>
+
+  <!-- ===== Q8 ===== -->
+  <div class="qa" id="q8">
+    <div class="q"><span class="num">Q8</span>「分片輪掃 + dirty-flag」的記憶體是 Jackpot service 嗎?3 個 ECS task 會不一致?<span class="verdict v-no">不是 Jackpot</span></div>
+    <p><b>不是 Jackpot service,是 <code>msg-center-sse</code> 這個獨立服務的記憶體;而「3 task 不一致」在此設計下不是問題。</b></p>
+    <ul>
+      <li>該段標題是「msg-center SSE 容量規劃」,配置為「<b>獨立 ECS service(msg-center-sse)+ ALB</b>」—— 那 3 個 task 是 msg-center-sse,非 Jackpot service。</li>
+      <li>記憶體 = <b>每個 SSE task 自己持有的那批 client 連線狀態</b>(池值覆寫做 conflation、跑馬燈 pending 佇列)。</li>
+    </ul>
+    <h3>為何 3 task 不會「不一致」出問題</h3>
+    <ul>
+      <li>每條 SSE 長連線只落在<b>某一個</b> task(ALB 分流),該 task 只維護它自己承載的連線。</li>
+      <li>同步靠 <b>Redis pub/sub 扇入</b>:每 task 訂池值 tick + 跑馬燈頻道,權威狀態在發布端,task 只把最新值覆寫進自己記憶體再輪掃推送。</li>
+      <li>池值是狀態型可覆寫(conflation)、跑馬燈是廣播,都不要求 task 間強一致,晚一輪(≤5s / 1–5s 波浪式)規格可接受。</li>
+    </ul>
+    <div class="warn"><b>唯一要注意:</b>規格點名的<b>重連風暴</b>(部署/斷網 50k 同時重連),對策 = jitter 0–30s + <code>Last-Event-ID</code> 續傳 + 排水 ≥300s。 <span class="ref">index.html:909-926</span></div>
+  </div>
+
+  <!-- ===== Q9 ===== -->
+  <div class="qa" id="q9">
+    <div class="q"><span class="num">Q9</span>jackpot_pool_snapshot 目的 / 誰寫 / 何時 / 依什麼值?</div>
+    <table>
+      <thead><tr><th>面向</th><th>規格內容</th></tr></thead>
+      <tbody>
+        <tr><td>目的</td><td>① 後台「彩金滾動紀錄」頁(會議 260701-3);② 恢復加速。權威仍是 round / daily_increment / win。</td></tr>
+        <tr><td>填什麼值</td><td><code>value_microcents</code> = 合成池值(真值);<code>quota_remaining</code> = 當下剩餘名額(exhausted 由 ≤0 推導)。</td></tr>
+        <tr><td>何時 / 頻率</td><td>每分鐘一筆 GRAND/MAJOR 值 ≈ 每 pool×tier 每日 1,440 筆,需訂保留期。</td></tr>
+        <tr><td>誰寫</td><td class="v-ask" style="color:var(--violet)">規格未明確指名 job/角色(見下)</td></tr>
+      </tbody>
+    </table>
+    <div class="ask"><b>需問作者:</b>表落 OceanBase、寫入必經 DAL,但規格<b>未指名哪個 job 每分鐘寫此 snapshot</b>。PoolTicker 只描述「讀池值 → 交 msg-center tick」,未說它寫 snapshot;契約有 <code>ListJackpotPoolSnapshots</code>(讀),未見明確的 Insert/Upsert 寫入 rpc 與呼叫者。另:規格註明存的是「合成真值」,若 PM 要核對「玩家看到的滾動顯示值」需另存,帶回會議確認。 <span class="ref">index.html:1072-1080, 1090</span></div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-tag">待向作者確認 · 第二輪深入</div>
+
+  <!-- ===== A-Q1 ===== -->
+  <div class="qa author" id="a1">
+    <div class="q author"><span class="num">A-Q1</span>input:{pool}:{tier} 一直累加、永不重置,可以拿來做什麼?</div>
+    <p>規格對其定位的 evidence:</p>
+    <ul>
+      <li>定義:「<code>cum_increment</code>・DAL 逐筆即時 INCRBY」、「單調遞增、永不重置」。</li>
+      <li><b>用途 1(合成當下池值)</b>:<code>pool(t) = min(seed + cum_increment − opened_watermark, THRESHOLD)</code>。永不重置 → 每 round 減去該 round 的 watermark 得淨增量,讓池值合成是純函數、可任意時點重算 —— 這正是它永不重置的設計理由。</li>
+      <li><b>用途 2(全損重建 / 對帳)</b>:「state = 上一筆 win 的 seed 錨點 + round_seq + input watermark + CDC 重放」;ReconciliationJob 比對 Valkey vs DB。</li>
+    </ul>
+    <div class="ask"><b>問法建議:</b>「單調遞增的 input 除了(a)配合 watermark 合成當下池值、(b)當全損重建/對帳錨點,還有沒有其他預期用途(例如報表、累積 turnover 趨勢)?」—— (a)(b) 規格已明載,其他用途規格未提。 <span class="ref">index.html:566-567, 779, 759, 883</span></div>
+  </div>
+
+  <!-- ===== A-Q4.1 ===== -->
+  <div class="qa author" id="a41">
+    <div class="q author"><span class="num">A-Q4.1</span>opened_increment_watermark_microcents 是「超過此值才可啟動派彩」嗎?<span class="verdict v-no">依規格:不是</span></div>
+    <p>根據規格,<b>它不是派彩門檻,而是池值合成的減項基準點</b>:</p>
+    <ul>
+      <li>定義:「開啟當下 cum_increment 錨點 — <b>池值合成公式用</b>」。</li>
+      <li>公式裡它是被減掉的項:<code>seed + cum_increment(t) − opened_watermark</code>,作用是扣掉 round 開啟前累積的 input,讓池值從 seed 起漲。</li>
+      <li>派彩<b>觸發</b> = GE 判定中獎 + GS 呼叫 SettleWin,與 watermark 無關;派彩<b>金額</b> = SettleEngine 讀當下合成池值。</li>
+    </ul>
+    <div class="ask"><b>問法建議(用結論確認理解):</b>「我理解 <code>opened_increment_watermark</code> 只是池值合成的基準減項、不是派彩門檻,對嗎?」 <span class="ref">index.html:1037, 759, 724, 846, 729</span></div>
+  </div>
+
+  <!-- ===== A-Q4.2 ===== -->
+  <div class="qa author" id="a42">
+    <div class="q author"><span class="num">A-Q4.2</span>cum_increment(t) 永遠累積不重置?中獎 / cap reset 也不重置?</div>
+    <p><b>字面上:是。</b>規格白紙黑字「<code>cum_increment</code> 單調遞增、永不重置」—— 中獎 reset、撞 cap reset,<code>input</code> key 都不歸零。</p>
+    <p>那「reset」reset 的是什麼?evidence 顯示 reset 的是<b>池值(合成值)</b>,靠<b>推進 watermark</b>,不是動 <code>input</code>:</p>
+    <ul>
+      <li>中獎結算:「讀當下池值 = 派彩金額 → reset 到 seed」。</li>
+      <li>撞頂:「池達 THRESHOLD → reset、溢位補進 seed」。</li>
+      <li>每次開新 round 記一個新的 <code>opened_increment_watermark</code>、<code>round_seq++</code>。</li>
+    </ul>
+    <div class="note"><b>我的推論(非規格明文):</b>reset 機制應為「開新 round + 把新 round 的 <code>opened_watermark</code> 設成當下 <code>cum_increment</code>」→ 公式 <code>cum_increment − opened_watermark</code> 又從 ~0 起算 → 池值回到 seed。input 本身持續累加不動 —— input 是單調全域計數器,reset 只是移動基準線。</div>
+    <div class="warn"><b>規格缺口:</b>規格<b>沒有</b>把「reset 時 watermark 如何被設定/推進」寫成明確步驟。SettleEngine 的 Lua 只寫「reset 到 seed」,沒說它同時更新 watermark 或開新 round 的時序;Lua reset 與 <code>RotateJackpotRound</code> 寫新 watermark 之間的耦合未明。</div>
+    <div class="ask"><b>問法建議:</b>「<code>cum_increment</code> 永不重置,那中獎/撞 cap 的『reset 到 seed』是靠推進新 round 的 <code>opened_watermark</code> 到當下 cum_increment 值來達成的嗎?此 watermark 更新是在 SettleEngine 的 Lua 裡一起做,還是在 <code>RotateJackpotRound</code>?兩者若不同步(Lua 已 reset 但 round 未 rotate),中間的池值合成會是什麼?」 <span class="ref">index.html:779, 729, 851, 712, 804, 867, 1037</span></div>
+  </div>
+
+  <div class="footer">
+    Super Gems Jackpot · Q&A · 依 <a href="./index.html">v4.0 規劃</a>整理 · CampaignServer Team
+  </div>
+
+</div>
+</body>
+</html>
