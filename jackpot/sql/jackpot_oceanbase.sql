@@ -4,7 +4,7 @@
 -- Valkey 是投影;真相在此,恢復與稽核都從這裡出發。
 -- 通則:utf8mb4 / utf8mb4_unicode_ci。
 -- 時間欄位:一律 TIMESTAMP(3),值為 UTC(應用層負責寫入)。
---   created_at = TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;
+--   created_at = TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3);
 --   updated_at / 事件時間 = TIMESTAMP(3) NULL(依語意)。
 -- 主鍵慣例:ObjectId 命名 id(VARCHAR(24));自增序號命名 sn;唯一性用 UNIQUE。
 -- FX:不建 jackpot 匯率表,用既有 currency.fixed_rate。
@@ -29,7 +29,7 @@ CREATE TABLE `jackpot_round` (
   `clamp_overflow_microcents`             BIGINT UNSIGNED  NULL     COMMENT '觸頂溢出累計(對帳公式顯式項,唯一記錄點)',
   `opened_at`                             TIMESTAMP(3)     NOT NULL COMMENT 'UTC',
   `closed_at`                             TIMESTAMP(3)     NULL     COMMENT 'UTC',
-  `created_at`                            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC(貼 OB 表慣例;規格僅列 opened_at/closed_at)',
+  `created_at`                            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC(貼 OB 表慣例;規格僅列 opened_at/closed_at)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pool_tier_seq` (`pool_group_id`, `tier`, `round_seq`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -49,7 +49,7 @@ CREATE TABLE `accounting_jackpot` (
   `win_amount_usd_cents`         BIGINT UNSIGNED  NOT NULL COMMENT '中獎金額(USD)=本服務原子結算值(server 為準);須併入 total win',
   `win_amount_local_cents`       BIGINT UNSIGNED  NOT NULL COMMENT '當地幣別金額(結算當下以 currency.fixed_rate 換算一次,不可重算)',
   `pool_value_at_hit_microcents` BIGINT UNSIGNED  NOT NULL COMMENT '結算當下池值(micro-cents 精度來源;win_amount=此值÷1e6 floor)',
-  `created_at`                   TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC。無 payout_status',
+  `created_at`                   TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC。無 payout_status',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pool_tier_accounting` (`pool_group_id`, `tier`, `accounting_id`),
   KEY `ix_round_id` (`round_id`),
@@ -67,7 +67,7 @@ CREATE TABLE `jackpot_daily_increment` (
   `rate_date`             DATE             NOT NULL COMMENT 'UTC 日界',
   `source_turnover_cents` BIGINT UNSIGNED  NOT NULL COMMENT '前一日 turnover(USD cents);以 currency.fixed_rate 換算(無版本欄位)',
   `increment_microcents`  BIGINT UNSIGNED  NOT NULL COMMENT '當日總增量 = turnover × 累積速率(contribution_rate_ppm)',
-  `created_at`            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC',
+  `created_at`            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC',
   PRIMARY KEY (`sn`),
   UNIQUE KEY `uq_pool_tier_date` (`pool_group_id`, `tier`, `rate_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

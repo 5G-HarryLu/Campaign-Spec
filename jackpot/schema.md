@@ -15,7 +15,7 @@
 - 字元集：`utf8mb4` / `utf8mb4_unicode_ci`
 - **時間欄位**（MCP 實測兩庫慣例）：
   - **MySQL**：`TIMESTAMP`。`explicit_defaults_for_timestamp = ON`,`TIMESTAMP NOT NULL` 無隱式 `DEFAULT`/`ON UPDATE`。`created_at` = `TIMESTAMP NOT NULL`(無 default);`updated_at` = `TIMESTAMP NULL`。
-  - **OceanBase**：`TIMESTAMP(3)`。`created_at` = `TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`;`updated_at` = `TIMESTAMP(3) NULL`。
+  - **OceanBase**：`TIMESTAMP(3)`。`created_at` = `TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)`(⚠ 精度須匹配 `(3)`,否則 OceanBase 報 1067 Invalid default value);`updated_at` = `TIMESTAMP(3) NULL`。
   - 其餘事件時間(`opened_at`/`closed_at`…)依語意 NULL / NOT NULL;值一律 **UTC**,應用層寫入。`rate_date` 為 `DATE`,不套用。
 - 金額精度：ppm（累積速率/RTP）、ppb（FX）、micro-cents（池值,= USD cent × 10⁻⁶）、cents（一般金額）；全整數
 - 主鍵慣例（five_game）：ObjectId 命名 `id`(`VARCHAR(24)`)、自增序號命名 `sn`(`BIGINT UNSIGNED AI`);唯一性用 UNIQUE,不以資料欄位當 PK
@@ -136,7 +136,7 @@ CREATE TABLE `jackpot_round` (
   `clamp_overflow_microcents`              BIGINT UNSIGNED  NULL     COMMENT '觸頂溢出累計(對帳公式顯式項,唯一記錄點)',
   `opened_at`                              TIMESTAMP(3)     NOT NULL COMMENT 'UTC',
   `closed_at`                              TIMESTAMP(3)     NULL     COMMENT 'UTC',
-  `created_at`                             TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC(貼 OB 表慣例補上;規格僅列 opened_at/closed_at)',
+  `created_at`                             TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC(貼 OB 表慣例補上;規格僅列 opened_at/closed_at)',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pool_tier_seq` (`pool_group_id`, `tier`, `round_seq`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -157,7 +157,7 @@ CREATE TABLE `accounting_jackpot` (
   `win_amount_usd_cents`         BIGINT UNSIGNED  NOT NULL COMMENT '中獎金額(USD)=本服務原子結算值(server 為準);須併入 total win',
   `win_amount_local_cents`       BIGINT UNSIGNED  NOT NULL COMMENT '當地幣別金額(結算當下以 currency.fixed_rate 換算一次,不可重算)',
   `pool_value_at_hit_microcents` BIGINT UNSIGNED  NOT NULL COMMENT '結算當下池值(micro-cents 精度來源;win_amount=此值÷1e6 floor)',
-  `created_at`                   TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC。無 payout_status:SettleWin 同步結算、GS 當場賠付',
+  `created_at`                   TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC。無 payout_status:SettleWin 同步結算、GS 當場賠付',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_pool_tier_accounting` (`pool_group_id`, `tier`, `accounting_id`),
   KEY `ix_round_id` (`round_id`),
@@ -176,7 +176,7 @@ CREATE TABLE `jackpot_daily_increment` (
   `rate_date`             DATE             NOT NULL COMMENT 'UTC 日界',
   `source_turnover_cents` BIGINT UNSIGNED  NOT NULL COMMENT '前一日 turnover(USD cents);以 currency.fixed_rate 換算(無版本欄位)',
   `increment_microcents`  BIGINT UNSIGNED  NOT NULL COMMENT '當日總增量 = turnover × 累積速率(contribution_rate_ppm)',
-  `created_at`            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'UTC',
+  `created_at`            TIMESTAMP(3)     NOT NULL DEFAULT CURRENT_TIMESTAMP(3) COMMENT 'UTC',
   PRIMARY KEY (`sn`),
   UNIQUE KEY `uq_pool_tier_date` (`pool_group_id`, `tier`, `rate_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -223,7 +223,7 @@ db.jackpot_pool_snapshot.createIndex(
 
 ## 備註與待確認
 
-- **時間欄位型別**：MCP 實測兩庫慣例對齊 —— MySQL `TIMESTAMP`(`explicit_defaults_for_timestamp=ON`,無隱式 ON UPDATE);OceanBase `TIMESTAMP(3)`;`created_at` 於 OB 帶 `DEFAULT CURRENT_TIMESTAMP`、MySQL 不帶;`updated_at` 兩庫皆 `NULL` 可空無 default。
+- **時間欄位型別**：MCP 實測兩庫慣例對齊 —— MySQL `TIMESTAMP`(`explicit_defaults_for_timestamp=ON`,無隱式 ON UPDATE);OceanBase `TIMESTAMP(3)`;`created_at` 於 OB 帶 `DEFAULT CURRENT_TIMESTAMP(3)`(精度須匹配 (3),否則 1067)、MySQL 不帶;`updated_at` 兩庫皆 `NULL` 可空無 default。
 - **`jackpot_round.created_at`（偏離規格）**：規格 round 表僅 `opened_at`/`closed_at`;為對齊現有 OB 表慣例補上 `created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`。
 - **`accounting_jackpot` 身分欄位**：規格明定 operator/member/game/幣別 **不存本表,join `accounting`**。若報表效能需要反正規化,帶回討論。
 - **DB 現有表命名不一致(重要)**：MySQL 目前實際存在的表名為 `jackpot_group` / `jackpot_group_game` / `jackpot_group_operator` / `jackpot_group_setting`,與規格 `jackpot_pool_group` / `jackpot_game_mapping` / `jackpot_operator_setting` / `jackpot_config` **不同**,且欄位有出入;需與 DBA 對齊命名與欄位。`jackpot_admin_audit` 在 DB 尚未建立。
