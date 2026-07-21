@@ -87,8 +87,9 @@
   <h1>Jackpot Service — 開發任務清單</h1>
   <div class="sub">「本服務」= Jackpot Service。依 v4.0 規劃拆解本服務需實作的工作項</div>
   <p class="lede">
-    範圍 = <b>Jackpot service 自己要寫的東西</b>;跨團隊工作(DAL 14 rpc 實作、GS SettleWin caller / 賠付、msg-center 路由)僅以 <span class="tag" style="background:rgba(224,108,90,.14);color:var(--danger);border:1px solid rgba(224,108,90,.4)">BLOCKER</span> 標記依賴。
-    v2 關鍵改動:①<b>入池為每日批次 + 盤中漸進注入</b>(非逐筆即時);②中獎表 <b>accounting_jackpot</b>(原 jackpot_win,無 payout 狀態機);③<b>snapshot 移 MongoDB</b> 本服務直連;④FX 用既有 <code>currency.fixed_rate</code>,無 jackpot_fx_rate。
+    範圍 = <b>Jackpot service 自己要寫的東西</b>;跨團隊工作(config-plane DAL 已建、data-plane DAL 待建、GS SettleWin caller / 賠付、msg-center 路由)僅以 <span class="tag" style="background:rgba(224,108,90,.14);color:var(--danger);border:1px solid rgba(224,108,90,.4)">BLOCKER</span> 標記依賴。
+    v3 對照 Valhalla 實作:Ch06 共 <b>16 支 rpc</b> = <b>config-plane 8 支(DAL 已建)</b> + <b>data-plane 8 支(DAL 待建)</b>。DB 已建於 dev_five_game(<code>jackpot_group</code> 系列)/ five_game_trans;稽核由 DAL <code>jackpot_group_change_log</code> 承載;無 status 欄(停用但不刪確認不需要);FX 用既有 <code>currency.fixed_rate</code>。
+    其餘設計:①入池為每日批次 + 盤中漸進注入;②中獎表 <b>accounting_jackpot</b>(無 payout 狀態機);③snapshot 在 MongoDB 本服務直連。
     DB 模型見 <a href="./index.html#p5">Ch05</a>、契約見 <a href="./index.html#p6">Ch06</a>。勾選狀態存於瀏覽器 localStorage。
   </p>
 
@@ -97,7 +98,7 @@
   </div>
 
   <div class="legend">
-    <span class="chip"><span class="sw t-rpc" style="background:var(--violet)"></span>消費的 DAL rpc(DAL 提供,共 14)</span>
+    <span class="chip"><span class="sw t-rpc" style="background:var(--violet)"></span>DAL rpc(config-plane 8 已建 + data-plane 8 待建)</span>
     <span class="chip"><span class="sw" style="background:var(--emerald)"></span>Ch05 DB 表 / MongoDB</span>
     <span class="chip"><span class="sw" style="background:var(--gold)"></span>Valkey key</span>
     <span class="chip"><span class="sw" style="background:var(--danger)"></span>跨團隊 BLOCKER</span>
@@ -115,15 +116,15 @@
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">引入 jackpot.proto 的 DAL client(14 rpc)</div>
-      <div class="td">本服務作為 caller 消費 DAL 的 14 個 rpc(Config 讀1/寫4、Audit1、Round2、Win2、素材對帳4)。</div>
-      <div class="meta"><span class="tag t-rpc">jackpot.proto ×14</span><span class="tag t-ref">Ch06</span></div>
-      <div class="blocker"><b>BLOCKER:</b>14 rpc 由 <b>DAL 團隊</b>實作提供;本服務只負責 client 串接。</div>
+      <div class="tt">引入 DAL client(16 rpc:config-plane 8 已建 + data-plane 8 待建)</div>
+      <div class="td">config-plane 8 支已在 Valhalla(<code>JackpotGroupService</code> 6 + <code>CurrencyService</code> 2)—— 本服務只讀。data-plane 8 支(Round 2、Win 2、素材對帳 4)為<b>本服務 ↔ DAL runtime 提案,DAL 待建</b>。</div>
+      <div class="meta"><span class="tag t-rpc">config ×8(已建) + data-plane ×8(待建)</span><span class="tag t-ref">Ch06</span></div>
+      <div class="blocker"><b>BLOCKER:</b>data-plane 8 支 DAL 尚未建(DAL「後台先串」);本服務規劃契約待 DAL 實作。</div>
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">確立 Valkey key 拓撲與單寫者規則</div>
-      <div class="td"><code>config:{pool}</code>、<code>state:{pool}:{tier}</code>、<code>input:{pool}:{tier}</code> — <b>三把都由本服務寫</b>(v2:input 改由本服務盤中注入,非 DAL)。key 命名用 hash tag <code>{pool:tier}</code> 防未來 cluster CROSSSLOT。</div>
+      <div class="td"><code>config:{pool}</code>、<code>state:{pool}:{tier}</code>、<code>input:{pool}:{tier}</code> — <b>三把都由本服務寫</b>(input 由本服務盤中注入,非 DAL)。key 命名用 hash tag <code>{pool:tier}</code> 防未來 cluster CROSSSLOT。</div>
       <div class="meta"><span class="tag t-key">config / state / input</span><span class="tag t-ref">Ch02 · Ch04</span></div>
     </div></label>
 
@@ -136,48 +137,43 @@
 
   <!-- ============ M1 ConfigSync ============ -->
   <div class="group">
-    <h2><span class="idx">M1</span>ConfigSync — 設定投影</h2>
-    <p class="gdesc">後台改動 → 本服務把 config / operator RTP 投影進 Valkey。config 就地更新不留版本(變更軌跡由 admin_audit before/after)。</p>
+    <h2><span class="idx">M1</span>ConfigSync — 設定投影(config-plane 已由 DAL 建好)</h2>
+    <p class="gdesc">config-plane 8 支 rpc <b>DAL 已建</b>(後台直接串 Valhalla),本服務只需<b>讀出投影進 Valkey</b>。config 就地更新不留版本(稽核由 DAL 的 <code>jackpot_group_change_log</code> before/after 承載,不在本 spec)。</p>
 
     <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">ConfigSync:拉 config 投影到 <code>config:{pool}</code></div>
-      <div class="td">呼叫 <code>SyncJackpotPools</code> 取 pool + games + operator_settings(含 disabled)+ 各 tier 最新 config,寫進 Valkey。⚠ operator 量大時以 page_token 分段拉取。</div>
-      <div class="meta"><span class="tag t-rpc">SyncJackpotPools</span><span class="tag t-key">config:{pool}</span><span class="tag t-tbl">jackpot_pool_group / _game_mapping / _operator_setting / _config</span></div>
+      <div class="tt">ConfigSync:讀群組設定投影到 <code>config:{pool}</code></div>
+      <div class="td">呼叫 Valhalla <code>JackpotGroupService</code> 的 <code>GetJackpotGroup</code> / <code>GetJackpotGroupPageList</code> 取 group + games + operators + 各 tier setting,寫進 Valkey。</div>
+      <div class="meta"><span class="tag t-rpc">GetJackpotGroup / GetJackpotGroupPageList</span><span class="tag t-key">config:{pool}</span><span class="tag t-tbl">jackpot_group / _game / _operator / _setting</span></div>
+      <div class="blocker"><b>已建(非本服務寫):</b>config-plane 6 支(Get/Upsert Group、Get/Upsert OperatorTier、Any、PageList)+ 匯率 2 支由 <b>DAL/後台</b>負責;本服務只讀投影。</div>
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">投影 by-operator×tier RTP(餵 GE 的 Prob=RTP/Price)</div>
-      <div class="td">將 <code>rtp_ppm_by_tier_json</code> 投影。<b>兩把獨立旋鈕</b>:入池 <code>contribution_rate_ppm</code>(config)≠ 中獎 RTP(operator_setting),不校核。</div>
-      <div class="meta"><span class="tag t-tbl">jackpot_operator_setting.rtp_ppm_by_tier_json</span><span class="tag t-ref">Ch04 · Ch05</span></div>
+      <div class="td">讀 <code>GetJackpotGroupOperatorTier</code> / <code>jackpot_group_operator.tier_rtp_json</code>(JSON)投影。<b>兩把獨立旋鈕</b>:入池 <code>contribution_rate</code>(setting,DECIMAL)≠ 中獎 RTP(operator),不校核。</div>
+      <div class="meta"><span class="tag t-rpc">GetJackpotGroupOperatorTier</span><span class="tag t-tbl">jackpot_group_operator.tier_rtp_json</span><span class="tag t-ref">Ch04 · Ch05</span></div>
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">後台寫入代理:Backoffice → 本服務 → DAL(4 個 config 寫 rpc)</div>
-      <div class="td">代理 <code>UpsertJackpotPoolGroup</code> / <code>UpsertJackpotGameMapping</code> / <code>SetJackpotOperatorEnabled</code> / <code>UpsertJackpotConfig</code>;皆帶 idempotency_key、CAS。server 端驗證(如 win_count_quota 不可 &lt; 現行剩餘 n,260715-5c)。</div>
-      <div class="meta"><span class="tag t-rpc">Upsert*/Set* ×4</span><span class="tag t-ref">Ch06</span></div>
-    </div></label>
-
-    <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">FX:讀既有 <code>currency.fixed_rate</code>(非本契約)</div>
-      <div class="td">v2 不建 jackpot_fx_rate;結算與日終換算皆以平台既有 <code>currency.fixed_rate</code>(1 USD = 多少該幣值),記憶體快取。</div>
-      <div class="meta"><span class="tag t-ref">currency.fixed_rate</span></div>
+      <div class="tt">FX:讀既有 <code>currency.fixed_rate</code>(平台既有服務)</div>
+      <div class="td">不建 jackpot 匯率表;結算與日終換算皆以平台既有 <code>currency.fixed_rate</code>(1 USD = 多少該幣值),記憶體快取。後台匯率維護走 Valhalla <code>CurrencyService</code>(2 支,DAL 已建)。</div>
+      <div class="meta"><span class="tag t-rpc">GetCurrencyFixedRatePageList / UpdateCurrencyFixedRate</span><span class="tag t-ref">currency.fixed_rate</span></div>
     </div></label>
   </div>
 
   <!-- ============ M2 每日增量 + 盤中注入 ============ -->
   <div class="group">
     <h2><span class="idx">M2</span>DailyIncrementJob + PoolTicker — 每日增量與盤中注入</h2>
-    <p class="gdesc">v2 核心:昨日 turnover 定今日總增量 → 盤中按排程規則漸進注入 <code>input</code> → 注入後的值即 Price → tick 交 msg-center。</p>
+    <p class="gdesc">核心:昨日 turnover 定今日總增量 → 盤中按排程規則漸進注入 <code>input</code> → 注入後的值即 Price → tick 交 msg-center。</p>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">DailyIncrementJob:取昨日 turnover 並算今日總增量</div>
-      <div class="td">呼叫 <code>GetJackpotPoolDailyTurnover</code>(各幣別彙總,+0 tz,交集過濾)→ <code>turnover × fx(currency.fixed_rate)→ USD × contribution_rate_ppm = 今日總增量</code>。低於 <code>min_per_day_cents</code> 以 floor 計。</div>
-      <div class="meta"><span class="tag t-rpc">GetJackpotPoolDailyTurnover</span><span class="tag t-tbl">jackpot_config.contribution_rate_ppm / min_per_day_cents</span></div>
+      <div class="td">呼叫 <code>GetJackpotPoolDailyTurnover</code>(各幣別彙總,+0 tz,交集過濾)→ <code>turnover × fx(currency.fixed_rate)→ USD × contribution_rate = 今日總增量</code>。低於 <code>min_contributing_floor_cents</code> 以 floor 計。</div>
+      <div class="meta"><span class="tag t-rpc">GetJackpotPoolDailyTurnover</span><span class="tag t-tbl">jackpot_group_setting.contribution_rate / min_contributing_floor_cents</span></div>
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">落 daily_increment:<code>UpsertJackpotDailyIncrement</code>(PK 冪等,先 DB 後 Valkey)</div>
-      <div class="td">PK(pool,tier,rate_date) 冪等、可重跑;記 source_turnover / increment。first-write-wins,遲到 CDC 不回溯。</div>
+      <div class="tt">落 daily_increment:<code>UpsertJackpotDailyIncrement</code>(冪等,先 DB 後 Valkey)</div>
+      <div class="td">UNIQUE(group,tier,rate_date) 冪等、可重跑(sn 為 PK);記 source_turnover / increment。first-write-wins,遲到 CDC 不回溯。</div>
       <div class="meta"><span class="tag t-rpc">UpsertJackpotDailyIncrement</span><span class="tag t-tbl">jackpot_daily_increment</span></div>
     </div></label>
 
@@ -190,8 +186,8 @@
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">PoolTicker:讀池值 → tick 交 msg-center(≥5s)</div>
-      <div class="td">讀 <code>input</code>/合成池值,tick 交 msg-center 由其 SSE 推 client(前端 ≥5s 更新一次)。tick 走 Redis pub/sub(狀態型、可掉)。依 <code>roll_range_json</code> 供顯示滾動 range。</div>
-      <div class="meta"><span class="tag t-tbl">jackpot_config.roll_range_json</span><span class="tag t-ref">Ch03</span></div>
+      <div class="td">讀 <code>input</code>/合成池值,tick 交 msg-center 由其 SSE 推 client(前端 ≥5s 更新一次)。tick 走 Redis pub/sub(狀態型、可掉)。<b>v3:roll_range 已確認不需要</b>,前端平滑自行處理。</div>
+      <div class="meta"><span class="tag t-ref">Ch03</span></div>
       <div class="blocker"><b>BLOCKER:</b>SSE long connection 與跑馬燈由 <b>msg-center / msg-center-sse</b> 承載(見 Ch04 容量規劃)。</div>
     </div></label>
 
@@ -205,7 +201,7 @@
   <!-- ============ M3 SettleEngine ============ -->
   <div class="group">
     <h2><span class="idx">M3</span>SettleEngine — 中獎結算(核心)</h2>
-    <p class="gdesc">GE 判定誰中、本服務原子決定拿多少。本服務提供 <code>SettleWin</code> gRPC + Lua 原子結算 + 落帳。v2:同步結算當場賠付,<b>無 payout 狀態機</b>。</p>
+    <p class="gdesc">GE 判定誰中、本服務原子決定拿多少。本服務提供 <code>SettleWin</code> gRPC + Lua 原子結算 + 落帳。同步結算當場賠付,<b>無 payout 狀態機</b>。</p>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">提供 <code>SettleWin</code> gRPC(本服務對 GS 的入口)</div>
@@ -240,7 +236,7 @@
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">派彩協作(GS 賠付,無本服務狀態機)</div>
-      <div class="td">v2 無 payout_status FSM:SettleWin 同步結算、GS 當場賠付;spin 回應 <code>jackpot_credit_status = credited|pending</code>。本服務不維護派彩狀態,靠 credit⟷accounting_jackpot 對帳兜底。</div>
+      <div class="td">無 payout_status FSM:SettleWin 同步結算、GS 當場賠付;spin 回應 <code>jackpot_credit_status = credited|pending</code>。本服務不維護派彩狀態,靠 credit⟷accounting_jackpot 對帳兜底。</div>
       <div class="meta"><span class="tag t-ref">Ch04 step04 · Ch05 accounting_jackpot</span></div>
       <div class="blocker"><b>BLOCKER:</b>wallet credit 由 <b>GS</b> 執行且須以 win_id DB UNIQUE 去重(前置 blocker);GS↔DAL credit 事件需補 accounting_id+win_id+tier(<b>GameService.Credit,非本契約</b>)。</div>
     </div></label>
@@ -262,17 +258,17 @@
   <!-- ============ M5 Snapshot(MongoDB) ============ -->
   <div class="group">
     <h2><span class="idx">M5</span>Snapshot — 彩金滾動紀錄(MongoDB 直連)</h2>
-    <p class="gdesc">v2:snapshot 移 MongoDB,本服務<b>直寫直讀(不經 DAL)</b>,TTL index 解保留期。權威仍是 round / daily_increment / accounting_jackpot。</p>
+    <p class="gdesc">snapshot 在 MongoDB,本服務<b>直寫直讀(不經 DAL)</b>,TTL index 解保留期。權威仍是 round / daily_increment / accounting_jackpot。</p>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">每分鐘寫 jackpot_pool_snapshot(MongoDB)</div>
-      <div class="td">寫合成 value_microcents + quota_remaining + round_id;唯一索引 (pool_group_id, tier, snapshot_at) 冪等 + TTL index(snapshot_at,如 90 天)。每 pool×tier 每日 ~1,440 筆。</div>
+      <div class="td">寫合成 value_microcents + quota_remaining + round_id;唯一索引 (jackpot_group_id, tier, snapshot_at) 冪等 + TTL index(snapshot_at,如 90 天)。每 group×tier 每日 ~1,440 筆。</div>
       <div class="meta"><span class="tag t-mongo">MongoDB jackpot_pool_snapshot</span><span class="tag t-ref">Ch05</span></div>
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">滾動紀錄讀取(MongoDB 直讀)</div>
-      <div class="td">後台「彩金滾動紀錄」頁(260701-3)一次列 GRAND/MAJOR;複合索引 (pool_group_id, tier, snapshot_at) 查詢;取最新 = 恢復加速。</div>
+      <div class="td">後台「彩金滾動紀錄」頁(260701-3)一次列 GRAND/MAJOR;複合索引 (jackpot_group_id, tier, snapshot_at) 查詢;取最新 = 恢復加速。</div>
       <div class="meta"><span class="tag t-mongo">MongoDB 直讀</span></div>
     </div></label>
   </div>
@@ -296,7 +292,7 @@
 
     <label class="task"><input type="checkbox"><div class="body">
       <div class="tt">Valkey 全損重建(純函數,需演練)</div>
-      <div class="td">state = 上一筆 win 的 seed 錨點 + round_seq;<b>input = Σ daily_increment + 當日已注入進度</b>(v2:非 CDC 重放)。啟動以 <code>GetOpenJackpotRounds</code> 取開放回合、quota = quota_remaining_at_open − count(wins in round)。</div>
+      <div class="td">state = 上一筆 win 的 seed 錨點 + round_seq;<b>input = Σ daily_increment + 當日已注入進度</b>(非 CDC 重放)。啟動以 <code>GetOpenJackpotRounds</code> 取開放回合、quota = quota_remaining_at_open − count(wins in round)。</div>
       <div class="meta"><span class="tag t-rpc">GetOpenJackpotRounds / GetJackpotDailyIncrements</span><span class="tag t-key">state / input</span></div>
     </div></label>
   </div>
@@ -313,14 +309,15 @@
     </div></label>
 
     <label class="task"><input type="checkbox"><div class="body">
-      <div class="tt">稽核檢視:<code>ListJackpotAdminAudits</code></div>
-      <div class="td">7 個受稽核 rpc 的變更軌跡(before/after);config 寫由 DAL 同交易原子附帶,本服務僅提供讀取查詢。config 就地更新無版本,變更軌跡靠 audit。</div>
-      <div class="meta"><span class="tag t-rpc">ListJackpotAdminAudits</span><span class="tag t-tbl">jackpot_admin_audit</span></div>
+      <div class="tt">後台編輯稽核 — 由 DAL 統一處理(非本服務)</div>
+      <div class="td">v3:config 就地更新的變更軌跡(before/after)由 <b>DAL 自建的 <code>jackpot_group_change_log</code></b> 承載(sn / jackpot_group_id / before_data·after_data JSON / updater_id / updated_at),平台既有機制,<b>不在本 spec、無本服務 rpc</b>。</div>
+      <div class="meta"><span class="tag t-tbl">jackpot_group_change_log(DAL 自建)</span><span class="tag t-ref">Ch05</span></div>
+      <div class="blocker"><b>DAL 負責:</b>後台編輯稽核 log 由 DAL 團隊統一處理,本服務不實作。</div>
     </div></label>
   </div>
 
   <div class="note">
-    <b>不在本服務範圍(跨團隊,僅依賴):</b>① DAL 團隊實作 jackpot.proto 全 14 rpc(本服務為 caller);② GS 實作 SettleWin caller、win_id 推導、spin pending 標記、錢包 credit(win_id UNIQUE 去重)、跑馬燈事件發送;③ GS↔DAL 補 GameService.Credit 欄位(accounting_id+win_id+tier);④ msg-center 定案 event_type enum 值、poll outbox_msg、承載 SSE / msg-center-sse 分片輪掃;⑤ GE 側 Price/RTP feed 與 Prob=RTP/Price 計算;⑥ GameServer 側 game_math + MathFeatureFlags 遷移。<b>待討論:</b>盤中注入頻率與數值決定方式(規格待定)。細節見 <a href="./index.html">規格</a>與 <a href="./qa.html">Q&amp;A</a>。
+    <b>不在本服務範圍(跨團隊,僅依賴):</b>① config-plane 8 支 DAL 已建(後台直接串)、data-plane 8 支 DAL 待建(本服務為 caller);② 後台編輯稽核 log 由 DAL <code>jackpot_group_change_log</code> 統一處理;③ GS 實作 SettleWin caller、win_id 推導、spin pending 標記、錢包 credit(win_id UNIQUE 去重)、跑馬燈事件發送;④ GS↔DAL 補 GameService.Credit 欄位(accounting_id+win_id+tier);⑤ msg-center 定案 event_type enum 值、poll outbox_msg、承載 SSE / msg-center-sse 分片輪掃;⑥ GE 側 Price/RTP feed 與 Prob=RTP/Price 計算;⑦ GameServer 側 game_math + MathFeatureFlags 遷移(尚未套用)。<b>待討論:</b>盤中注入頻率與數值決定方式(規格待定)。細節見 <a href="./index.html">規格</a>與 <a href="./qa.html">Q&amp;A</a>。
   </div>
 
   <div class="footer">

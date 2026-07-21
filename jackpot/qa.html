@@ -88,7 +88,7 @@
     <b>紀錄(已釐清事實)</b>
     <ol style="counter-reset:none">
       <li><a href="#r1">R1 · 匯率來源 = currency.fixed_rate</a></li>
-      <li><a href="#r2">R2 · 累積速率來源 = jackpot_config.contribution_rate_ppm</a></li>
+      <li><a href="#r2">R2 · 累積速率來源 = jackpot_group_setting.contribution_rate</a></li>
       <li><a href="#r3">R3 · 盤中注入頻率與數值決定方式(待討論)</a></li>
     </ol>
   </div>
@@ -98,11 +98,11 @@
     <div class="q"><span class="num">Q1</span>tick 就是「注入後的池值即 Price」,對吧?<span class="verdict v-yes">是</span></div>
     <p><b>正確。</b>規格把三者畫上等號:注入後的池值 = Price = tick 推給前端的值。</p>
     <ul>
-      <li>Ch03 顯示 tick 卡:「<b>注入後的池值即 Price(顯示=結算)</b>」緊接「<b>tick → msg-center SSE(≥5s)</b>」。<span class="ref">index.html:775-776</span></li>
-      <li>Ch02 / Ch03 lede:「盤中…漸進注入池值 — <b>注入後的值即 Price,顯示與結算共用</b>」。<span class="ref">index.html:488, 742</span></li>
-      <li>Ch02b 序列:分次 INCRBY <code>input:{pool}:{tier}</code>,「注入後的值就是 Price」;tick =「讀池值」交 msg-center。<span class="ref">index.html:692, 697</span></li>
+      <li>Ch03 顯示 tick 卡:「<b>注入後的池值即 Price(顯示=結算)</b>」緊接「<b>tick → msg-center SSE(≥5s)</b>」。<span class="ref">index.html:780</span></li>
+      <li>Ch02 / Ch03 lede:「盤中…漸進注入池值 — <b>注入後的值即 Price,顯示與結算共用</b>」。<span class="ref">index.html:492, 746</span></li>
+      <li>Ch02b 序列:分次 INCRBY <code>input:{pool}:{tier}</code>,「注入後的值就是 Price」。<span class="ref">index.html:696</span></li>
     </ul>
-    <div class="note"><b>精確度提醒:</b>tick 是「讀池值」去推,前端 <b>≥5s 才更新一次</b>。概念上 tick=注入後池值=Price 成立;實務上前端看到的是有節流(≥5s)的 Price 快照,不是即時同步。 <span class="ref">index.html:697, 776</span></div>
+    <div class="note"><b>精確度提醒:</b>tick 是「讀池值」去推,前端 <b>≥5s 才更新一次</b>。概念上 tick=注入後池值=Price 成立;實務上前端看到的是有節流(≥5s)的 Price 快照,不是即時同步。 <span class="ref">index.html:780</span></div>
   </div>
 
   <!-- ===== Q2 ===== -->
@@ -112,9 +112,9 @@
     <div class="flow">先到者 Lua:讀當下池值 = 派彩金額 → reset 到 seed → quota−−
 後到者 Lua:讀到的已是「reset 後的 seed」= 派彩金額(非第一筆的滿池)</div>
     <ul>
-      <li>「序列化在單一 key:<b>先到者拿滿池、後到者拿 reset 後 seed</b>」。<span class="ref">index.html:717, 787</span></li>
-      <li>「先到滿池、後到 seed(<b>先到 = 先在本服務執行,非先中獎</b> — 寫進 game info)」。<span class="ref">index.html:854</span></li>
-      <li>Lua 第一動作 <code>SETNX settle:{win_id}</code> 封雙結算窗;Lua 為原子執行。<span class="ref">index.html:826, 838, 854</span></li>
+      <li>「序列化在單一 key:<b>先到者拿滿池、後到者拿 reset 後 seed</b>」。<span class="ref">index.html:721, 791</span></li>
+      <li>「先到滿池、後到 seed(<b>先到 = 先在本服務執行,非先中獎</b> — 寫進 game info)」。<span class="ref">index.html:858</span></li>
+      <li>Lua 第一動作 <code>SETNX settle:{win_id}</code> 封雙結算窗;Lua 為原子執行。<span class="ref">index.html:842, 858</span></li>
     </ul>
     <div class="takeaway"><b>結論:</b>後到的池子數值會是 <b>seed</b>,不是第一筆當下 pool 累積的滿池值 —— 因為第一筆的 Lua 已把池 reset 到 seed,後到的 Lua 讀到的就是 seed。序列化 = Lua 原子 + 操作同一 key,把並發轉成確定的先後序。</div>
   </div>
@@ -125,32 +125,32 @@
   <!-- ===== R1 ===== -->
   <div class="qa rec" id="r1">
     <div class="q rec"><span class="num">R1</span>匯率來源 = currency.fixed_rate</div>
-    <p>根據 <b>currency.fixed_rate</b> 決定「1 USD = 多少該幣值」。v2 <b>不另建 jackpot_fx_rate 表</b>,改用平台既有 <code>currency.fixed_rate</code>。</p>
+    <p>根據 <b>currency.fixed_rate</b> 決定「1 USD = 多少該幣值」。<b>不另建 jackpot 匯率表</b>,改用平台既有 <code>currency.fixed_rate</code>(v3:後台走 Valhalla <code>CurrencyService</code> 的 GetCurrencyFixedRatePageList / UpdateCurrencyFixedRate)。</p>
     <ul>
-      <li>Ch05 lede:「匯率用既有 <code>currency.fixed_rate</code>,不另建表」。<span class="ref">index.html:922</span></li>
-      <li>結算換算:「以 <code>currency.fixed_rate</code> 換算一次(記憶體快取),USD/local 金額寫進 marker」。<span class="ref">index.html:854</span></li>
-      <li>daily_increment:「以 <code>currency.fixed_rate</code> 換算(無版本欄位;需追溯由 currency 側記時間)」。<span class="ref">index.html:1037</span></li>
-      <li>Ch06:「FX 讀既有 <code>currency.fixed_rate</code>(非本契約)」—— 無 FX rpc。<span class="ref">index.html:1067, 1070</span></li>
+      <li>Ch05 lede:「匯率用既有 <code>currency.fixed_rate</code>」。<span class="ref">index.html:926</span></li>
+      <li>結算換算:「以 <code>currency.fixed_rate</code> 換算一次(記憶體快取),USD/local 金額寫進 marker」。<span class="ref">index.html:858</span></li>
+      <li>daily_increment:「以 <code>currency.fixed_rate</code> 換算(無版本欄位;需追溯由 currency 側記時間)」。<span class="ref">index.html:1027</span></li>
+      <li>Ch06 後台·固定匯率:走 Valhalla <code>CurrencyService</code>(2 支,DAL 已建)。<span class="ref">index.html:1188</span></li>
     </ul>
   </div>
 
   <!-- ===== R2 ===== -->
   <div class="qa rec" id="r2">
-    <div class="q rec"><span class="num">R2</span>累積速率來源 = jackpot_config.contribution_rate_ppm</div>
-    <p>公式 <code>turnover × fx → USD × 累積速率 = 今日總增量</code>,其中<b>累積速率取自 <code>jackpot_config.contribution_rate_ppm</code></b>。</p>
+    <div class="q rec"><span class="num">R2</span>累積速率來源 = jackpot_group_setting.contribution_rate</div>
+    <p>公式 <code>turnover × fx → USD × 累積速率 = 今日總增量</code>,其中<b>累積速率取自 <code>jackpot_group_setting.contribution_rate</code></b>(v3:DAL 已定 <code>DECIMAL(18,6)</code>,非 ppm)。</p>
     <ul>
-      <li>Ch05 config 欄位:「<code>contribution_rate_ppm</code>(累積速率 ppm,入池方向,原 rtp_ppm)。<b>與中獎 RTP 是兩個獨立旋鈕</b>,不校核」。<span class="ref">index.html:967</span></li>
-      <li>daily_increment:「<code>increment_microcents</code> = turnover × 累積速率(<code>contribution_rate</code>)」。<span class="ref">index.html:1038</span></li>
+      <li>Ch05 <code>jackpot_group_setting</code> 欄位:「<code>contribution_rate</code> DECIMAL(18,6)(累積速率,入池;<b>與中獎 RTP 是兩個獨立旋鈕</b>,DAL 已定 decimal)」。<span class="ref">index.html:971</span></li>
+      <li>daily_increment:「<code>increment_microcents</code> = turnover × 累積速率(<code>contribution_rate</code>)」。<span class="ref">index.html:1028</span></li>
     </ul>
-    <div class="note"><b>注意兩把獨立旋鈕:</b>入池的 <code>contribution_rate_ppm</code>(jackpot_config)≠ 中獎 RTP(<code>jackpot_operator_setting.rtp_ppm_by_tier_json</code>,餵 GE 算 Prob=RTP/Price)。刻意不校核,營運手動調。 <span class="ref">index.html:955, 967</span></div>
+    <div class="note"><b>注意兩把獨立旋鈕:</b>入池的 <code>contribution_rate</code>(<code>jackpot_group_setting</code>)≠ 中獎 RTP(<code>jackpot_group_operator.tier_rtp_json</code> JSON,餵 GE 算 Prob=RTP/Price)。刻意不校核,營運手動調。 <span class="ref">index.html:958, 971</span></div>
   </div>
 
   <!-- ===== R3 ===== -->
   <div class="qa rec" id="r3">
     <div class="q rec"><span class="num">R3</span>盤中漸進注入的「頻率與數值決定方式」— 待討論</div>
     <p>今日總增量<b>不是一次進池</b>:PoolTicker 按排程規則分次 INCRBY <code>input:{pool}:{tier}</code>,池值一天內漸進長大,注入後的值就是 Price(顯示與結算共用)。</p>
-    <div class="ask"><b>待討論(規格明標未定):</b>注入的<b>頻率與數值決定方式</b>規格寫「<b>每小時 / 線性 / 非線性,規則待定</b>」、比例「待定」。此為<b>尚未定案</b>項,需與作者 / 會議討論後才能定實作。 <span class="ref">index.html:488, 692, 742, 747</span></div>
-    <div class="note"><b>已定的部分:</b>① 落帳先於注入(<code>UpsertJackpotDailyIncrement</code> PK 冪等後才注入);② 注入進度記 <code>last_injected</code> 防重,恰好注滿一次;③ first-write-wins,遲到 CDC 不回溯。 <span class="ref">index.html:1282</span></div>
+    <div class="ask"><b>待討論(規格明標未定):</b>注入的<b>頻率與數值決定方式</b>規格寫「<b>每小時 / 線性 / 非線性,規則待定</b>」、比例「待定」。此為<b>尚未定案</b>項,需與作者 / 會議討論後才能定實作。 <span class="ref">index.html:492, 696, 746</span></div>
+    <div class="note"><b>已定的部分:</b>① 落帳先於注入(<code>UpsertJackpotDailyIncrement</code> 冪等後才注入);② 注入進度另記防重,恰好注滿一次;③ first-write-wins,遲到 CDC 不回溯。 <span class="ref">index.html:1031</span></div>
   </div>
 
   <div class="footer">
