@@ -944,7 +944,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_group_game</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id <span class="badge ix">IX</span></td><td class="ty">VARCHAR(36) NOT NULL</td><td class="ds">彩金群組內碼</td></tr>
           <tr><td class="f">game_id <span class="badge uq">UQ(game_id)</span></td><td class="ty">VARCHAR(12)</td><td class="ds">遊戲編號 — <b>UNIQUE 已建</b>(260709-8 防呆 ✓)。軟刪交互定案:刪群組時同步硬刪 group_game 關聯列(mapping 純關聯),UNIQUE 才不會卡住 game 綁新群組</td></tr>
         </tbody></table></div>
@@ -953,7 +953,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_group_operator</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id / operator_id <span class="badge ix">IX ×2</span></td><td class="ty">VARCHAR(36) ×2</td><td class="ds">群組 × 營運商(有 row 即啟用)</td></tr>
           <tr><td class="f">tier_rtp_json</td><td class="ty">JSON</td><td class="ds"><b>RTP by operator × 獎項</b>(260715-1),如 {"1":9600,"2":9700};餵 GE 算 Prob=RTP/Price。原生 JSON 型別,佳</td></tr>
           <tr><td class="f">updater_id / updated_at</td><td class="ty">VARCHAR(36) / TIMESTAMP</td><td class="ds">更新軌跡</td></tr>
@@ -963,7 +963,7 @@
     <div class="tbl wide">
       <div class="thead"><span class="name">jackpot_group_setting</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id / tier</td><td class="ty">VARCHAR(36) / INT</td><td class="ds">群組 × 彩金等級(1=grand、2=major、3=minor、4=mini,四層 option)。⚠ 建議補 UNIQUE(group,tier) 保證就地更新語意</td></tr>
           <tr><td class="f">version</td><td class="ty">INT DEFAULT 0</td><td class="ds">就地更新的樂觀鎖(不留版本歷史)</td></tr>
           <tr><td class="f">seed_cents</td><td class="ty">BIGINT</td><td class="ds">初始池底(USD cents):中獎/撞頂 reset 回此值。Grand $20k / Major $2k</td></tr>
@@ -1022,7 +1022,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_daily_increment</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(慣例)</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(全域唯一、時間排序)</td></tr>
           <tr><td class="f">jackpot_group_id / tier / rate_date <span class="badge uq">UQ(group,tier,rate_date)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATE</td><td class="ds">UNIQUE 冪等;rate_date 為 UTC 日界</td></tr>
           <tr><td class="f">source_turnover_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">前一日 turnover(USD cents);以 currency.fixed_rate 換算(無版本欄位;需追溯由 currency 側記時間)</td></tr>
           <tr><td class="f">increment_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">當日總增量 = turnover × 累積速率(contribution_rate)</td></tr>
@@ -1033,7 +1033,7 @@
     <div class="tbl wide">
       <div class="thead"><span class="name">jackpot_pool_snapshot</span><span> <span class="badge new">寫入源 = OceanBase</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(append-only 時序,慣例用 sn)</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(append-only 時序,全域唯一且時間排序)</td></tr>
           <tr><td class="f">jackpot_group_id / tier / snapshot_at <span class="badge uq">UQ(group,tier,snapshot_at)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATETIME</td><td class="ds">每 (群組,層,分鐘) 一筆;UNIQUE 冪等</td></tr>
           <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">VARCHAR(24) / BIGINT / INT</td><td class="ds">所屬回合、合成池值(exhausted 由 quota≤0 推導)、剩餘名額</td></tr>
         </tbody></table></div>
