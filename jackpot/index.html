@@ -923,12 +923,12 @@
 <section class="page" id="p5" data-title="資料模型">
   <div class="eyebrow">Chapter 05 — Data Model(v4)</div>
   <h2 class="page-title">冪等靠 DB 約束,恢復靠錨點</h2>
-  <p class="lede">共 <b style="color:var(--text)">8 張表</b>:MySQL 4(config 真值,<b style="color:var(--text)">DAL 已建於 dev_five_game</b>:jackpot_group 系列)+ OceanBase 4(權威帳本 + 時序:round / accounting_jackpot / daily_increment / pool_snapshot)。<b style="color:var(--text)">MongoDB 為 OceanBase 經 DAL binlog 的讀側投影</b>(平台約束:Mongo 不直寫),非獨立設計表。匯率用既有 <code>currency.fixed_rate</code>;config 就地更新,後台編輯 log 由 DAL 統一處理;注單參照用 <code>accounting_id</code>。tier 四層 option,Super Gems 首發開前兩層。</p>
+  <p class="lede">共 <b style="color:var(--text)">8 張表</b>:MySQL 4(config 真值,<b style="color:var(--text)">DAL 已建於 dev_five_game</b>:jackpot_group 系列)+ OceanBase 4(權威帳本 + 時序:round / accounting_jackpot / daily_increment / balance_snapshot)。<b style="color:var(--text)">MongoDB 為 OceanBase 經 DAL binlog 的讀側投影</b>(平台約束:Mongo 不直寫),非獨立設計表。匯率用既有 <code>currency.fixed_rate</code>;config 就地更新,後台編輯 log 由 DAL 統一處理;注單參照用 <code>accounting_id</code>。tier 四層 option,Super Gems 首發開前兩層。</p>
   <div class="divider"></div>
 
   <div class="db-group">
     <h3>MySQL <span class="tag" style="margin-left:8px">config 真值・低頻寫・經 DAL</span></h3>
-    <p class="role">group 為主的設定維度:分別設 operator 與 game,交集才成立(會議定調)。通則:utf8mb4;DAL 用 TIMESTAMP,時區一律 UTC。後台編輯 log 由 DAL 自建的 <code class="k">jackpot_group_change_log</code>(sn / jackpot_group_id / before_data·after_data JSON / updater_id / updated_at)承載,不在下列本服務規劃表內。</p>
+    <p class="role">group 為主的設定維度:分別設 operator 與 game,交集才成立(會議定調)。通則:utf8mb4;DAL 用 TIMESTAMP,時區一律 UTC。後台編輯 log 由 DAL 自建的 <code class="k">jackpot_group_change_log</code>(id / jackpot_group_id / before_data·after_data JSON / updater_id / updated_at)承載,不在下列本服務規劃表內。</p>
     <div class="tables-full">
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_group</span><span> <span class="badge new">DAL 已建</span></span></div>
@@ -944,7 +944,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_group_game</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id <span class="badge ix">IX</span></td><td class="ty">VARCHAR(36) NOT NULL</td><td class="ds">彩金群組內碼</td></tr>
           <tr><td class="f">game_id <span class="badge uq">UQ(game_id)</span></td><td class="ty">VARCHAR(12)</td><td class="ds">遊戲編號 — <b>UNIQUE 已建</b>(260709-8 防呆 ✓)。軟刪交互定案:刪群組時同步硬刪 group_game 關聯列(mapping 純關聯),UNIQUE 才不會卡住 game 綁新群組</td></tr>
         </tbody></table></div>
@@ -953,7 +953,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_group_operator</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id / operator_id <span class="badge ix">IX ×2</span></td><td class="ty">VARCHAR(36) ×2</td><td class="ds">群組 × 營運商(有 row 即啟用)</td></tr>
           <tr><td class="f">tier_rtp_json</td><td class="ty">JSON</td><td class="ds"><b>RTP by operator × 獎項</b>(260715-1),如 {"1":9600,"2":9700};餵 GE 算 Prob=RTP/Price。原生 JSON 型別,佳</td></tr>
           <tr><td class="f">updater_id / updated_at</td><td class="ty">VARCHAR(36) / TIMESTAMP</td><td class="ds">更新軌跡</td></tr>
@@ -963,7 +963,7 @@
     <div class="tbl wide">
       <div class="thead"><span class="name">jackpot_group_setting</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds">內碼 = <b>Snowflake ID</b>(app 產、全域唯一、時間排序;非自增)</td></tr>
           <tr><td class="f">jackpot_group_id / tier</td><td class="ty">VARCHAR(36) / INT</td><td class="ds">群組 × 彩金等級(1=grand、2=major、3=minor、4=mini,四層 option)。⚠ 建議補 UNIQUE(group,tier) 保證就地更新語意</td></tr>
           <tr><td class="f">version</td><td class="ty">INT DEFAULT 0</td><td class="ds">就地更新的樂觀鎖(不留版本歷史)</td></tr>
           <tr><td class="f">seed_cents</td><td class="ty">BIGINT</td><td class="ds">初始池底(USD cents):中獎/撞頂 reset 回此值。Grand $20k / Major $2k</td></tr>
@@ -1022,7 +1022,7 @@
     <div class="tbl">
       <div class="thead"><span class="name">jackpot_daily_increment</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(全域唯一、時間排序)</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(全域唯一、時間排序)</td></tr>
           <tr><td class="f">jackpot_group_id / tier / rate_date <span class="badge uq">UQ(group,tier,rate_date)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATE</td><td class="ds">UNIQUE 冪等;rate_date 為 UTC 日界</td></tr>
           <tr><td class="f">source_turnover_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">前一日 turnover(USD cents);以 currency.fixed_rate 換算(無版本欄位;需追溯由 currency 側記時間)</td></tr>
           <tr><td class="f">increment_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">當日總增量 = turnover × 累積速率(contribution_rate)</td></tr>
@@ -1031,24 +1031,26 @@
       <div class="tbl-note">本服務 DailyIncrementJob 每日落帳(UQ 冪等、可重算錨點);當日總增量交 PoolTicker 盤中按排程規則分次注入 Valkey input(注入進度另記防重)。留 OceanBase:對帳不變量 Σ 的錨點,與 round/win 同庫做 DB 側加總</div>
     </div>
     <div class="tbl wide">
-      <div class="thead"><span class="name">jackpot_pool_snapshot</span><span> <span class="badge new">寫入源 = OceanBase</span></span></div>
+      <div class="thead"><span class="name">jackpot_group_balance_snapshot</span><span> <span class="badge new">DAL 已建・寫入源 = OceanBase</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(append-only 時序,全域唯一且時間排序)</td></tr>
-          <tr><td class="f">jackpot_group_id / tier / snapshot_at <span class="badge uq">UQ(group,tier,snapshot_at)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATETIME</td><td class="ds">每 (群組,層,分鐘) 一筆;UNIQUE 冪等</td></tr>
-          <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">VARCHAR(24) / BIGINT / INT</td><td class="ds">所屬回合、合成池值(exhausted 由 quota≤0 推導)、剩餘名額</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">BIGINT</td><td class="ds"><b>Snowflake ID</b>(append-only 時序;⚠ DAL 現建為 <code>sn</code> int auto_increment,待改為 <code>id</code> + Snowflake bigint)</td></tr>
+          <tr><td class="f">jackpot_group_id / tier / round_id</td><td class="ty">VARCHAR(36) / INT / VARCHAR(24)</td><td class="ds">所屬池、層、回合</td></tr>
+          <tr><td class="f">jackpot_balance</td><td class="ty">BIGINT</td><td class="ds">獎池金額(cents,顯示用;= 彩金列表的 x。內部精度權威仍是 round/accounting 的 micro-cents)</td></tr>
+          <tr><td class="f">remaining_quantity</td><td class="ty">INT</td><td class="ds">剩餘數量(= 彩金列表的 n;exhausted 由 ≤0 推導)</td></tr>
+          <tr><td class="f">snapshot_at</td><td class="ty">TIMESTAMP</td><td class="ds">快照時間;每 (群組,層,分鐘) 一筆。⚠ 建議加 UQ(group,tier,snapshot_at) 防重寫</td></tr>
         </tbody></table></div>
-      <div class="tbl-note">後台「彩金滾動紀錄/累積紀錄」頁(260701-3,每分鐘一筆 ≈ 每 pool×tier 每日 1,440 筆)的資料源。<b>本服務 PoolTicker 每分鐘寫 OceanBase</b>;後台讀 <b>MongoDB 讀側投影</b>(下)。權威仍是 round / daily_increment / accounting_jackpot</div>
+      <div class="tbl-note">後台「彩金滾動紀錄/累積紀錄」頁(260701-3,每分鐘一筆 ≈ 每 pool×tier 每日 1,440 筆)的資料源。欄名 <code>jackpot_balance</code>/<code>remaining_quantity</code> 與 GetJackpotGroupPageList proto 一致。<b>本服務 PoolTicker 每分鐘寫 OceanBase</b>;後台讀 <b>MongoDB 讀側投影</b>(下)。權威仍是 round / daily_increment / accounting_jackpot</div>
     </div>
     </div>
   </div>
 
   <div class="db-group">
     <h3>MongoDB(warm DB · 讀側投影)<span class="tag" style="margin-left:8px">由正式環境 OceanBase 經 DAL binlog CDC 投影(平台既有機制,非本服務直寫)</span></h3>
-    <p class="role">⚠ 平台約束:<b>Mongo 不直接寫</b> — 所有資料由 OceanBase binlog 經 DAL CDC 同步過來(Campaign warm DB 同機制)。所以 <code>jackpot_pool_snapshot</code> 的<b>寫入源在 OceanBase</b>(上),Mongo 是它的查詢最佳化讀側,後台「累積紀錄」頁讀這裡。保留期:OceanBase 側排 purge job,刪除經 binlog 傳播到 Mongo(或 Mongo 端另設 TTL index 自行清)。</p>
+    <p class="role">⚠ 平台約束:<b>Mongo 不直接寫</b> — 所有資料由 OceanBase binlog 經 DAL CDC 同步過來(Campaign warm DB 同機制)。所以 <code>jackpot_group_balance_snapshot</code> 的<b>寫入源在 OceanBase</b>(上),Mongo 是它的查詢最佳化讀側,後台「累積紀錄」頁讀這裡。保留期:OceanBase 側排 purge job,刪除經 binlog 傳播到 Mongo(或 Mongo 端另設 TTL index 自行清)。</p>
     <div class="tables-full">
     <div class="tbl wide">
-      <div class="thead"><span class="name">jackpot_pool_snapshot(讀側投影)</span><span> <span class="badge new">OB → binlog → DAL → Mongo</span></span></div>
-      <div class="tbl-note" style="border-top:none">同 OceanBase <code>jackpot_pool_snapshot</code> 的鏡射,欄位一致;後台「彩金滾動紀錄/累積紀錄」頁的實際讀取來源。查詢索引 (jackpot_group_id, tier, snapshot_at)。⚠ 若這頁由 DAL 出、DAL 讀 Mongo 不便,可改直接讀 OceanBase 源表 — 待與 Billy 定案。</div>
+      <div class="thead"><span class="name">jackpot_group_balance_snapshot(讀側投影)</span><span> <span class="badge new">OB → binlog → DAL → Mongo</span></span></div>
+      <div class="tbl-note" style="border-top:none">同 OceanBase <code>jackpot_group_balance_snapshot</code> 的鏡射,欄位一致;後台「彩金滾動紀錄/累積紀錄」頁的實際讀取來源。查詢索引 (jackpot_group_id, tier, snapshot_at)。⚠ 若這頁由 DAL 出、DAL 讀 Mongo 不便,可改直接讀 OceanBase 源表 — 待與 Billy 定案。</div>
     </div>
     </div>
   </div>
@@ -1357,12 +1359,12 @@
     </div>
   </details>
   <details class="rpcd">
-    <summary><span class="callr svc">Jackpot Service</span>UpsertJackpotPoolSnapshot <span class="snote">DAL 待建 — PoolTicker 每分鐘寫 OceanBase 快照(不直連 DB,經 DAL);binlog 投影到 Mongo 供後台累積紀錄頁</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>UpsertJackpotGroupBalanceSnapshot <span class="snote">DAL 待建 — PoolTicker 每分鐘寫 OceanBase 快照(不直連 DB,經 DAL);binlog 投影到 Mongo 供後台累積紀錄頁</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
           <tr><td class="f">jackpot_group_id / tier / snapshot_at</td><td class="ty">string / JackpotTier / Timestamp</td><td class="ds">每 (群組,層,分鐘) 一筆;UQ 冪等</td></tr>
-          <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">string / uint64 / int32</td><td class="ds">回合、合成池值、剩餘名額</td></tr>
+          <tr><td class="f">round_id / jackpot_balance / remaining_quantity</td><td class="ty">string / int64 / int32</td><td class="ds">回合、獎池金額(cents)、剩餘數量</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
