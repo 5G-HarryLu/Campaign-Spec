@@ -923,7 +923,7 @@
 <section class="page" id="p5" data-title="資料模型">
   <div class="eyebrow">Chapter 05 — Data Model(v4)</div>
   <h2 class="page-title">冪等靠 DB 約束,恢復靠錨點</h2>
-  <p class="lede">共 <b style="color:var(--text)">8 張表</b>:MySQL 4(config 真值,<b style="color:var(--text)">DAL 已建於 dev_five_game</b>:jackpot_group 系列)+ OceanBase 3(權威帳本)+ MongoDB 1(時序數據)。匯率用既有 <code>currency.fixed_rate</code>;config 就地更新,後台編輯稽核 log 由 <b style="color:var(--text)">DAL 團隊統一處理</b>(平台既有機制,不在本 spec);注單參照用 <code>accounting_id</code>。標 ⚠ 者為與 DAL 的差異回饋(防呆/需求欄位)。tier 四層 option,Super Gems 首發開前兩層。</p>
+  <p class="lede">共 <b style="color:var(--text)">8 張表</b>:MySQL 4(config 真值,<b style="color:var(--text)">DAL 已建於 dev_five_game</b>:jackpot_group 系列)+ OceanBase 4(權威帳本 + 時序:round / accounting_jackpot / daily_increment / pool_snapshot)。<b style="color:var(--text)">MongoDB 為 OceanBase 經 DAL binlog 的讀側投影</b>(平台約束:Mongo 不直寫),非獨立設計表。匯率用既有 <code>currency.fixed_rate</code>;config 就地更新,後台編輯 log 由 DAL 統一處理;注單參照用 <code>accounting_id</code>。tier 四層 option,Super Gems 首發開前兩層。</p>
   <div class="divider"></div>
 
   <div class="db-group">
@@ -1030,21 +1030,25 @@
         </tbody></table></div>
       <div class="tbl-note">本服務 DailyIncrementJob 每日落帳(UQ 冪等、可重算錨點);當日總增量交 PoolTicker 盤中按排程規則分次注入 Valkey input(注入進度另記防重)。留 OceanBase:對帳不變量 Σ 的錨點,與 round/win 同庫做 DB 側加總</div>
     </div>
+    <div class="tbl wide">
+      <div class="thead"><span class="name">jackpot_pool_snapshot</span><span> <span class="badge new">寫入源 = OceanBase</span></span></div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(append-only 時序,慣例用 sn)</td></tr>
+          <tr><td class="f">jackpot_group_id / tier / snapshot_at <span class="badge uq">UQ(group,tier,snapshot_at)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATETIME</td><td class="ds">每 (群組,層,分鐘) 一筆;UNIQUE 冪等</td></tr>
+          <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">VARCHAR(24) / BIGINT / INT</td><td class="ds">所屬回合、合成池值(exhausted 由 quota≤0 推導)、剩餘名額</td></tr>
+        </tbody></table></div>
+      <div class="tbl-note">後台「彩金滾動紀錄/累積紀錄」頁(260701-3,每分鐘一筆 ≈ 每 pool×tier 每日 1,440 筆)的資料源。<b>本服務 PoolTicker 每分鐘寫 OceanBase</b>;後台讀 <b>MongoDB 讀側投影</b>(下)。權威仍是 round / daily_increment / accounting_jackpot</div>
+    </div>
     </div>
   </div>
 
   <div class="db-group">
-    <h3>MongoDB(warm DB)<span class="tag" style="margin-left:8px">時序/匯總數據・本服務直連(Campaign 慣例,不經 DAL)</span></h3>
-    <p class="role">同事 review:匯總/數據類放 warm DB。每分鐘時序數據用 Mongo <b>TTL index</b> 直接解保留期問題;Campaign 本來就直連 Mongo,不違反「不直連 DB」原則(該原則的範圍是 MySQL/OceanBase)。</p>
+    <h3>MongoDB(warm DB · 讀側投影)<span class="tag" style="margin-left:8px">由正式環境 OceanBase 經 DAL binlog CDC 投影(平台既有機制,非本服務直寫)</span></h3>
+    <p class="role">⚠ 平台約束:<b>Mongo 不直接寫</b> — 所有資料由 OceanBase binlog 經 DAL CDC 同步過來(Campaign warm DB 同機制)。所以 <code>jackpot_pool_snapshot</code> 的<b>寫入源在 OceanBase</b>(上),Mongo 是它的查詢最佳化讀側,後台「累積紀錄」頁讀這裡。保留期:OceanBase 側排 purge job,刪除經 binlog 傳播到 Mongo(或 Mongo 端另設 TTL index 自行清)。</p>
     <div class="tables-full">
     <div class="tbl wide">
-      <div class="thead"><span class="name">jackpot_pool_snapshot</span><span> <span class="badge new">移 MongoDB(同事 review)</span></span></div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">_id</td><td class="ty">ObjectId</td><td class="ds">Mongo 預設;查詢用複合索引 (jackpot_group_id, tier, snapshot_at)</td></tr>
-          <tr><td class="f">jackpot_group_id / tier / snapshot_at <span class="badge uq">UQ index</span></td><td class="ty">string / int / Date</td><td class="ds">唯一索引(冪等);另建 <b>TTL index</b>(snapshot_at,如 90 天)自動清舊</td></tr>
-          <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">string / long / int</td><td class="ds">所屬回合、合成池值(exhausted 由 quota≤0 推導)、剩餘名額</td></tr>
-        </tbody></table></div>
-      <div class="tbl-note">兼作後台「彩金滾動紀錄」頁(260701-3,每分鐘一筆 ≈ 每 pool×tier 每日 1,440 筆 — TTL 解保留期)+ 恢復加速;權威仍是 round / daily_increment / accounting_jackpot。本服務直寫直讀(不經 DAL)</div>
+      <div class="thead"><span class="name">jackpot_pool_snapshot(讀側投影)</span><span> <span class="badge new">OB → binlog → DAL → Mongo</span></span></div>
+      <div class="tbl-note" style="border-top:none">同 OceanBase <code>jackpot_pool_snapshot</code> 的鏡射,欄位一致;後台「彩金滾動紀錄/累積紀錄」頁的實際讀取來源。查詢索引 (jackpot_group_id, tier, snapshot_at)。⚠ 若這頁由 DAL 出、DAL 讀 Mongo 不便,可改直接讀 OceanBase 源表 — 待與 Billy 定案。</div>
     </div>
     </div>
   </div>
@@ -1076,8 +1080,8 @@
 <!-- ============ P6 gRPC 契約 ============ -->
 <section class="page" id="p6" data-title="gRPC 契約">
   <div class="eyebrow">Chapter 06 — DAL Contract(對照 Valhalla 實作・2026-07-21)</div>
-  <h2 class="page-title">後台 8 支 DAL 已建;data-plane 8 支待建</h2>
-  <p class="lede">已比對 Valhalla <code>Urd/proto/v1/</code> 真實 proto(main @ e39fda6)。<b style="color:var(--text)">後台 config-plane 8 支 DAL 已建</b>(<code>JackpotGroupService</code> 6 + <code>CurrencyService</code> 2),結構與本服務原提案不同(見下對照);<b style="color:var(--text)">data-plane(結算/對帳)8 支 DAL 尚未建</b>,Billy:「後台先串,有問題再說」。<b style="color:var(--danger)">另需 GS↔DAL 的 credit 補「accounting_id + win_id + tier」</b>(屬 GameService.Credit,待確認)。</p>
+  <h2 class="page-title">後台 8 支 DAL 已建;data-plane 9 支待建</h2>
+  <p class="lede">已比對 Valhalla <code>Urd/proto/v1/</code> 真實 proto(main @ e39fda6)。<b style="color:var(--text)">後台 config-plane 8 支 DAL 已建</b>(<code>JackpotGroupService</code> 6 + <code>CurrencyService</code> 2),結構與本服務原提案不同(見下對照);<b style="color:var(--text)">data-plane(結算/對帳)9 支 DAL 尚未建</b>,Billy:「後台先串,有問題再說」。<b style="color:var(--danger)">另需 GS↔DAL 的 credit 補「accounting_id + win_id + tier」</b>(屬 GameService.Credit,待確認)。</p>
   <div class="divider"></div>
 
   <div class="card" style="border-color:rgba(232,180,76,.45)">
@@ -1089,7 +1093,7 @@
       <tr><td class="f">(彩金列表 x/n/m,原放 JP Service API)</td><td class="ds"><b>GetJackpotGroupPageList</b></td><td class="ds">DAL 建進 response;x/n 由 DAL 直連 Valkey 查、m 查 MySQL(定案)</td></tr>
       <tr><td class="f">FX「非本契約」</td><td class="ds">CurrencyService.GetCurrencyFixedRatePageList / UpdateCurrencyFixedRate</td><td class="ds">DAL 有建固定匯率管理 rpc</td></tr>
       <tr><td class="f">—</td><td class="ds">GetJackpotGroup / GetJackpotGroupOperatorTier / AnyJackpotGroup</td><td class="ds">DAL 新增:讀出供編輯 + 唯一性防呆檢查</td></tr>
-      <tr><td class="f">Round 2 / Win 2 / 素材對帳 4(共 8)</td><td class="ds"><b style="color:var(--danger)">尚未建</b></td><td class="ds">data-plane;DAL「後台先串」→ 下列為本服務規劃契約,待 DAL 實作</td></tr>
+      <tr><td class="f">Round 2 / Win 2 / 素材對帳 5(共 9)</td><td class="ds"><b style="color:var(--danger)">尚未建</b></td><td class="ds">data-plane;DAL「後台先串」→ 下列為本服務規劃契約,待 DAL 實作</td></tr>
     </tbody></table></div>
   </div>
   <div style="height:18px"></div>
@@ -1214,7 +1218,7 @@
     </div>
   </details>
 
-  <div class="grp-h"><h3>Data-plane(結算/對帳)</h3><span class="cnt">8 rpc・DAL 尚未建</span><span class="gd"><span class="callr svc">Jackpot Service</span>本服務 ↔ DAL runtime 提案;DAL「後台先串」故這批待建。下列為本服務規劃契約</span></div>
+  <div class="grp-h"><h3>Data-plane(結算/對帳)</h3><span class="cnt">9 rpc・DAL 尚未建</span><span class="gd"><span class="callr svc">Jackpot Service</span>本服務 ↔ DAL runtime 提案;DAL「後台先串」故這批待建。下列為本服務規劃契約</span></div>
 
     <div class="grp-h"><h3>Round 狀態機</h3><span class="cnt">2 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Jackpot Service 運行;Rotate 另供後台手動重置(關舊+開新單交易,消滅「關了沒開」中間態)</span></div>
   <details class="rpcd">
@@ -1289,7 +1293,7 @@
         </tbody></table></div>
     </div>
   </details>
-  <div class="grp-h"><h3>素材 / 對帳</h3><span class="cnt">4 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Jackpot Service 的 DailyIncrementJob / ReconciliationJob;GetDailyIncrements 另供後台「累積進度」頁</span></div>
+  <div class="grp-h"><h3>素材 / 對帳</h3><span class="cnt">5 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Jackpot Service 的 DailyIncrementJob / ReconciliationJob;GetDailyIncrements 另供後台「累積進度」頁</span></div>
   <details class="rpcd">
     <summary><span class="callr svc">Jackpot Service</span>GetJackpotPoolDailyTurnover <span class="snote">昨日 turnover 彙總(by pool、交集過濾、+0 tz)— DailyIncrementJob 每日素材</span></summary>
     <div class="body">
@@ -1350,6 +1354,21 @@
           <tr><td class="f">sum_win_truncation_microcents</td><td class="ty">uint64</td><td class="ds">微分截斷殘餘</td></tr>
           <tr><td class="f">sum_clamp_overflow_microcents</td><td class="ty">uint64</td><td class="ds">Σ clamp_overflow;open round 即時溢出由對帳 job 補項</td></tr>
         </tbody></table></div>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary><span class="callr svc">Jackpot Service</span>UpsertJackpotPoolSnapshot <span class="snote">DAL 待建 — PoolTicker 每分鐘寫 OceanBase 快照(不直連 DB,經 DAL);binlog 投影到 Mongo 供後台累積紀錄頁</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">jackpot_group_id / tier / snapshot_at</td><td class="ty">string / JackpotTier / Timestamp</td><td class="ds">每 (群組,層,分鐘) 一筆;UQ 冪等</td></tr>
+          <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">string / uint64 / int32</td><td class="ds">回合、合成池值、剩餘名額</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">false = 該分鐘已寫</td></tr>
+        </tbody></table></div>
+      <p class="rpc-note" style="font-size:12px;color:var(--muted);margin-top:8px">後台「累積紀錄」頁不另設讀 rpc:讀 Mongo 讀側投影(OB binlog 同步);若 DAL 改讀 OB 源表亦可。</p>
     </div>
   </details>
 
@@ -1454,8 +1473,8 @@
     '兩條線:池值怎麼長大、一次中獎怎麼處理',
     '每日增量(累積速率)+ 盤中滾動 + 撞頂補 seed',
     'GE 判定誰中、Pool 原子結算多少',
-    '8 表對齊真實 DB:jackpot_group 系列 + OB 帳本 + Mongo',
-    '對照 Valhalla:後台 8 支已建、data-plane 8 支待建'
+    '8 表對齊真實 DB;snapshot 寫 OB、Mongo 為 binlog 讀側',
+    '對照 Valhalla:後台 8 支已建、data-plane 9 支待建'
   ];
 
   pages.forEach(function(p, i){
