@@ -291,6 +291,10 @@
   .badge.ix{background:rgba(62,207,142,.1);color:var(--emerald);border:1px solid rgba(62,207,142,.35)}
   .badge.new{background:rgba(155,126,222,.12);color:var(--violet);border:1px solid rgba(155,126,222,.4)}
   .badge.fb{background:rgba(224,108,90,.1);color:var(--danger);border:1px solid rgba(224,108,90,.4)}
+  .callr{font-size:10px;font-family:var(--mono);letter-spacing:.04em;padding:1px 8px;border-radius:999px;margin-right:4px;white-space:nowrap}
+  .callr.bo{background:rgba(232,180,76,.16);color:var(--gold);border:1px solid rgba(232,180,76,.45)}
+  .callr.svc{background:rgba(155,126,222,.16);color:var(--violet);border:1px solid rgba(155,126,222,.45)}
+  .callr.both{background:rgba(62,207,142,.14);color:var(--emerald);border:1px solid rgba(62,207,142,.42)}
 
   /* ---------- rpc groups ---------- */
   .rpcs{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-top:18px}
@@ -763,7 +767,7 @@
       <div class="step-card">
         <div class="no">STEP 3・SERVICE</div>
         <div class="t">今日總增量</div>
-        <div class="d">× <code>contribution_rate_ppm</code>(<b style="color:var(--text)">≠ RTP</b>,比例待定)<br><code>UpsertJackpotDailyIncrement</code> 冪等落帳</div>
+        <div class="d">× <code>contribution_rate</code>(<b style="color:var(--text)">≠ RTP</b>,比例待定)<br><code>UpsertJackpotDailyIncrement</code> 冪等落帳</div>
       </div>
       <div class="step-card">
         <div class="no">STEP 4・SERVICE</div>
@@ -879,7 +883,7 @@
       <tr><td class="f">id</td><td class="ty">ObjectId</td><td class="ds">Mongo ObjectId 字串(campaign 慣例)</td></tr>
       <tr><td class="f">idempotency_key</td><td class="ty">jackpot-JackpotWinning-{win_id}</td><td class="ds">前綴供 dashboard/dead-letter 辨識(同 frb-/fra- 慣例);win_id 保證同一中獎只一則 inbox</td></tr>
       <tr><td class="f">partition_key</td><td class="ty">{operator_id}:{member_id}</td><td class="ds">同 FRB CampaignWinning(個人訊息按 operator:member 分區)</td></tr>
-      <tr><td class="f">data(JSON)</td><td class="ty">snake_case</td><td class="ds"><code>type</code>="JackpotWinning"、<code>event_type</code>=新 enum 值(InboxEventType 現用到 8,<b>建議 9,需與 msg-center 定案</b>)、<code>message_type</code>、<code>pool_group_id</code>、<code>tier</code>、<code>win_id</code>、<code>accounting_id</code>、<code>game_id</code>、<code>operator_id</code>、<code>member_id</code>、<code>win_amount_usd_cents</code>、<code>currency_sn</code>、<code>win_amount_local_cents</code>、<code>win_at</code>(UTC)、<code>popup</code></td></tr>
+      <tr><td class="f">data(JSON)</td><td class="ty">snake_case</td><td class="ds"><code>type</code>="JackpotWinning"、<code>event_type</code>=新 enum 值(InboxEventType 現用到 8,<b>建議 9,需與 msg-center 定案</b>)、<code>message_type</code>、<code>jackpot_group_id</code>、<code>tier</code>、<code>win_id</code>、<code>accounting_id</code>、<code>game_id</code>、<code>operator_id</code>、<code>member_id</code>、<code>win_amount_usd_cents</code>、<code>currency_sn</code>、<code>win_amount_local_cents</code>、<code>win_at</code>(UTC)、<code>popup</code></td></tr>
     </tbody></table></div>
     <p style="font-size:12px;color:var(--muted);margin-top:10px">範圍界定:outbox_msg <b>只送個人 inbox 中獎通知</b>(point-to-point)。跑馬燈是廣播、池值是狀態 — 都不走 outbox,走 Redis pub/sub 給 msg-center-sse。假中獎不寫 outbox(260715-5:不落名單)。</p>
   </div>
@@ -919,71 +923,56 @@
 <section class="page" id="p5" data-title="資料模型">
   <div class="eyebrow">Chapter 05 — Data Model(v4)</div>
   <h2 class="page-title">冪等靠 DB 約束,恢復靠錨點</h2>
-  <p class="lede">共 <b style="color:var(--text)">9 張表</b>:MySQL 5(config 真值)+ OceanBase 3(權威帳本)+ MongoDB 1(時序數據)。慣例對齊 five_game:PK 不用複合 key、不用資料欄位 — ObjectId 命名 <code>id</code>、自增序號命名 <code>sn</code>,唯一性一律用 UNIQUE;注單參照用平台語彙 <code>accounting_id</code>;匯率用既有 <code>currency.fixed_rate</code>,不另建表;config 就地更新,變更軌跡由 admin_audit(before/after)承載。tier 四層 option(260701-1),Super Gems 首發開前兩層。寬表可橫向捲動。</p>
+  <p class="lede">共 <b style="color:var(--text)">8 張表</b>:MySQL 4(config 真值,<b style="color:var(--text)">DAL 已建於 dev_five_game</b>:jackpot_group 系列)+ OceanBase 3(權威帳本)+ MongoDB 1(時序數據)。匯率用既有 <code>currency.fixed_rate</code>;config 就地更新,後台編輯稽核 log 由 <b style="color:var(--text)">DAL 團隊統一處理</b>(平台既有機制,不在本 spec);注單參照用 <code>accounting_id</code>。標 ⚠ 者為與 DAL 的差異回饋(防呆/需求欄位)。tier 四層 option,Super Gems 首發開前兩層。</p>
   <div class="divider"></div>
 
   <div class="db-group">
     <h3>MySQL <span class="tag" style="margin-left:8px">config 真值・低頻寫・經 DAL</span></h3>
-    <p class="role">pool 為主的設定維度:分別設 operator 與 game,交集才成立(會議定調)。通則:utf8mb4、DATETIME 一律 UTC。</p>
+    <p class="role">group 為主的設定維度:分別設 operator 與 game,交集才成立(會議定調)。通則:utf8mb4;DAL 用 TIMESTAMP,時區一律 UTC。後台編輯 log 由 DAL 自建的 <code class="k">jackpot_group_change_log</code>(sn / jackpot_group_id / before_data·after_data JSON / updater_id / updated_at)承載,不在下列本服務規劃表內。</p>
     <div class="tables-full">
     <div class="tbl">
-      <div class="thead"><span class="name">jackpot_pool_group</span><span></span></div>
+      <div class="thead"><span class="name">jackpot_group</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">ObjectId,與 campaign 慣例一致</td></tr>
-          <tr><td class="f">name</td><td class="ty">VARCHAR(64)</td><td class="ds">pool 顯示名稱</td></tr>
-          <tr><td class="f">status</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">0=disabled、1=active</td></tr>
-          <tr><td class="f">created_at / updated_at</td><td class="ty">DATETIME</td><td class="ds">一律 UTC(全部表通則,含 MySQL)</td></tr>
+          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(36)</td><td class="ds">內碼(UUID 格式)</td></tr>
+          <tr><td class="f">name</td><td class="ty">VARCHAR(64)</td><td class="ds">群組名稱</td></tr>
+          <tr><td class="f">tier_list</td><td class="ty">VARCHAR(64)</td><td class="ds">啟用的彩金等級清單 — <b>顯式存啟用 tier</b>(比原設計「有 config 即啟用」更直觀,採納)</td></tr>
+          <tr><td class="f">creator_id / created_at / updater_id / updated_at</td><td class="ty">VARCHAR(36) / TIMESTAMP ×2</td><td class="ds">建立與更新軌跡</td></tr>
+          <tr><td class="f">deleted</td><td class="ty">BIT(1)</td><td class="ds">軟刪標記。⚠ 無 status 欄 —「停用但不刪」的營運情境是否需要,待與 DAL 確認</td></tr>
         </tbody></table></div>
-      <div class="tbl-note">PoolGroupID 主檔 — 規格 Option B:每 game group 一個隔離池</div>
+      <div class="tbl-note">彩金群組主檔(dev_five_game)— 規格 Option B:每 game group 一個隔離池</div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">jackpot_game_mapping</span><span></span></div>
+      <div class="thead"><span class="name">jackpot_group_game</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(five_game 慣例:不以資料欄位當 PK)</td></tr>
-          <tr><td class="f">game_id <span class="badge uq">UQ(game_id)</span></td><td class="ty">VARCHAR(64)</td><td class="ds">一個 game 只屬一個 pool(會議防呆,UNIQUE 強制)</td></tr>
-          <tr><td class="f">pool_group_id <span class="badge ix">IX(pool_group_id)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池</td></tr>
-          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">jackpot_group_id <span class="badge ix">IX</span></td><td class="ty">VARCHAR(36) NOT NULL</td><td class="ds">彩金群組內碼</td></tr>
+          <tr><td class="f">game_id <span class="badge uq">UQ(game_id)</span></td><td class="ty">VARCHAR(12)</td><td class="ds">遊戲編號 — <b>UNIQUE 已建</b>(260709-8 防呆 ✓)。軟刪交互定案:刪群組時同步硬刪 group_game 關聯列(mapping 純關聯),UNIQUE 才不會卡住 game 綁新群組</td></tr>
         </tbody></table></div>
-      <div class="tbl-note">寫入語意 = full-set replace(UpsertJackpotGameMapping);跨池衝突整批拒絕</div>
+      <div class="tbl-note">寫入語意 = full-set replace;跨池衝突整批拒絕</div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">jackpot_operator_setting</span><span></span></div>
+      <div class="thead"><span class="name">jackpot_group_operator</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(慣例:不用複合 key 當 PK)</td></tr>
-          <tr><td class="f">pool_group_id / operator_id <span class="badge uq">UQ(pool,operator)</span></td><td class="ty">VARCHAR(24) / VARCHAR(64)</td><td class="ds">所屬池 × operator,UNIQUE 防重</td></tr>
-          <tr><td class="f">enabled</td><td class="ty">TINYINT(1)</td><td class="ds">per-operator 開關;operator×game 交集才生效</td></tr>
-          <tr><td class="f">rtp_ppm_by_tier_json <span class="badge new">v4 新增</span></td><td class="ty">VARCHAR(128)</td><td class="ds"><b>RTP by operator × 獎項</b>(會議 260715-1):如 {"1":9600,"2":9700}。餵 GE 算 Prob=RTP/Price。量大時設定可能 timeout(260715-記錄 4)</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
-          <tr><td class="f">created_at / updated_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">jackpot_group_id / operator_id <span class="badge ix">IX ×2</span></td><td class="ty">VARCHAR(36) ×2</td><td class="ds">群組 × 營運商(有 row 即啟用)</td></tr>
+          <tr><td class="f">tier_rtp_json</td><td class="ty">JSON</td><td class="ds"><b>RTP by operator × 獎項</b>(260715-1),如 {"1":9600,"2":9700};餵 GE 算 Prob=RTP/Price。原生 JSON 型別,佳</td></tr>
+          <tr><td class="f">updater_id / updated_at</td><td class="ty">VARCHAR(36) / TIMESTAMP</td><td class="ds">更新軌跡</td></tr>
         </tbody></table></div>
-      <div class="tbl-note">RTP by operator、不 by game(相同彩金群組不分遊戲);pool 值仍是 global house 池,不因 operator 分池</div>
+      <div class="tbl-note">per-operator 開關 = 有 row 即啟用(交集條件之二);RTP by operator、不 by game;pool 值仍是 global house 池</div>
     </div>
     <div class="tbl wide">
-      <div class="thead"><span class="name">jackpot_config</span><span></span></div>
+      <div class="thead"><span class="name">jackpot_group_setting</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(慣例:自增 PK 命名 sn)</td></tr>
-          <tr><td class="f">pool_group_id <span class="badge uq">UQ(pool,tier)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池;<b>就地更新、不留版本</b>(同事 review:config 不分版本,變更軌跡 = admin_audit before/after)</td></tr>
-          <tr><td class="f">tier</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=grand、2=major、3=minor、4=mini(260701-1:<b>四層皆為 option</b>);pool 啟用哪些 tier = 有寫入該 tier config 者。Super Gems 首發只開 1/2</td></tr>
-          <tr><td class="f">contribution_rate_ppm <span class="badge new">v4 更名</span></td><td class="ty">INT UNSIGNED</td><td class="ds">累積速率 ppm(入池方向,原 rtp_ppm)。<b>與中獎 RTP 是兩個獨立旋鈕</b>,不校核</td></tr>
-          <tr><td class="f">min_per_day_cents <span class="badge new">v4 新增</span></td><td class="ty">BIGINT UNSIGNED</td><td class="ds">最低每日累積金額(floor):昨日 turnover 低於此則以此計(會議 3-c)</td></tr>
-          <tr><td class="f">reset_min_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">中獎/撞頂後 seed(USD cents):Grand $20k / Major $2k</td></tr>
-          <tr><td class="f">reset_threshold_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">池增長硬上限 cap(USD cents):撞頂 reset + 溢位補 seed + 假中獎廣播</td></tr>
-          <tr><td class="f">roll_range_json <span class="badge new">v4 新增</span></td><td class="ty">VARCHAR(64) NULL</td><td class="ds">PoolTicker 盤中滾動 range(min/max step),供顯示用</td></tr>
-          <tr><td class="f">win_count_quota</td><td class="ty">INT UNSIGNED</td><td class="ds">中獎名額:Grand 1 / Major 100。<b>軟限流</b>:quota&lt;1 機率趨零但可為負,非硬上限</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
-          <tr><td class="f">created_at / updated_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">INT AI</td><td class="ds">內碼</td></tr>
+          <tr><td class="f">jackpot_group_id / tier</td><td class="ty">VARCHAR(36) / INT</td><td class="ds">群組 × 彩金等級(1=grand、2=major、3=minor、4=mini,四層 option)。⚠ 建議補 UNIQUE(group,tier) 保證就地更新語意</td></tr>
+          <tr><td class="f">version</td><td class="ty">INT DEFAULT 0</td><td class="ds">就地更新的樂觀鎖(不留版本歷史)</td></tr>
+          <tr><td class="f">seed_cents</td><td class="ty">BIGINT</td><td class="ds">初始池底(USD cents):中獎/撞頂 reset 回此值。Grand $20k / Major $2k</td></tr>
+          <tr><td class="f">pool_cap_cents</td><td class="ty">BIGINT</td><td class="ds">彩金上限(USD cents):撞頂 reset + 溢位補 seed + 假中獎廣播</td></tr>
+          <tr><td class="f">contribution_rate</td><td class="ty">DECIMAL(18,6)</td><td class="ds">累積速率(入池;<b>與中獎 RTP 是兩個獨立旋鈕</b>,DAL 已定 decimal)</td></tr>
+          <tr><td class="f">min_contributing_floor_cents <span class="badge new">DAL 已建</span></td><td class="ty">BIGINT</td><td class="ds">保底累積門檻(USD cents):昨日 turnover 低於此則以此計(260709-3c;原稱 min_per_day)</td></tr>
+          <tr><td class="f">quantity</td><td class="ty">INT</td><td class="ds">中獎名額(quota):Grand 1 / Major 100。<b>軟限流</b>:quota&lt;1 機率趨零但可為負,非硬上限</td></tr>
         </tbody></table></div>
-    </div>
-<div class="tbl">
-      <div class="thead"><span class="name">jackpot_admin_audit</span><span></span></div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">稽核識別</td></tr>
-          <tr><td class="f">action</td><td class="ty">VARCHAR(32)</td><td class="ds">rpc 名(7 個受稽核 rpc);v1.3.1 位於 MySQL,與 config 寫入同交易原子</td></tr>
-          <tr><td class="f">pool_group_id / tier <span class="badge ix">IX(pool,created_at)</span></td><td class="ty">VARCHAR(24) NULL / TINYINT NULL</td><td class="ds">範圍(可空)</td></tr>
-          <tr><td class="f">before_json / after_json</td><td class="ty">TEXT</td><td class="ds">變更前後值</td></tr>
-          <tr><td class="f">operator</td><td class="ty">VARCHAR(64)</td><td class="ds">後台操作者</td></tr>
-          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
-        </tbody></table></div>
+      <div class="tbl-note">version = 就地更新的樂觀鎖(不留版本歷史);roll_range 已確認不需要。全表對齊 DAL dev_five_game 實建欄位</div>
     </div>
     </div>
   </div>
@@ -1003,10 +992,10 @@
     <p class="role">Valkey 是投影;真相在這裡,恢復與稽核都從這裡出發。<code class="k" style="color:var(--emerald)">created_at</code> 一律顯式 UTC。</p>
     <div class="tables-full">
     <div class="tbl wide">
-      <div class="thead"><span class="name">jackpot_round</span><span> <span class="badge new">恢復錨點</span></span></div>
+      <div class="thead"><span class="name">jackpot_round</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
           <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">round 識別(ObjectId)</td></tr>
-          <tr><td class="f">pool_group_id <span class="badge uq">UQ(pool,tier,round_seq)</span></td><td class="ty">VARCHAR(24)</td><td class="ds">所屬池</td></tr>
+          <tr><td class="f">jackpot_group_id <span class="badge uq">UQ(group,tier,round_seq)</span></td><td class="ty">VARCHAR(36)</td><td class="ds">所屬池(對齊 jackpot_group.id UUID 36)</td></tr>
           <tr><td class="f">tier</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=grand、2=major、3=minor、4=mini</td></tr>
           <tr><td class="f">round_seq</td><td class="ty">INT UNSIGNED</td><td class="ds">回合序號;UNIQUE 防重開</td></tr>
           <tr><td class="f">seed_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">本回合 seed(micro-cents = USD cent × 10⁻⁶)</td></tr>
@@ -1014,7 +1003,8 @@
           <tr><td class="f">quota_remaining_at_open</td><td class="ty">INT</td><td class="ds">開啟當下 quota;Valkey 遺失時 quota = 此值 − count(wins in round)</td></tr>
           <tr><td class="f">status</td><td class="ty">TINYINT UNSIGNED</td><td class="ds">1=open、2=hit(含撞頂 reset)、3=closed(manual reset)</td></tr>
           <tr><td class="f">clamp_overflow_microcents</td><td class="ty">BIGINT UNSIGNED NULL</td><td class="ds">觸頂溢出累計(對帳公式顯式項,唯一記錄點)</td></tr>
-          <tr><td class="f">opened_at / closed_at</td><td class="ty">DATETIME / NULL</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">opened_at / closed_at</td><td class="ty">TIMESTAMP / NULL</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">TIMESTAMP</td><td class="ds">UTC(DAL 貼 OB 表慣例補上;非合成公式用)</td></tr>
         </tbody></table></div>
     </div>
     <div class="tbl wide">
@@ -1022,7 +1012,7 @@
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
           <tr><td class="f">id <span class="badge uq">PK</span></td><td class="ty">VARCHAR(24)</td><td class="ds">win_id(ObjectId 命名 id,慣例);GE 上報的冪等鍵、亦是派彩全鏈冪等鍵</td></tr>
           <tr><td class="f">accounting_id <span class="badge uq">UQ(pool,tier,accounting_id)</span></td><td class="ty">VARCHAR(24)</td><td class="ds"><b>觸發中獎的注單號</b>(GE 上報帶入,平台語彙);供會員下注紀錄查詢(260715-3);同筆注單同 tier 不可重複中。<b>身分欄位(operator/member/game/幣別)不重複存 — join accounting 取得</b>(比照 accounting_bonus;中獎稀疏,join 無負擔)</td></tr>
-          <tr><td class="f">pool_group_id / tier / round_id <span class="badge ix">IX(round_id)</span></td><td class="ty">VARCHAR(24) ×2 / TINYINT</td><td class="ds">所屬池、層、回合</td></tr>
+          <tr><td class="f">jackpot_group_id / round_id / tier <span class="badge ix">IX(round_id)</span></td><td class="ty">VARCHAR(36) / VARCHAR(24) / TINYINT</td><td class="ds">所屬池(UUID 36)、回合(ObjectId 24)、層</td></tr>
           <tr><td class="f">win_amount_usd_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">中獎金額(USD)= <b>本服務原子結算值</b>(server 為準);須併入 total win</td></tr>
           <tr><td class="f">win_amount_local_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">當地幣別金額(結算當下以 currency.fixed_rate 換算一次,不可重算)</td></tr>
           <tr><td class="f">pool_value_at_hit_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">結算當下池值(micro-cents 精度來源;對帳 Σ = sum_win,win_amount = 此值 ÷1e6 floor)</td></tr>
@@ -1030,13 +1020,13 @@
         </tbody></table></div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">jackpot_daily_increment</span><span></span></div>
+      <div class="thead"><span class="name">jackpot_daily_increment</span><span> <span class="badge new">DAL 已建</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
           <tr><td class="f">sn <span class="badge uq">PK</span></td><td class="ty">BIGINT UNSIGNED AI</td><td class="ds">自增序號(慣例)</td></tr>
-          <tr><td class="f">pool_group_id / tier / rate_date <span class="badge uq">UQ(pool,tier,rate_date)</span></td><td class="ty">VARCHAR(24) / TINYINT / DATE</td><td class="ds">UNIQUE 冪等;rate_date 為 UTC 日界</td></tr>
+          <tr><td class="f">jackpot_group_id / tier / rate_date <span class="badge uq">UQ(group,tier,rate_date)</span></td><td class="ty">VARCHAR(36) / TINYINT / DATE</td><td class="ds">UNIQUE 冪等;rate_date 為 UTC 日界</td></tr>
           <tr><td class="f">source_turnover_cents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">前一日 turnover(USD cents);以 currency.fixed_rate 換算(無版本欄位;需追溯由 currency 側記時間)</td></tr>
           <tr><td class="f">increment_microcents</td><td class="ty">BIGINT UNSIGNED</td><td class="ds">當日總增量 = turnover × 累積速率(contribution_rate)</td></tr>
-          <tr><td class="f">created_at</td><td class="ty">DATETIME</td><td class="ds">UTC</td></tr>
+          <tr><td class="f">created_at</td><td class="ty">TIMESTAMP</td><td class="ds">UTC</td></tr>
         </tbody></table></div>
       <div class="tbl-note">本服務 DailyIncrementJob 每日落帳(UQ 冪等、可重算錨點);當日總增量交 PoolTicker 盤中按排程規則分次注入 Valkey input(注入進度另記防重)。留 OceanBase:對帳不變量 Σ 的錨點,與 round/win 同庫做 DB 側加總</div>
     </div>
@@ -1050,138 +1040,185 @@
     <div class="tbl wide">
       <div class="thead"><span class="name">jackpot_pool_snapshot</span><span> <span class="badge new">移 MongoDB(同事 review)</span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">_id</td><td class="ty">ObjectId</td><td class="ds">Mongo 預設;查詢用複合索引 (pool_group_id, tier, snapshot_at)</td></tr>
-          <tr><td class="f">pool_group_id / tier / snapshot_at <span class="badge uq">UQ index</span></td><td class="ty">string / int / Date</td><td class="ds">唯一索引(冪等);另建 <b>TTL index</b>(snapshot_at,如 90 天)自動清舊</td></tr>
+          <tr><td class="f">_id</td><td class="ty">ObjectId</td><td class="ds">Mongo 預設;查詢用複合索引 (jackpot_group_id, tier, snapshot_at)</td></tr>
+          <tr><td class="f">jackpot_group_id / tier / snapshot_at <span class="badge uq">UQ index</span></td><td class="ty">string / int / Date</td><td class="ds">唯一索引(冪等);另建 <b>TTL index</b>(snapshot_at,如 90 天)自動清舊</td></tr>
           <tr><td class="f">round_id / value_microcents / quota_remaining</td><td class="ty">string / long / int</td><td class="ds">所屬回合、合成池值(exhausted 由 quota≤0 推導)、剩餘名額</td></tr>
         </tbody></table></div>
       <div class="tbl-note">兼作後台「彩金滾動紀錄」頁(260701-3,每分鐘一筆 ≈ 每 pool×tier 每日 1,440 筆 — TTL 解保留期)+ 恢復加速;權威仍是 round / daily_increment / accounting_jackpot。本服務直寫直讀(不經 DAL)</div>
     </div>
     </div>
   </div>
+
+  <div class="card" style="margin-top:22px;border-color:rgba(232,180,76,.45)">
+    <div class="eyebrow" style="color:var(--gold)">後台「彩金列表」的 x (n/m) 資料從哪來</div>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">
+      Figma 每格顯示 <code class="k">x (n/m)</code>。<b style="color:var(--text)">定案:後台只打 DAL 的 <code>GetJackpotGroupPageList</code> 一個入口</b>,DAL 自己合成整列 —— x/n 由 <b>DAL 直連 Valkey 查</b>、m 由 DAL 查 MySQL。後台不需分別打兩個服務。
+    </p>
+    <div class="twrap" style="margin-top:12px"><table class="sch" style="min-width:620px"><thead><tr><th>顯示</th><th>DAL 欄位</th><th>真值位置</th><th>DAL 取得方式</th></tr></thead><tbody>
+      <tr><td class="f">x</td><td class="ds">jackpot_balance</td><td class="ds"><b>Valkey</b> <code>input</code>+<code>state</code> 合成</td><td class="ds" rowspan="2"><b>DAL 直連 Valkey 查</b>(權威可重算:round.seed/watermark + Σ daily_increment / quota_at_open − count(win))</td></tr>
+      <tr><td class="f">n</td><td class="ds">remaining_quantity</td><td class="ds"><b>Valkey</b> <code>state.quota_remaining</code></td></tr>
+      <tr><td class="f">m</td><td class="ds">total_quantity</td><td class="ds"><b>MySQL</b> <code>jackpot_group_setting.quantity</code></td><td class="ds">DAL 查 MySQL</td></tr>
+    </tbody></table></div>
+    <p style="font-size:12.5px;color:var(--danger);margin-top:10px">
+    </p>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:12px">
+      <b style="color:var(--text)">與 Figma 規則的對應</b>:①「不需主動刷新,重新查詢/重整即可」→ <b>pull 模式,後台不需要 SSE</b>(SSE 只服務玩家端池值滾動);②「n ≤ 0 顯紅字」↔ 本設計 quota 為<b>軟限流可為負</b>(同時中獎允許超發),語意一致 ✓;③「未使用的等級顯示 −」↔ 該 tier 無 setting 列(<code>jackpot_group.tier_list</code> 未含);④「[重置] 後 n 更新為指定值」↔ <code>RotateJackpotRound</code> 帶 <code>quota_remaining_at_open</code>(server 驗證不可 &gt; m)。
+    </p>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:8px">
+      <b style="color:var(--danger)">⚠ Figma 與會議定案衝突(Figma 自標「待確認」)</b>:Figma 寫「編輯 m 後若 n&gt;m,自動將 n 更新為 m」(= 會議選項 <b>a</b>),但 260715 會議紅字定案為選項 <b>c</b>「設定 m 時直接限制下拉選單 max 不可 &lt; n」— 採 c 則此情境從源頭不會發生,該句可刪。需與 PM 確認以何者為準。
+    </p>
+    <p style="font-size:12.5px;color:var(--muted);margin-top:8px">
+      <b style="color:var(--text)">災難兜底</b>:Valkey 全失時,x/n 由 OceanBase 重算(round + daily_increment + accounting_jackpot);重算期間後台可先顯示 MongoDB 最近一筆快照值並標示「非即時」。
+    </p>
+  </div>
 </section>
 
 <!-- ============ P6 gRPC 契約 ============ -->
 <section class="page" id="p6" data-title="gRPC 契約">
-  <div class="eyebrow">Chapter 06 — DAL Contract(jackpot.proto・v4)</div>
-  <h2 class="page-title">14 個 rpc,外加一項跨服務 credit 契約缺口</h2>
-  <p class="lede">共 <b style="color:var(--text)">14 rpc</b>,慣例對齊 campaign.proto:<span class="k">proto.v1</span>、寫入帶 <span class="k">idempotency_key</span>、狀態變更走 CAS、列表用 <span class="k">page_token/page_size</span> 分頁。snapshot 走 MongoDB 本服務直連、FX 讀既有 currency 資料,皆不在本契約。<b style="color:var(--danger)">另需 GS↔DAL 的 credit 事件補「accounting_id + win_id + tier」欄位</b>(非本契約、屬 GameService.Credit,待 GS/DAL 確認)。</p>
+  <div class="eyebrow">Chapter 06 — DAL Contract(對照 Valhalla 實作・2026-07-21)</div>
+  <h2 class="page-title">後台 8 支 DAL 已建;data-plane 8 支待建</h2>
+  <p class="lede">已比對 Valhalla <code>Urd/proto/v1/</code> 真實 proto(main @ e39fda6)。<b style="color:var(--text)">後台 config-plane 8 支 DAL 已建</b>(<code>JackpotGroupService</code> 6 + <code>CurrencyService</code> 2),結構與本服務原提案不同(見下對照);<b style="color:var(--text)">data-plane(結算/對帳)8 支 DAL 尚未建</b>,Billy:「後台先串,有問題再說」。<b style="color:var(--danger)">另需 GS↔DAL 的 credit 補「accounting_id + win_id + tier」</b>(屬 GameService.Credit,待確認)。</p>
   <div class="divider"></div>
 
-  <div class="grp-h"><h3>Config 讀</h3><span class="cnt">1 rpc</span><span class="gd">同步與查詢,無副作用;FX 讀既有 currency.fixed_rate(非本契約)</span></div>
+  <div class="card" style="border-color:rgba(232,180,76,.45)">
+    <div class="eyebrow" style="color:var(--gold)">本服務原提案 → DAL 實作 對照</div>
+    <div class="twrap" style="margin-top:10px"><table class="sch" style="min-width:680px"><thead><tr><th>本服務原提案</th><th>DAL 實作(已建)</th><th>差異</th></tr></thead><tbody>
+      <tr><td class="f">SyncJackpotGroups</td><td class="ds">GetJackpotGroupPageList / GetJackpotGroup</td><td class="ds">無 bulk sync;JP Service 啟動載入改用這些(或請 DAL 補一支)</td></tr>
+      <tr><td class="f">UpsertJackpotGroup + GroupGame + GroupSetting(3 支)</td><td class="ds"><b>UpsertJackpotGroup</b>(1 支)</td><td class="ds">DAL 合併:一張編輯表單一次全覆蓋 group+game+tier 設定</td></tr>
+      <tr><td class="f">UpsertJackpotGroupOperator</td><td class="ds">UpsertJackpotGroupOperatorTier</td><td class="ds">改名(+ 配 GetJackpotGroupOperatorTier 讀)</td></tr>
+      <tr><td class="f">(彩金列表 x/n/m,原放 JP Service API)</td><td class="ds"><b>GetJackpotGroupPageList</b></td><td class="ds">DAL 建進 response;x/n 由 DAL 直連 Valkey 查、m 查 MySQL(定案)</td></tr>
+      <tr><td class="f">FX「非本契約」</td><td class="ds">CurrencyService.GetCurrencyFixedRatePageList / UpdateCurrencyFixedRate</td><td class="ds">DAL 有建固定匯率管理 rpc</td></tr>
+      <tr><td class="f">—</td><td class="ds">GetJackpotGroup / GetJackpotGroupOperatorTier / AnyJackpotGroup</td><td class="ds">DAL 新增:讀出供編輯 + 唯一性防呆檢查</td></tr>
+      <tr><td class="f">Round 2 / Win 2 / 素材對帳 4(共 8)</td><td class="ds"><b style="color:var(--danger)">尚未建</b></td><td class="ds">data-plane;DAL「後台先串」→ 下列為本服務規劃契約,待 DAL 實作</td></tr>
+    </tbody></table></div>
+  </div>
+  <div style="height:18px"></div>
+
+  <div class="grp-h"><h3>後台 · 群組設定</h3><span class="cnt">6 rpc・DAL 已建</span><span class="gd"><span class="callr bo">後台</span>Valhalla <code>JackpotGroupService</code>(Urd/proto/v1/jackpot_group.proto);Get 讀出供編輯、Upsert 全覆蓋寫入</span></div>
   <details class="rpcd">
-    <summary>SyncJackpotPools <span class="snote">pool 完整設定一次同步;operator_settings 含 disabled 列(v1.3 吸收 ListJackpotOperatorSettings)</span></summary>
+    <summary><span class="callr bo">後台</span>GetJackpotGroup <span class="snote">DAL 已建 — 讀單一群組供編輯(含子表)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">statuses</td><td class="ty">repeated uint32</td><td class="ds">過濾 pool 狀態;空 = 全部</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">string</td><td class="ds">目標群組</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pools</td><td class="ty">repeated JackpotPoolItem</td><td class="ds">pool + games + operator_settings(含 enabled flag)+ 各 tier 最新 config。⚠ operator 數大時全量內嵌會撞 timeout(260715-記錄 4)→ operator_settings 需支援 page_token 分段拉取</td></tr>
-        </tbody></table></div>
-    </div>
-  </details>
-    <div class="grp-h"><h3>Config 寫</h3><span class="cnt">4 rpc</span><span class="gd">Backoffice → 本服務 → DAL;皆帶 idempotency_key;稽核由 DAL 原子附帶</span></div>
-  <details class="rpcd">
-    <summary>UpsertJackpotPoolGroup <span class="snote">建池 / 改名 / CAS 狀態(v1.3 合併 Create + UpdateStatus)</span></summary>
-    <div class="body">
-      <div class="msg-h">REQUEST</div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">client 端產 ObjectId(campaign 慣例)</td></tr>
-          <tr><td class="f">name</td><td class="ty">optional string</td><td class="ds">建立時必填;既有池提供 = 改名</td></tr>
-          <tr><td class="f">to_status</td><td class="ty">optional uint32</td><td class="ds">提供 = CAS 狀態轉移</td></tr>
-          <tr><td class="f">expected_status</td><td class="ty">optional uint32</td><td class="ds">CAS 預期現值</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">稽核歸屬(v1.3.1)</td></tr>
-        </tbody></table></div>
-      <div class="msg-h">RESPONSE</div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">inserted</td><td class="ty">bool</td><td class="ds">true = 新建</td></tr>
-          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 已達目標或 CAS 失敗(非 error);<b style="color:var(--text)">全有全無</b>:CAS 失敗連改名都不套用。建立路徑 status = to_status ?? 0</td></tr>
-          <tr><td class="f">current_status</td><td class="ty">uint32</td><td class="ds">當前狀態</td></tr>
+          <tr><td class="f">id / name</td><td class="ty">string ×2</td><td class="ds">群組識別與名稱</td></tr>
+          <tr><td class="f">game_ids / tiers / operator_ids</td><td class="ty">repeated string / int32 / string</td><td class="ds">關聯遊戲、啟用層、關聯 operator</td></tr>
+          <tr><td class="f">tier_items</td><td class="ty">repeated JackpotGroupTierItem</td><td class="ds">各層設定:tier/version/seed_cents/pool_cap_cents/contribution_rate(double)/min_contributing_floor_cents/quantity</td></tr>
         </tbody></table></div>
     </div>
   </details>
   <details class="rpcd">
-    <summary>UpsertJackpotGameMapping <span class="snote">full-set replace;跨池衝突整批拒絕</span></summary>
+    <summary><span class="callr bo">後台</span>UpsertJackpotGroup <span class="snote">DAL 已建 — 建立(id 空)/更新(id 有值,全覆蓋含 game/tier 子表)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
-          <tr><td class="f">game_ids</td><td class="ty">repeated string</td><td class="ds">完整集合 — 未列出的既有對應將被刪除</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">稽核歸屬(v1.3.1)</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">string</td><td class="ds">空 = 建立;有值 = 更新該群組(全部覆蓋)</td></tr>
+          <tr><td class="f">name / game_ids / tiers / operator_ids</td><td class="ty">string / repeated ×3</td><td class="ds">群組主檔 + 三個子集合</td></tr>
+          <tr><td class="f">tier_items</td><td class="ty">repeated JackpotGroupTierItem</td><td class="ds">各層設定(seed/cap/rate/floor/quantity)</td></tr>
+          <tr><td class="f">creator_id / updater_id</td><td class="ty">string ×2</td><td class="ds">建立寫 creator、更新寫 updater</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">upserted_count</td><td class="ty">int32</td><td class="ds">新增/維持筆數</td></tr>
-          <tr><td class="f">removed_count</td><td class="ty">int32</td><td class="ds">移除筆數</td></tr>
-          <tr><td class="f">conflicted_game_ids</td><td class="ty">repeated string</td><td class="ds">已屬其他 pool 的 game;非空 = 整批拒絕</td></tr>
+          <tr><td class="f">success / id</td><td class="ty">bool / string</td><td class="ds">成功旗標與群組 id</td></tr>
+        </tbody></table></div>
+      <p class="rpc-note" style="font-size:12px;color:var(--muted);margin-top:8px">對照本服務原提案:此一支<b>合併</b>了原 UpsertJackpotGroup + UpsertJackpotGroupGame + UpsertJackpotGroupSetting 三支(後台一張編輯表單一次存)。full-set replace;game 唯一性由 DB UNIQUE + AnyJackpotGroup 前置檢查把關。</p>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary><span class="callr bo">後台</span>GetJackpotGroupOperatorTier <span class="snote">DAL 已建 — 讀該群組的 operator×tier RTP 供編輯</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">jackpot_group_id / currency_sns / operator_ids</td><td class="ty">string / repeated int32 / repeated string</td><td class="ds">群組 + 篩選條件</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">operator_tiers_rtps</td><td class="ty">repeated JackpotGroupOperatorTierItem</td><td class="ds">每 operator 一組:operator_id + tier_items[]{tier, rtp(double)}</td></tr>
         </tbody></table></div>
     </div>
   </details>
   <details class="rpcd">
-    <summary>SetJackpotOperatorEnabled <span class="snote">per-operator 開關</span></summary>
+    <summary><span class="callr bo">後台</span>UpsertJackpotGroupOperatorTier <span class="snote">DAL 已建 — 寫 operator×tier RTP(= 本服務原提案的 UpsertJackpotGroupOperator,改名)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
-          <tr><td class="f">operator_id</td><td class="ty">string</td><td class="ds">operator</td></tr>
-          <tr><td class="f">enabled</td><td class="ty">bool</td><td class="ds">開/關</td></tr>
-          <tr><td class="f">rtp_ppm_by_tier</td><td class="ty">map&lt;uint32,uint32&gt;</td><td class="ds">v4:RTP by operator×獎項(餵 GE)。批次設定量大時注意 timeout</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">後台操作者(稽核歸屬)</td></tr>
+          <tr><td class="f">operator_tiers_rtps</td><td class="ty">repeated JackpotGroupOperatorTierItem</td><td class="ds">批次寫入多 operator 的各層 RTP</td></tr>
+          <tr><td class="f">updater_id</td><td class="ty">string</td><td class="ds">操作者</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 已是目標值</td></tr>
+          <tr><td class="f">success</td><td class="ty">bool</td><td class="ds">成功旗標</td></tr>
         </tbody></table></div>
     </div>
   </details>
   <details class="rpcd">
-    <summary>UpsertJackpotConfig <span class="snote">開新版 config(server 端 allowlist 驗證)</span></summary>
+    <summary><span class="callr bo">後台</span>AnyJackpotGroup <span class="snote">DAL 已建 — 名稱/遊戲唯一性防呆前置檢查</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">idempotency_key</td><td class="ty">string</td><td class="ds">冪等鍵</td></tr>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">目標池</td></tr>
-          <tr><td class="f">tier</td><td class="ty">JackpotTier</td><td class="ds">層</td></tr>
-          <tr><td class="f">contribution_rate_ppm</td><td class="ty">uint32</td><td class="ds">累積速率 ppm(入池;原 rtp_ppm)</td></tr>
-          <tr><td class="f">min_per_day_cents</td><td class="ty">uint64</td><td class="ds">最低每日累積 floor</td></tr>
-          <tr><td class="f">roll_range_json</td><td class="ty">optional string</td><td class="ds">PoolTicker 盤中滾動 range</td></tr>
-          <tr><td class="f">reset_min_cents</td><td class="ty">uint64</td><td class="ds">seed</td></tr>
-          <tr><td class="f">reset_threshold_cents</td><td class="ty">uint64</td><td class="ds">硬上限 cap</td></tr>
-          <tr><td class="f">win_count_quota</td><td class="ty">uint32</td><td class="ds">中獎名額(軟限流)。server 端驗證:<b>不可 &lt; 現行剩餘 n</b>(260715-5c 定案,後台下拉同步限制)。<b>RTP 不在此</b> → SetJackpotOperatorEnabled(by operator×tier)</td></tr>
-          <tr><td class="f">updated_by</td><td class="ty">string</td><td class="ds">後台操作者</td></tr>
+          <tr><td class="f">name / game_ids</td><td class="ty">string / repeated string</td><td class="ds">檢查是否已有群組用此名稱或綁這些 game</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">new_version</td><td class="ty">uint32</td><td class="ds">新版本號;重複呼叫回相同值</td></tr>
+          <tr><td class="f">any</td><td class="ty">bool</td><td class="ds">true = 已存在(擋建立);對應「一 game 一 pool」防呆</td></tr>
         </tbody></table></div>
     </div>
   </details>
-    <div class="grp-h"><h3>Audit</h3><span class="cnt">1 rpc</span><span class="gd">v1.3.1:僅 7 個 rpc 受稽核(config 5 寫同交易原子;round 2 rpc 帶 operator 時跨庫 best-effort);data-plane 排除;僅於狀態實際變更時寫入</span></div>
   <details class="rpcd">
-    <summary>ListJackpotAdminAudits <span class="snote">稽核檢視(唯一的 audit rpc)</span></summary>
+    <summary><span class="callr bo">後台</span>GetJackpotGroupPageList <span class="snote">DAL 已建 — 後台「彩金列表」分頁(即 Ch05 的 x/n/m 來源)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">空 = 全部(含 fx_update 等 pool 無關列)</td></tr>
-          <tr><td class="f">action</td><td class="ty">optional string</td><td class="ds">動作過濾(= rpc 名)</td></tr>
-          <tr><td class="f">from / to</td><td class="ty">optional Timestamp</td><td class="ds">時間範圍</td></tr>
-          <tr><td class="f">page_token</td><td class="ty">string</td><td class="ds">分頁游標</td></tr>
-          <tr><td class="f">page_size</td><td class="ty">uint32</td><td class="ds">每頁筆數</td></tr>
+          <tr><td class="f">name / game_ids / operator_ids</td><td class="ty">string / repeated ×2</td><td class="ds">搜尋條件</td></tr>
+          <tr><td class="f">page / page_size</td><td class="ty">int32 ×2</td><td class="ds">分頁</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">items</td><td class="ty">repeated JackpotAdminAudit</td><td class="ds">稽核列表</td></tr>
-          <tr><td class="f">next_page_token</td><td class="ty">string</td><td class="ds">下一頁游標</td></tr>
+          <tr><td class="f">results</td><td class="ty">repeated JackpotGroupPageListItem</td><td class="ds">每列:群組 + operator_names + tier_info_items[]</td></tr>
+          <tr><td class="f">tier_info_items[]</td><td class="ty">message</td><td class="ds">tier + <b>jackpot_balance(x)</b> + <b>remaining_quantity(n)</b> + <b>total_quantity(m)</b></td></tr>
+          <tr><td class="f">row_count / current_page / page_size / page_count</td><td class="ty">分頁資訊</td><td class="ds"></td></tr>
+        </tbody></table></div>
+      <p class="rpc-note" style="font-size:12px;color:var(--muted);margin-top:8px">定案:<code>jackpot_balance(x)</code> 與 <code>remaining_quantity(n)</code> 由 <b>DAL 直連 Valkey 查</b>(Valkey 全損時可由 OceanBase round + daily_increment + accounting_jackpot 重算);<code>total_quantity(m)</code> 查 MySQL。後台一支打通,見 Ch05 卡。</p>
+    </div>
+  </details>
+
+  <div class="grp-h"><h3>後台 · 固定匯率</h3><span class="cnt">2 rpc・DAL 已建</span><span class="gd"><span class="callr bo">後台</span>Valhalla <code>CurrencyService</code>(currency.proto,平台既有服務);jackpot 只用固定匯率這 2 支</span></div>
+  <details class="rpcd">
+    <summary><span class="callr bo">後台</span>GetCurrencyFixedRatePageList <span class="snote">DAL 已建 — 幣別固定匯率分頁(後台「幣別設定-固定匯率」頁)</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">code / enabled / page / page_size</td><td class="ty">optional string / optional bool / int32 ×2</td><td class="ds">搜尋 + 分頁</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">results[]</td><td class="ty">CurrencyFixedRatePageListItem</td><td class="ds">sn / code / rate / <b>fixed_rate</b>(double)/ enabled / 建立更新軌跡</td></tr>
+        </tbody></table></div>
+      <p class="rpc-note" style="font-size:12px;color:var(--muted);margin-top:8px">本服務貢獻/派彩換算讀的就是這個 <code>fixed_rate</code>(double,單一欄雙向用)。取代原設計自建 jackpot_fx_rate。</p>
+    </div>
+  </details>
+  <details class="rpcd">
+    <summary><span class="callr bo">後台</span>UpdateCurrencyFixedRate <span class="snote">DAL 已建 — 更新單一幣別固定匯率</span></summary>
+    <div class="body">
+      <div class="msg-h">REQUEST</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">sn / fixed_rate</td><td class="ty">uint32 / double</td><td class="ds">幣別 + 新固定匯率</td></tr>
+        </tbody></table></div>
+      <div class="msg-h">RESPONSE</div>
+      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
+          <tr><td class="f">(空)</td><td class="ty">—</td><td class="ds">UpdateCurrencyFixedRateResponse 無欄位</td></tr>
         </tbody></table></div>
     </div>
   </details>
-  <div class="grp-h"><h3>Round 狀態機</h3><span class="cnt">2 rpc</span><span class="gd">Jackpot service 專用;關舊 + 開新併為單交易(消滅「關了沒開」中間態)</span></div>
+
+  <div class="grp-h"><h3>Data-plane(結算/對帳)</h3><span class="cnt">8 rpc・DAL 尚未建</span><span class="gd"><span class="callr svc">Jackpot Service</span>本服務 ↔ DAL runtime 提案;DAL「後台先串」故這批待建。下列為本服務規劃契約</span></div>
+
+    <div class="grp-h"><h3>Round 狀態機</h3><span class="cnt">2 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Jackpot Service 運行;Rotate 另供後台手動重置(關舊+開新單交易,消滅「關了沒開」中間態)</span></div>
   <details class="rpcd">
-    <summary>RotateJackpotRound <span class="snote">關舊回合 + 開新回合,單 DB 交易原子(併原 Create + Close);真中獎 / 撞頂 / 手動 reset 三情境共用</span></summary>
+    <summary><span class="callr both">後台+JP Service</span>RotateJackpotRound <span class="snote">關舊回合 + 開新回合,單 DB 交易原子(併原 Create + Close);真中獎 / 撞頂 / 手動 reset 三情境共用</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
@@ -1190,7 +1227,7 @@
           <tr><td class="f">close_to_status</td><td class="ty">optional uint32</td><td class="ds">2=hit(含撞頂)、3=closed(manual reset);CAS expected = 1(open)</td></tr>
           <tr><td class="f">clamp_overflow_microcents</td><td class="ty">optional uint64</td><td class="ds">撞頂溢出(對帳項,記在被關回合)</td></tr>
           <tr><td class="f">new_round_id</td><td class="ty">string</td><td class="ds">新回合 ObjectId</td></tr>
-          <tr><td class="f">pool_group_id / tier</td><td class="ty">string / JackpotTier</td><td class="ds">池與層</td></tr>
+          <tr><td class="f">jackpot_group_id / tier</td><td class="ty">string / JackpotTier</td><td class="ds">池與層</td></tr>
           <tr><td class="f">round_seq</td><td class="ty">uint32</td><td class="ds">新回合序號;UNIQUE(pool,tier,seq) 防重</td></tr>
           <tr><td class="f">seed_microcents</td><td class="ty">uint64</td><td class="ds">新回合 seed(撞頂含溢位;config 無版本,不再記 config_version)</td></tr>
           <tr><td class="f">opened_increment_watermark_microcents</td><td class="ty">uint64</td><td class="ds">池值合成錨點</td></tr>
@@ -1201,15 +1238,15 @@
           <tr><td class="f">applied</td><td class="ty">bool</td><td class="ds">false = 舊回合已非 open 或 seq 已存在(重試/重複呼叫,視為成功)</td></tr>
           <tr><td class="f">round_id</td><td class="ty">string</td><td class="ds">恆為當前有效 open 回合 id(新建或既有)</td></tr>
         </tbody></table></div>
-      <p style="font-size:12px;color:var(--muted);margin-top:8px">稽核:manual reset 情境由 DAL 於同交易寫 admin_audit(操作者從 audit 讀,round 表不另存 operator)。</p>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">稽核:manual reset 帶 operator,由 DAL 統一的後台稽核機制記錄(round 表不另存 operator)。</p>
     </div>
   </details>
   <details class="rpcd">
-    <summary>GetOpenJackpotRounds <span class="snote">恢復/啟動時取開放回合</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>GetOpenJackpotRounds <span class="snote">恢復/啟動時取開放回合</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">空 = 全部池</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">optional string</td><td class="ds">空 = 全部池</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
@@ -1217,9 +1254,9 @@
         </tbody></table></div>
     </div>
   </details>
-  <div class="grp-h"><h3>Win / 落帳</h3><span class="cnt">2 rpc</span><span class="gd">冪等鍵 = win_id;同步結算當場賠付,無 payout 狀態機</span></div>
+  <div class="grp-h"><h3>Win / 落帳</h3><span class="cnt">2 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Insert 由 Jackpot Service 結算時寫;<span class="callr bo">後台</span>List 後台中獎名單報表。冪等鍵 = win_id,無 payout 狀態機</span></div>
   <details class="rpcd">
-    <summary>InsertJackpotWin <span class="snote">中獎落帳(寫 accounting_jackpot 表);GE 上報帶 accounting_id/win_id;併入 total win;UNIQUE 防重上報</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>InsertJackpotWin <span class="snote">中獎落帳(寫 accounting_jackpot 表);GE 上報帶 accounting_id/win_id;併入 total win;UNIQUE 防重上報</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
@@ -1234,11 +1271,11 @@
     </div>
   </details>
     <details class="rpcd">
-    <summary>ListJackpotWins <span class="snote">後台中獎名單報表(寫入 accounting_jackpot 表;身分欄位 join accounting 取得)</span></summary>
+    <summary><span class="callr bo">後台</span>ListJackpotWins <span class="snote">後台中獎名單報表(寫入 accounting_jackpot 表;身分欄位 join accounting 取得)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">optional string</td><td class="ds">卡單掃描可空 = 跨池</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">optional string</td><td class="ds">卡單掃描可空 = 跨池</td></tr>
           <tr><td class="f">tier</td><td class="ty">optional JackpotTier</td><td class="ds">層</td></tr>
           <tr><td class="f">round_id</td><td class="ty">optional string</td><td class="ds">回合(quota 重算)</td></tr>
           <tr><td class="f">operator_id / member_id</td><td class="ty">optional string ×2</td><td class="ds">身分過濾</td></tr>
@@ -1252,13 +1289,13 @@
         </tbody></table></div>
     </div>
   </details>
-  <div class="grp-h"><h3>素材 / 對帳</h3><span class="cnt">4 rpc</span><span class="gd">DailyIncrementJob / Reconciliation;snapshot 在 MongoDB 由本服務直連</span></div>
+  <div class="grp-h"><h3>素材 / 對帳</h3><span class="cnt">4 rpc</span><span class="gd"><span class="callr svc">Jackpot Service</span>Jackpot Service 的 DailyIncrementJob / ReconciliationJob;GetDailyIncrements 另供後台「累積進度」頁</span></div>
   <details class="rpcd">
-    <summary>GetJackpotPoolDailyTurnover <span class="snote">昨日 turnover 彙總(by pool、交集過濾、+0 tz)— DailyIncrementJob 每日素材</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>GetJackpotPoolDailyTurnover <span class="snote">昨日 turnover 彙總(by pool、交集過濾、+0 tz)— DailyIncrementJob 每日素材</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池(DAL 依 game×operator 交集聚合)</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">string</td><td class="ds">池(DAL 依 game×operator 交集聚合)</td></tr>
           <tr><td class="f">date</td><td class="ty">string</td><td class="ds">YYYY-MM-DD(UTC 日界)</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
@@ -1268,7 +1305,7 @@
     </div>
   </details>
   <details class="rpcd">
-    <summary>UpsertJackpotDailyIncrement <span class="snote">v1.2 新增 — service 每日落帳</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>UpsertJackpotDailyIncrement <span class="snote">v1.2 新增 — service 每日落帳</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
@@ -1283,11 +1320,11 @@
     </div>
   </details>
   <details class="rpcd">
-    <summary>GetJackpotDailyIncrements <span class="snote">日增量區間查詢(重算/對帳)</span></summary>
+    <summary><span class="callr both">後台+JP Service</span>GetJackpotDailyIncrements <span class="snote">日增量區間查詢(重算/對帳)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
           <tr><td class="f">from_date / to_date</td><td class="ty">string ×2</td><td class="ds">日期區間</td></tr>
         </tbody></table></div>
       <div class="msg-h">RESPONSE</div>
@@ -1297,11 +1334,11 @@
     </div>
   </details>
       <details class="rpcd">
-    <summary>GetJackpotReconciliationSums <span class="snote">對帳不變量的 DB 側加總(全 microcents)</span></summary>
+    <summary><span class="callr svc">Jackpot Service</span>GetJackpotReconciliationSums <span class="snote">對帳不變量的 DB 側加總(全 microcents)</span></summary>
     <div class="body">
       <div class="msg-h">REQUEST</div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
+          <tr><td class="f">jackpot_group_id</td><td class="ty">string</td><td class="ds">池</td></tr>
           <tr><td class="f">tier</td><td class="ty">JackpotTier</td><td class="ds">層</td></tr>
           <tr><td class="f">round_id</td><td class="ty">optional string</td><td class="ds">空 = 全期間</td></tr>
         </tbody></table></div>
@@ -1316,7 +1353,7 @@
     </div>
   </details>
 
-  <div class="grp-h"><h3>共用 Message / Enum</h3><span class="gd">實體定義,rpc 間共用;欄位編號 gap-free,寫入 rpc 的 idempotency_key 固定為 field 1</span></div>
+  <div class="grp-h"><h3>共用 Message / Enum</h3><span class="gd">下列為 <b>data-plane 提案</b> rpc 共用實體;config-plane 的實體定義以上方 DAL 已建卡為準</span></div>
   <div class="tables-full">
     <div class="tbl">
       <div class="thead"><span class="name">enum JackpotTier</span><span></span></div>
@@ -1328,29 +1365,9 @@
         </tbody></table></div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">JackpotPoolItem</span><span></span></div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id / name / status</td><td class="ty">string ×2 / uint32</td><td class="ds">pool 基本資料</td></tr>
-          <tr><td class="f">game_ids</td><td class="ty">repeated string</td><td class="ds">交集條件之一</td></tr>
-          <tr><td class="f">operator_settings</td><td class="ty">repeated JackpotOperatorSetting</td><td class="ds">交集條件之二;含 disabled 列(v1.3)</td></tr>
-          <tr><td class="f">tier_configs</td><td class="ty">repeated JackpotTierConfig</td><td class="ds">每 tier 最新版 config</td></tr>
-          <tr><td class="f">updated_at</td><td class="ty">Timestamp</td><td class="ds">最後更新</td></tr>
-        </tbody></table></div>
-    </div>
-    <div class="tbl">
-      <div class="thead"><span class="name">JackpotTierConfig</span><span></span></div>
-      <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">tier</td><td class="ty">JackpotTier</td><td class="ds">層(config 就地更新、無版本)</td></tr>
-          <tr><td class="f">contribution_rate_ppm</td><td class="ty">uint32</td><td class="ds">累積速率 ppm(入池;RTP 移至 operator setting)</td></tr>
-          <tr><td class="f">min_per_day_cents / roll_range_json</td><td class="ty">uint64 / string</td><td class="ds">每日 floor / 盤中滾動 range</td></tr>
-          <tr><td class="f">reset_min_cents / reset_threshold_cents</td><td class="ty">uint64 ×2</td><td class="ds">seed / 硬上限 cap</td></tr>
-          <tr><td class="f">win_count_quota</td><td class="ty">uint32</td><td class="ds">中獎名額(軟限流)</td></tr>
-        </tbody></table></div>
-    </div>
-    <div class="tbl">
       <div class="thead"><span class="name">JackpotRound</span><span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">id / pool_group_id / tier / round_seq</td><td class="ty">string ×2 / JackpotTier / uint32</td><td class="ds">回合識別</td></tr>
+          <tr><td class="f">id / jackpot_group_id / tier / round_seq</td><td class="ty">string ×2 / JackpotTier / uint32</td><td class="ds">回合識別</td></tr>
           <tr><td class="f">seed_microcents</td><td class="ty">uint64</td><td class="ds">本回合 seed</td></tr>
           <tr><td class="f">opened_increment_watermark_microcents</td><td class="ty">uint64</td><td class="ds">合成錨點</td></tr>
           <tr><td class="f">quota_remaining_at_open</td><td class="ty">int32</td><td class="ds">quota 錨點</td></tr>
@@ -1360,9 +1377,9 @@
         </tbody></table></div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">JackpotWin(25 欄)</span><span></span></div>
+      <div class="thead"><span class="name">JackpotWin(→ accounting_jackpot)</span><span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">id(win_id)/ pool_group_id / tier / round_id</td><td class="ty">string ×3 / JackpotTier</td><td class="ds">識別與歸屬;id = 冪等鍵</td></tr>
+          <tr><td class="f">id(win_id)/ jackpot_group_id / tier / round_id</td><td class="ty">string ×3 / JackpotTier</td><td class="ds">識別與歸屬;id = 冪等鍵</td></tr>
           <tr><td class="f">accounting_id</td><td class="ty">string</td><td class="ds">觸發注單號(平台語彙);身分/遊戲/幣別 join accounting 取得,不入 message</td></tr>
           <tr><td class="f">win_amount_usd_cents / win_amount_local_cents</td><td class="ty">uint64 ×2</td><td class="ds">派彩金額(USD / 當地幣別,結算當下換算一次)</td></tr>
           <tr><td class="f">pool_value_at_hit_microcents</td><td class="ty">uint64</td><td class="ds">micro-cents 精度來源(對帳)</td></tr>
@@ -1372,17 +1389,15 @@
     <div class="tbl">
       <div class="thead"><span class="name">JackpotDailyIncrement</span><span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">pool_group_id / tier / rate_date</td><td class="ty">string / JackpotTier / string</td><td class="ds">冪等主鍵(rate_date = YYYY-MM-DD)</td></tr>
+          <tr><td class="f">jackpot_group_id / tier / rate_date</td><td class="ty">string / JackpotTier / string</td><td class="ds">冪等主鍵(rate_date = YYYY-MM-DD)</td></tr>
           <tr><td class="f">source_turnover_cents</td><td class="ty">uint64</td><td class="ds">昨日 turnover(USD cents,service 換算)</td></tr>
           <tr><td class="f">increment_microcents</td><td class="ty">uint64</td><td class="ds">當日總增量</td></tr>
         </tbody></table></div>
     </div>
     <div class="tbl">
-      <div class="thead"><span class="name">CurrencyTurnover / JackpotOperatorSetting / 其他</span><span></span></div>
+      <div class="thead"><span class="name">CurrencyTurnover</span><span></span></div>
       <div class="twrap"><table class="sch"><thead><tr><th>欄位</th><th>型態</th><th>說明</th></tr></thead><tbody>
-          <tr><td class="f">CurrencyTurnover</td><td class="ty">message</td><td class="ds">currency_sn int32・turnover_local_cents uint64・bet_count uint64</td></tr>
-          <tr><td class="f">JackpotOperatorSetting</td><td class="ty">message</td><td class="ds">pool_group_id・operator_id・enabled bool・rtp_ppm_by_tier map・updated_by・updated_at</td></tr>
-          <tr><td class="f">JackpotAdminAudit</td><td class="ty">message</td><td class="ds">id・action・pool_group_id・tier?・before_json・after_json・operator・created_at</td></tr>
+          <tr><td class="f">CurrencyTurnover</td><td class="ty">message</td><td class="ds">currency_sn int32・turnover_local_cents uint64・bet_count uint64(GetJackpotPoolDailyTurnover 用)</td></tr>
         </tbody></table></div>
     </div>
   </div>
@@ -1439,8 +1454,8 @@
     '兩條線:池值怎麼長大、一次中獎怎麼處理',
     '每日增量(累積速率)+ 盤中滾動 + 撞頂補 seed',
     'GE 判定誰中、Pool 原子結算多少',
-    '9 表:PK 慣例對齊、fx/payout_status 刪、snapshot 進 Mongo',
-    '14 rpc:FX/payout/snapshot 刪 + credit 缺口'
+    '8 表對齊真實 DB:jackpot_group 系列 + OB 帳本 + Mongo',
+    '對照 Valhalla:後台 8 支已建、data-plane 8 支待建'
   ];
 
   pages.forEach(function(p, i){
