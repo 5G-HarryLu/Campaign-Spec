@@ -75,6 +75,18 @@
   .card-jp:hover{border-color:#8a6c2e}
   .card-jp .tag{background:#2a2408;color:#e8b44c}
 
+  .card-5g .icon{background:#08222a;color:#22d3ee}
+  .card-5g:hover{border-color:#155e75}
+  .card-5g .tag{background:#08222a;color:#22d3ee}
+
+  .card-wrap{position:relative}
+  .card-wrap .card{height:100%;padding-bottom:56px}
+  .repo-link{
+    position:absolute;left:32px;bottom:22px;font-size:12px;color:#8b949e;
+    text-decoration:none;
+  }
+  .repo-link:hover{color:#22d3ee;text-decoration:underline}
+
   .status{
     display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;
     margin-bottom:20px;
@@ -224,6 +236,25 @@
     </div>
     <span class="arrow">→</span>
   </a>
+
+  <div class="card-wrap">
+    <a href="./5g-report/" class="card card-5g">
+      <div class="icon">🚉</div>
+      <div class="status"><span class="dot dot-live"></span>Production</div>
+      <div class="title">5g-report</div>
+      <div class="desc">
+        報表轉運站 — 從一筆注單到一張報表的資料旅程。
+        涵蓋 Kafka → 分/時/日/月聚合、roaring bitmap 去重、碎片階梯查詢與資料表圖鑑。
+      </div>
+      <div class="tags">
+        <span class="tag">Kafka CDC</span>
+        <span class="tag">OceanBase</span>
+        <span class="tag">Roaring Bitmap</span>
+      </div>
+      <span class="arrow">→</span>
+    </a>
+    <a class="repo-link" href="https://github.com/5G-HarryLu/data-aggregator" target="_blank" rel="noopener">GitHub · 5G-HarryLu/data-aggregator ↗</a>
+  </div>
 
 </div>
 
